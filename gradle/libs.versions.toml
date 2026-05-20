@@ -1,0 +1,32 @@
+[versions]
+analyze = "2.0.0"
+errorprone-core = "2.49.0"
+errorprone-plugin = "4.3.0"
+spotless = "8.4.0"
+spring-boot = "4.0.6"
+spring-dependency-management = "1.1.7"
+vaadin = "25.1.5"
+versions = "0.53.0"
+
+[libraries]
+google-error-prone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone-core" }
+jackson-databind-v2 = { module = "com.fasterxml.jackson.core:jackson-databind" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+postgresql = { module = "org.postgresql:postgresql" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-data-jpa-test = { module = "org.springframework.boot:spring-boot-starter-data-jpa-test" }
+spring-boot-starter-restclient = { module = "org.springframework.boot:spring-boot-starter-restclient" }
+spring-boot-starter-thymeleaf = { module = "org.springframework.boot:spring-boot-starter-thymeleaf" }
+spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
+spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
+vaadin-bom = { module = "com.vaadin:vaadin-bom", version.ref = "vaadin"}
+vaadin-spring-boot-starter = { module = "com.vaadin:vaadin-spring-boot-starter", version.ref = "vaadin"}
+
+[plugins]
+analyze = { id = "ca.cutterslade.analyze", version.ref = "analyze" }
+errorprone = { id = "net.ltgt.errorprone", version.ref = "errorprone-plugin" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+vaadin = { id = "com.vaadin", version.ref = "vaadin" }
+versions = { id = "com.github.ben-manes.versions", version.ref = "versions" }

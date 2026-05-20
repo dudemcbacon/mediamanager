@@ -1,4 +1,4 @@
-package report.butt.mediamanager.model;
+package report.butt.mediamanager.model.ombi;
 
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -151,7 +151,7 @@ public class OmbiMovieRequest implements Serializable {
   @JsonProperty("requestedByAlias")
   private Object requestedByAlias;
   @JsonProperty("requestedUser")
-  private OmbiUser requestedUser;
+  private User requestedUser;
   @JsonProperty("source")
   private Integer source;
   @JsonProperty("id")
@@ -601,12 +601,12 @@ public class OmbiMovieRequest implements Serializable {
   }
 
   @JsonProperty("requestedUser")
-  public OmbiUser getRequestedUser() {
+  public User getRequestedUser() {
     return requestedUser;
   }
 
   @JsonProperty("requestedUser")
-  public void setRequestedUser(OmbiUser requestedUser) {
+  public void setRequestedUser(User requestedUser) {
     this.requestedUser = requestedUser;
   }
 

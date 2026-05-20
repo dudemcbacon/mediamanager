@@ -1,7 +1,12 @@
 package report.butt.mediamanager.model;
 
+import java.time.Instant;
 import java.util.Objects;
 
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -13,8 +18,40 @@ public class MovieRequest {
   private String title;
   private Integer tmdbid;
   private Boolean ombiAvailable;
+
+  @Column(unique = true)
   private Integer ombiRequestId;
   private String ombiRequestStatus;
+  private String ombiUserName;
+
+  @Column(unique = true)
+  private Integer radarrRequestId;
+  private Boolean radarrHasFile;
+  private Boolean radarrMonitored;
+  private Boolean radarrIsAvailable;
+  private Integer radarrHistoryCount;
+  private Instant radarrLastSearched;
+
+  @Column(columnDefinition = "TEXT")
+  private String plexMetadataUrl;
+
+  private String plexMetadataId;
+  private Integer plexTmdbid;
+  private Long plexAddedAt;
+  private Long plexUpdatedAt;
+  private Integer plexMediaId;
+
+  @Column(columnDefinition = "TEXT")
+  private String plexMediaFilename;
+
+  private Long plexMediaSize;
+  private Long plexMediaDuration;
+
+  @CreationTimestamp
+  private Instant createdAt;
+
+  @UpdateTimestamp
+  private Instant updatedAt;
 
   MovieRequest() {
   }
@@ -76,6 +113,142 @@ public class MovieRequest {
     this.ombiRequestStatus = ombiRequestStatus;
   }
 
+  public String getOmbiUserName() {
+    return this.ombiUserName;
+  }
+
+  public void setOmbiUserName(String ombiUserName) {
+    this.ombiUserName = ombiUserName;
+  }
+
+  public Integer getRadarrRequestId() {
+    return this.radarrRequestId;
+  }
+
+  public void setRadarrRequestId(Integer radarrRequestId) {
+    this.radarrRequestId = radarrRequestId;
+  }
+
+  public Boolean getRadarrHasFile() {
+    return this.radarrHasFile;
+  }
+
+  public void setRadarrHasFile(Boolean radarrHasFile) {
+    this.radarrHasFile = radarrHasFile;
+  }
+
+  public Boolean getRadarrMonitored() {
+    return this.radarrMonitored;
+  }
+
+  public void setRadarrMonitored(Boolean radarrMonitored) {
+    this.radarrMonitored = radarrMonitored;
+  }
+
+  public Boolean getRadarrIsAvailable() {
+    return this.radarrIsAvailable;
+  }
+
+  public void setRadarrIsAvailable(Boolean radarrIsAvailable) {
+    this.radarrIsAvailable = radarrIsAvailable;
+  }
+
+  public Integer getRadarrHistoryCount() {
+    return this.radarrHistoryCount;
+  }
+
+  public void setRadarrHistoryCount(Integer radarrHistoryCount) {
+    this.radarrHistoryCount = radarrHistoryCount;
+  }
+
+  public Instant getRadarrLastSearched() {
+    return this.radarrLastSearched;
+  }
+
+  public void setRadarrLastSearched(Instant radarrLastSearched) {
+    this.radarrLastSearched = radarrLastSearched;
+  }
+
+  public String getPlexMetadataUrl() {
+    return this.plexMetadataUrl;
+  }
+
+  public void setPlexMetadataUrl(String plexMetadataUrl) {
+    this.plexMetadataUrl = plexMetadataUrl;
+  }
+
+  public String getPlexMetadataId() {
+    return this.plexMetadataId;
+  }
+
+  public void setPlexMetadataId(String plexMetadataId) {
+    this.plexMetadataId = plexMetadataId;
+  }
+
+  public Integer getPlexTmdbid() {
+    return this.plexTmdbid;
+  }
+
+  public void setPlexTmdbid(Integer plexTmdbid) {
+    this.plexTmdbid = plexTmdbid;
+  }
+
+  public Long getPlexAddedAt() {
+    return this.plexAddedAt;
+  }
+
+  public void setPlexAddedAt(Long plexAddedAt) {
+    this.plexAddedAt = plexAddedAt;
+  }
+
+  public Long getPlexUpdatedAt() {
+    return this.plexUpdatedAt;
+  }
+
+  public void setPlexUpdatedAt(Long plexUpdatedAt) {
+    this.plexUpdatedAt = plexUpdatedAt;
+  }
+
+  public Integer getPlexMediaId() {
+    return this.plexMediaId;
+  }
+
+  public void setPlexMediaId(Integer plexMediaId) {
+    this.plexMediaId = plexMediaId;
+  }
+
+  public String getPlexMediaFilename() {
+    return this.plexMediaFilename;
+  }
+
+  public void setPlexMediaFilename(String plexMediaFilename) {
+    this.plexMediaFilename = plexMediaFilename;
+  }
+
+  public Long getPlexMediaSize() {
+    return this.plexMediaSize;
+  }
+
+  public void setPlexMediaSize(Long plexMediaSize) {
+    this.plexMediaSize = plexMediaSize;
+  }
+
+  public Long getPlexMediaDuration() {
+    return this.plexMediaDuration;
+  }
+
+  public void setPlexMediaDuration(Long plexMediaDuration) {
+    this.plexMediaDuration = plexMediaDuration;
+  }
+
+  public Instant getCreatedAt() {
+    return this.createdAt;
+  }
+
+  public Instant getUpdatedAt() {
+    return this.updatedAt;
+  }
+
   @Override
   public int hashCode() {
     return Objects.hash(this.id, this.title, this.tmdbid);
@@ -83,6 +256,8 @@ public class MovieRequest {
 
   @Override
   public String toString() {
-    return "MovieRequest{id=" + this.id + ", title='" + this.title + "', role='" + this.tmdbid + "'}";
+    return String.format(
+        "MovieRequest{id=%s, title=%s, tmdbid=%d, ombiAvailable=%b, ombiRequestId=%d, omviRequestStatus=%s}", this.id,
+        this.title, this.tmdbid, this.ombiAvailable, this.ombiRequestId, this.ombiRequestStatus);
   }
 }

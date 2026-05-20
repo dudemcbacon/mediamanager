@@ -1,4 +1,4 @@
-package report.butt.mediamanager.model;
+package report.butt.mediamanager.model.ombi;
 
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -50,7 +50,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
     "accessFailedCount"
 })
 @Generated("jsonschema2pojo")
-public class OmbiUser implements Serializable {
+public class User implements Serializable {
 
   @JsonProperty("alias")
   private String alias;

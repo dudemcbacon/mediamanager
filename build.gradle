@@ -1,8 +1,15 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '4.0.6'
-	id 'io.spring.dependency-management' version '1.1.7'
+  id 'java'
+  alias(libs.plugins.vaadin)
+  alias libs.plugins.spring.boot
+  alias libs.plugins.spring.dependency.management
+  alias libs.plugins.analyze
+  alias libs.plugins.errorprone
+  alias libs.plugins.spotless
+  alias libs.plugins.versions
 }
+
+apply plugin: 'com.diffplug.spotless'
 
 group = 'report.butt'
 version = '0.0.1-SNAPSHOT'
@@ -14,20 +21,85 @@ java {
 }
 
 repositories {
+	mavenLocal()
 	mavenCentral()
+	maven { url = "https://maven.vaadin.com/vaadin-addons" }
+    maven { url "https://plugins.gradle.org/m2/" }
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-	implementation 'org.springframework.boot:spring-boot-starter-restclient'
-	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-	runtimeOnly 'org.postgresql:postgresql'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	implementation libs.jackson.databind.v2
+	implementation libs.spring.boot.starter.data.jpa
+	implementation libs.spring.boot.starter.restclient
+	implementation libs.spring.boot.starter.thymeleaf
+	implementation libs.spring.boot.starter.webmvc
+	implementation platform(libs.vaadin.bom)
+	implementation libs.vaadin.spring.boot.starter
+
+	runtimeOnly libs.postgresql
+
+	testImplementation libs.spring.boot.starter.data.jpa.test
+	testImplementation libs.spring.boot.starter.webmvc.test
+
+	testRuntimeOnly libs.junit.platform.launcher
+
+	errorprone libs.google.error.prone.core
+}
+
+vaadin {
+    frontendHotdeploy = true
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+spotless {
+    format 'misc', {
+        // define the files to apply `misc` to
+        target '*.gradle', '.gitattributes', '.gitignore'
+
+        // define the steps to apply to those files
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    java {
+        removeUnusedImports()
+        importOrder()
+
+        cleanthat().addMutator('SafeAndConsensual')
+
+        palantirJavaFormat().formatJavadoc(true)
+        formatAnnotations()
+        endWithNewline()
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.deprecation = true
+    options.compilerArgs += ['-Xlint:unchecked', '-XDaddTypeAnnotationsToSymbol=true']
+
+    options.errorprone.enabled = true
+    options.errorprone {
+        excludedPaths.set("(.*/build/generated/.*)")
+        // check("NullAway", CheckSeverity.ERROR)
+        // option("NullAway:AnnotatedPackages", "com.newrelic.farnsworth")
+        disable("Java8ApiChecker")
+        // AndroidJdkLibsChecker was removed in Error Prone 2.42.0+
+        disable("DefaultLocale")
+        disable("BooleanParameter")
+    }
+    options.errorprone.allDisabledChecksAsWarnings = true
+    options.errorprone.disableWarningsInGeneratedCode = true
+    // If you want error prone to dump a patch file, uncomment and set
+    // -XepPatchChecks to the checks you're interested in:
+    // options.errorprone.errorproneArgs = ["-XepPatchChecks:CheckedExceptionNotThrown,UnusedMethod,ThrowSpecificExceptions,SystemOut,UnnecessarilyVisible,UnnecessarilyFullyQualified,CatchingUnchecked,ConstantField,IdentifierName,InvalidParam,Var,FieldMissingNullable,UnnecessaryFinalParameterComment,MethodCanBeStatic,UnusedVariable,UnnecessaryFullQualified,YodaCondition", "-XepPatchLocation:/Users/bburnett/development/farnsworth"]
+
+    // Include to disable NullAway on test code
+    if (name.toLowerCase().contains("test")) {
+        options.errorprone {
+            // disable("NullAway")
+
+        }
+    }
 }
