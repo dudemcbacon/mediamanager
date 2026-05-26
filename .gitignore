@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+node_modules
+vite.generated.ts
+src/main/frontend

@@ -12,19 +12,17 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import report.butt.mediamanager.client.OmbiClient;
-import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.exceptions.MovieRequestNotFoundException;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.ombi.OmbiReprocessResponse;
-import report.butt.mediamanager.model.plex.PlexMedia;
-import report.butt.mediamanager.model.plex.PlexMetadata;
-import report.butt.mediamanager.model.plex.PlexPart;
-import report.butt.mediamanager.model.radarr.Movie;
 import report.butt.mediamanager.model.radarr.RadarrCommand;
 import report.butt.mediamanager.repository.MovieRequestRepository;
+import report.butt.mediamanager.service.MovieValidatorService;
+import report.butt.mediamanager.service.RefreshService;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -36,17 +34,27 @@ public class MovieController {
   private final MovieRequestRepository movieRequestRepository;
   private final OmbiClient ombiClient;
   private final RadarrClient radarrClient;
-  private final PlexClient plexClient;
   private final ObjectMapper objectMapper;
+  private final RefreshService refreshService;
+  private final MovieValidatorService movieValidatorService;
 
   @Autowired
   public MovieController(MovieRequestRepository movieRequestRepository, OmbiClient ombiClient,
-      RadarrClient radarrClient, PlexClient plexClient, ObjectMapper objectMapper) {
+      RadarrClient radarrClient, ObjectMapper objectMapper, RefreshService refreshService,
+      MovieValidatorService movieValidatorService) {
     this.movieRequestRepository = movieRequestRepository;
     this.ombiClient = ombiClient;
     this.radarrClient = radarrClient;
-    this.plexClient = plexClient;
     this.objectMapper = objectMapper;
+    this.refreshService = refreshService;
+    this.movieValidatorService = movieValidatorService;
+  }
+
+  @PostMapping("/movies/refresh-all")
+  public String refreshAll() {
+    log.info("Refresh-all request");
+    refreshService.refreshAll();
+    return "redirect:/movies";
   }
 
   @PostMapping("/movies/search-missing")
@@ -107,65 +115,68 @@ public class MovieController {
   @PostMapping("/movies/{id}/refresh")
   public String refresh(@PathVariable Long id) {
     log.info("Refresh request for movie request {}", id);
+    refreshService.refreshOne(id);
+    return "redirect:/movies";
+  }
+
+  @PostMapping("/movies/{id}/validate")
+  public String validate(@PathVariable Long id) {
+    log.info("Validate request for movie request {}", id);
+    MovieRequest movieRequest = movieRequestRepository.findById(id)
+        .orElseThrow(() -> new MovieRequestNotFoundException(id));
+    movieValidatorService.validate(movieRequest);
+    return "redirect:/movies";
+  }
+
+  @PostMapping("/movies/validate-all")
+  public String validateAll() {
+    log.info("Validate-all request");
+    movieRequestRepository.findAll().forEach(movieValidatorService::validate);
+    return "redirect:/movies";
+  }
+
+  @PostMapping("/movies/{id}/search-one")
+  public String searchOne(@PathVariable Long id) {
+    log.info("Search request for movie request {}", id);
     MovieRequest movieRequest = movieRequestRepository.findById(id)
         .orElseThrow(() -> new MovieRequestNotFoundException(id));
 
-    Integer ombiRequestId = movieRequest.getOmbiRequestId();
-    ombiClient.getMovies().stream()
-        .filter(m -> ombiRequestId.equals(m.getId()))
-        .findFirst()
-        .ifPresent(ombiMovie -> {
-          movieRequest.setTitle(ombiMovie.getTitle());
-          movieRequest.setTmdbid(ombiMovie.getTheMovieDbId());
-          movieRequest.setOmbiAvailable(ombiMovie.getAvailable());
-          movieRequest.setOmbiRequestStatus(ombiMovie.getRequestStatus());
-          movieRequest.setOmbiUserName(ombiMovie.getRequestedUser() == null ? null : ombiMovie.getRequestedUser().getUserName());
-        });
-
-    List<Movie> radarrMovies = radarrClient.getMoviesByTmdbId(movieRequest.getTmdbid());
-    if (!radarrMovies.isEmpty()) {
-      Movie radarrMovie = radarrMovies.get(0);
-      movieRequest.setRadarrRequestId(radarrMovie.getId());
-      movieRequest.setRadarrHasFile(radarrMovie.getHasFile());
-      movieRequest.setRadarrMonitored(radarrMovie.getMonitored());
-      movieRequest.setRadarrIsAvailable(radarrMovie.getIsAvailable());
-      movieRequest.setRadarrHistoryCount(radarrClient.getMovieHistory(radarrMovie.getId()).size());
-
-      try {
-        var plexResult = plexClient.getMovieByTmdbId(radarrMovie.getTmdbId(), radarrMovie.getTitle(), radarrMovie.getYear());
-        movieRequest.setPlexMetadataUrl(plexResult.url());
-        PlexMetadata plexMetadata = plexResult.metadata();
-        if (plexMetadata != null) {
-          movieRequest.setPlexMetadataId(plexMetadata.getRatingKey());
-          movieRequest.setPlexAddedAt(plexMetadata.getAddedAt());
-          movieRequest.setPlexUpdatedAt(plexMetadata.getUpdatedAt());
-          if (plexMetadata.getGuids() != null) {
-            plexMetadata.getGuids().stream()
-                .map(g -> g.getId())
-                .filter(gid -> gid != null && gid.startsWith("tmdb://"))
-                .map(gid -> gid.substring("tmdb://".length()))
-                .mapToInt(Integer::parseInt)
-                .findFirst()
-                .ifPresent(movieRequest::setPlexTmdbid);
-          }
-          if (plexMetadata.getMedia() != null && !plexMetadata.getMedia().isEmpty()) {
-            PlexMedia media = plexMetadata.getMedia().get(0);
-            movieRequest.setPlexMediaId(media.getId());
-            movieRequest.setPlexMediaDuration(media.getDuration());
-            if (media.getPart() != null && !media.getPart().isEmpty()) {
-              PlexPart part = media.getPart().get(0);
-              movieRequest.setPlexMediaFilename(part.getFile());
-              movieRequest.setPlexMediaSize(part.getSize());
-            }
-          }
-        }
-      } catch (Exception e) {
-        log.warn("Plex lookup failed during refresh for movie request {} ({})", id, movieRequest.getTitle(), e);
-      }
+    Integer radarrRequestId = movieRequest.getRadarrRequestId();
+    if (radarrRequestId == null) {
+      log.warn("MovieRequest {} ({}) has no radarrRequestId; skipping search", id, movieRequest.getTitle());
+      return "redirect:/movies";
     }
 
+    RadarrCommand command = radarrClient.searchMovies(List.of(radarrRequestId));
+    log.info("Radarr command {} ({}) status={} result={}", command.getId(), command.getCommandName(),
+        command.getStatus(), command.getResult());
+
+    movieRequest.setRadarrLastSearched(Instant.now());
     movieRequestRepository.save(movieRequest);
-    log.info("MovieRequest {} ({}) refreshed.", id, movieRequest.getTitle());
+    return "redirect:/movies";
+  }
+
+  @PostMapping("/movies/search-all")
+  public String searchAll() {
+    log.info("Search-all request");
+    List<MovieRequest> movieRequests = movieRequestRepository.findAll().stream()
+        .filter(mr -> mr.getRadarrRequestId() != null)
+        .toList();
+
+    if (movieRequests.isEmpty()) {
+      log.info("No movie requests with a radarrRequestId; nothing to search");
+      return "redirect:/movies";
+    }
+
+    List<Integer> movieIds = movieRequests.stream().map(MovieRequest::getRadarrRequestId).toList();
+    log.info("Triggering Radarr MoviesSearch for {} movies: {}", movieIds.size(), movieIds);
+    RadarrCommand command = radarrClient.searchMovies(movieIds);
+    log.info("Radarr command {} ({}) status={} result={}", command.getId(), command.getCommandName(),
+        command.getStatus(), command.getResult());
+
+    Instant now = Instant.now();
+    movieRequests.forEach(mr -> mr.setRadarrLastSearched(now));
+    movieRequestRepository.saveAll(movieRequests);
     return "redirect:/movies";
   }
 
@@ -188,6 +199,20 @@ public class MovieController {
     return "redirect:/movies";
   }
 
+  @PostMapping("/movies/{id}/mark-stale")
+  public String markStale(@PathVariable Long id, @RequestParam("reason") String reason) {
+    log.info("Mark stale request for movie request {} with reason: {}", id, reason);
+    MovieRequest movieRequest = movieRequestRepository.findById(id)
+        .orElseThrow(() -> new MovieRequestNotFoundException(id));
+
+    movieRequest.setStale(true);
+    movieRequest.setStaleReason(reason);
+    movieRequest.setMarkedStaleAt(Instant.now());
+    movieRequestRepository.save(movieRequest);
+
+    return "redirect:/movies";
+  }
+
   @PostMapping("/movies/{id}/reprocess")
   public String reprocess(@PathVariable Long id) {
     log.info("Reprocess request for movie request {}", id);
@@ -204,20 +229,7 @@ public class MovieController {
       log.warn("Failed to serialize Ombi reprocess response for movie request {} ({})", id, movieRequest.getTitle(), e);
     }
 
-    log.info("Searching Radarr for Movie with tmdbId {}", movieRequest.getTmdbid());
-    List<Movie> radarrMovies = radarrClient.getMoviesByTmdbId(movieRequest.getTmdbid());
-    if (radarrMovies.isEmpty()) {
-      log.warn("Movie was not returned by Radarr. Did the Ombi request not make it?");
-    } else {
-      Movie radarrMovie = radarrMovies.get(0);
-      log.info("Found Movie {} ({}). Updating MovieRequest with Radarr information...", radarrMovie.getTitle(),
-          radarrMovie.getId());
-      movieRequest.setRadarrRequestId(radarrMovie.getId());
-      movieRequest.setRadarrHasFile(radarrMovie.getHasFile());
-      movieRequest.setRadarrMonitored(radarrMovie.getMonitored());
-      movieRequest.setRadarrIsAvailable(radarrMovie.getIsAvailable());
-      movieRequestRepository.save(movieRequest);
-    }
+    refreshService.refreshOne(id);
 
     log.info("MovieRequest successfully re-processed.");
     return "redirect:/movies";

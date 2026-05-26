@@ -1,6 +1,8 @@
 package report.butt.mediamanager.model;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Objects;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -13,6 +15,8 @@ import jakarta.persistence.Id;
 
 @Entity
 public class MovieRequest {
+
+  private static final String OMBI_AVAILABLE_STATUS = "Common.Available";
 
   private @Id @GeneratedValue Long id;
   private String title;
@@ -31,6 +35,21 @@ public class MovieRequest {
   private Boolean radarrIsAvailable;
   private Integer radarrHistoryCount;
   private Instant radarrLastSearched;
+
+  @Column(columnDefinition = "TEXT")
+  private String radarrPath;
+
+  @Column(columnDefinition = "TEXT")
+  private String radarrRootFolderPath;
+
+  private String radarrOriginalLanguage;
+
+  private Boolean stale;
+
+  @Column(columnDefinition = "TEXT")
+  private String staleReason;
+
+  private Instant markedStaleAt;
 
   @Column(columnDefinition = "TEXT")
   private String plexMetadataUrl;
@@ -169,6 +188,54 @@ public class MovieRequest {
     this.radarrLastSearched = radarrLastSearched;
   }
 
+  public String getRadarrPath() {
+    return this.radarrPath;
+  }
+
+  public void setRadarrPath(String radarrPath) {
+    this.radarrPath = radarrPath;
+  }
+
+  public String getRadarrRootFolderPath() {
+    return this.radarrRootFolderPath;
+  }
+
+  public void setRadarrRootFolderPath(String radarrRootFolderPath) {
+    this.radarrRootFolderPath = radarrRootFolderPath;
+  }
+
+  public String getRadarrOriginalLanguage() {
+    return this.radarrOriginalLanguage;
+  }
+
+  public void setRadarrOriginalLanguage(String radarrOriginalLanguage) {
+    this.radarrOriginalLanguage = radarrOriginalLanguage;
+  }
+
+  public Boolean getStale() {
+    return this.stale;
+  }
+
+  public void setStale(Boolean stale) {
+    this.stale = stale;
+  }
+
+  public String getStaleReason() {
+    return this.staleReason;
+  }
+
+  public void setStaleReason(String staleReason) {
+    this.staleReason = staleReason;
+  }
+
+  public Instant getMarkedStaleAt() {
+    return this.markedStaleAt;
+  }
+
+  public void setMarkedStaleAt(Instant markedStaleAt) {
+    this.markedStaleAt = markedStaleAt;
+  }
+
   public String getPlexMetadataUrl() {
     return this.plexMetadataUrl;
   }
@@ -247,6 +314,18 @@ public class MovieRequest {
 
   public Instant getUpdatedAt() {
     return this.updatedAt;
+  }
+
+  public boolean isAvailable() {
+    return Boolean.TRUE.equals(this.radarrHasFile)
+        && OMBI_AVAILABLE_STATUS.equals(this.ombiRequestStatus);
+  }
+
+  public boolean isValid(Collection<String> validatorNames, Map<String, Validation> latestByName) {
+    return validatorNames.stream().allMatch(name -> {
+      Validation v = latestByName.get(name);
+      return v != null && Boolean.TRUE.equals(v.getResult());
+    });
   }
 
   @Override

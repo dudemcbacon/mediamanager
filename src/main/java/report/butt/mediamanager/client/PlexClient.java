@@ -43,10 +43,11 @@ public class PlexClient {
                 .fromUriString(this.plexUrl)
                 .path("/library/all")
                 .queryParam("type", 1)
-                .queryParam("year", year)
+                // .queryParam("year", year)
                 .queryParam("includeGuids", 1)
                 .queryParam("title", title)
                 .queryParam("X-Plex-Token", plexToken)
+                .encode()
                 .build()
                 .toUri();
 
