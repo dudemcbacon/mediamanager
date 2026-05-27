@@ -14,13 +14,18 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import org.springframework.transaction.annotation.Transactional;
+
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.exceptions.MovieRequestNotFoundException;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.ombi.OmbiReprocessResponse;
 import report.butt.mediamanager.model.radarr.RadarrCommand;
+import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.repository.MovieRequestRepository;
+import report.butt.mediamanager.repository.NoteRepository;
+import report.butt.mediamanager.repository.ValidationRepository;
 import report.butt.mediamanager.service.MovieValidatorService;
 import report.butt.mediamanager.service.RefreshService;
 import tools.jackson.core.JacksonException;
@@ -32,6 +37,8 @@ public class MovieController {
   private static final Logger log = LoggerFactory.getLogger(MovieController.class);
 
   private final MovieRequestRepository movieRequestRepository;
+  private final ValidationRepository validationRepository;
+  private final NoteRepository noteRepository;
   private final OmbiClient ombiClient;
   private final RadarrClient radarrClient;
   private final ObjectMapper objectMapper;
@@ -39,10 +46,13 @@ public class MovieController {
   private final MovieValidatorService movieValidatorService;
 
   @Autowired
-  public MovieController(MovieRequestRepository movieRequestRepository, OmbiClient ombiClient,
-      RadarrClient radarrClient, ObjectMapper objectMapper, RefreshService refreshService,
-      MovieValidatorService movieValidatorService) {
+  public MovieController(MovieRequestRepository movieRequestRepository,
+      ValidationRepository validationRepository, NoteRepository noteRepository,
+      OmbiClient ombiClient, RadarrClient radarrClient, ObjectMapper objectMapper,
+      RefreshService refreshService, MovieValidatorService movieValidatorService) {
     this.movieRequestRepository = movieRequestRepository;
+    this.validationRepository = validationRepository;
+    this.noteRepository = noteRepository;
     this.ombiClient = ombiClient;
     this.radarrClient = radarrClient;
     this.objectMapper = objectMapper;
@@ -197,6 +207,26 @@ public class MovieController {
     }
 
     return "redirect:/movies";
+  }
+
+  @PostMapping("/movies/{id}/delete")
+  @Transactional
+  public String delete(@PathVariable Long id) {
+    log.info("Delete request for movie request {}", id);
+    MovieRequest movieRequest = movieRequestRepository.findById(id)
+        .orElseThrow(() -> new MovieRequestNotFoundException(id));
+    validationRepository.deleteByMovieRequest(movieRequest);
+    noteRepository.deleteByMovieRequest(movieRequest);
+    movieRequestRepository.delete(movieRequest);
+    return "redirect:/movies";
+  }
+
+  @PostMapping("/movies/{id}/notes")
+  public Note addNote(@PathVariable Long id, @RequestParam("notes") String notes) {
+    log.info("Add note request for movie request {}", id);
+    MovieRequest movieRequest = movieRequestRepository.findById(id)
+        .orElseThrow(() -> new MovieRequestNotFoundException(id));
+    return noteRepository.save(new Note(notes, movieRequest));
   }
 
   @PostMapping("/movies/{id}/mark-stale")

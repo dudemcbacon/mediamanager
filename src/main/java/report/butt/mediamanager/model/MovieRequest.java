@@ -12,8 +12,10 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
+@Table(name = "request") // Update this line
 public class MovieRequest {
 
   private static final String OMBI_AVAILABLE_STATUS = "Common.Available";

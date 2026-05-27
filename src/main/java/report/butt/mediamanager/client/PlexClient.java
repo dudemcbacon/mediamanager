@@ -3,6 +3,8 @@ package report.butt.mediamanager.client;
 import java.net.URI;
 import java.util.List;
 
+import jakarta.annotation.PostConstruct;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +24,7 @@ public class PlexClient {
     private final RestClient restClient;
     private final String plexToken;
     private final String plexUrl;
+    private String machineIdentifier;
 
     public PlexClient(
             RestClient.Builder builder,
@@ -33,6 +36,39 @@ public class PlexClient {
                 .baseUrl(plexUrl)
                 .defaultHeader("accept", "application/json")
                 .build();
+    }
+
+    @PostConstruct
+    void cacheMachineIdentifier() {
+        try {
+            URI uri = UriComponentsBuilder
+                    .fromUriString(this.plexUrl)
+                    .queryParam("X-Plex-Token", plexToken)
+                    .encode()
+                    .build()
+                    .toUri();
+            PlexSearchResponse response = restClient.get()
+                    .uri(uri)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(PlexSearchResponse.class);
+            if (response != null && response.getMediaContainer() != null) {
+                this.machineIdentifier = response.getMediaContainer().getMachineIdentifier();
+                log.info("Cached Plex machineIdentifier={}", this.machineIdentifier);
+            } else {
+                log.warn("Plex identity response was empty; machineIdentifier will be null");
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch Plex machineIdentifier", e);
+        }
+    }
+
+    public String getMachineIdentifier() {
+        return machineIdentifier;
+    }
+
+    public String getPlexUrl() {
+        return plexUrl;
     }
 
     public MetadataResult getMovieByTmdbId(int tmdbId, String title, int year) {

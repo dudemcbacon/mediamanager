@@ -1,3 +1,11 @@
 vaadin-grid::part(available) {
   background-color: #c8f7c5;
 }
+
+vaadin-grid::part(stale) {
+  background-color: #fff3a3;
+}
+
+vaadin-grid::part(has_notes) {
+  background-color: #b3d4fc;
+}

@@ -5,6 +5,7 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,6 +19,8 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridSortOrder;
+import com.vaadin.flow.component.grid.contextmenu.GridContextMenu;
+import com.vaadin.flow.component.grid.contextmenu.GridMenuItem;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.AnchorTarget;
 import com.vaadin.flow.component.html.Span;
@@ -35,10 +38,13 @@ import com.vaadin.flow.theme.aura.Aura;
 
 import org.springframework.beans.factory.annotation.Value;
 
+import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.controller.MovieController;
 import report.butt.mediamanager.model.MovieRequest;
+import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.Validation;
 import report.butt.mediamanager.repository.MovieRequestRepository;
+import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.ValidationRepository;
 import report.butt.mediamanager.validation.MovieValidator;
 
@@ -51,21 +57,35 @@ public class MainView extends VerticalLayout {
   private final MovieRequestRepository movieRequestRepository;
   private final MovieController movieController;
   private final ValidationRepository validationRepository;
+  private final NoteRepository noteRepository;
   private final Set<String> knownValidatorNames;
   private final Map<Long, Map<String, Validation>> latestValidations = new HashMap<>();
-  private final Checkbox showValidCheckbox = new Checkbox("Show valid rows", true);
+  private final Set<Long> movieRequestsWithNotes = new HashSet<>();
+  private final Checkbox showValidCheckbox = new Checkbox(true);
+  private final Checkbox showStaleCheckbox = new Checkbox(false);
+  private final Checkbox showWithNotesCheckbox = new Checkbox(true);
+  private final Span showValidLabel = coloredLabel("Show valid rows", "#2e8b57");
+  private final Span showStaleLabel = coloredLabel("Show stale rows", "#b8860b");
+  private final Span showWithNotesLabel = coloredLabel("Show rows with notes", "#1e6fce");
   private final String ombiUrl;
   private final String radarrUrl;
+  private final String plexUrl;
+  private final String plexMachineIdentifier;
 
   public MainView(MovieRequestRepository movieRequestRepository, MovieController movieController,
-      ValidationRepository validationRepository, List<MovieValidator> validators,
+      ValidationRepository validationRepository, NoteRepository noteRepository,
+      List<MovieValidator> validators,
+      PlexClient plexClient,
       @Value("${ombi.url}") String ombiUrl,
       @Value("${radarr.url}") String radarrUrl) {
     this.movieRequestRepository = movieRequestRepository;
     this.movieController = movieController;
     this.validationRepository = validationRepository;
+    this.noteRepository = noteRepository;
     this.ombiUrl = ombiUrl;
     this.radarrUrl = radarrUrl;
+    this.plexUrl = plexClient.getPlexUrl();
+    this.plexMachineIdentifier = plexClient.getMachineIdentifier();
     this.knownValidatorNames = validators.stream()
         .map(v -> v.getClass().getSimpleName())
         .collect(Collectors.toUnmodifiableSet());
@@ -78,6 +98,7 @@ public class MainView extends VerticalLayout {
     grid.addComponentColumn(this::ombiLink).setHeader("Ombi").setAutoWidth(true);
     grid.addComponentColumn(this::radarrLink).setHeader("Radarr").setAutoWidth(true);
     grid.addComponentColumn(MainView::plexLink).setHeader("Plex").setAutoWidth(true);
+    grid.addComponentColumn(this::plexAppLink).setHeader("Plex App").setAutoWidth(true);
     grid.addComponentColumn(MainView::tmdbLink).setHeader("TMDB").setAutoWidth(true);
 
     validators.stream()
@@ -92,12 +113,48 @@ public class MainView extends VerticalLayout {
                   Comparator.nullsLast(Comparator.naturalOrder())));
         });
 
-    grid.addComponentColumn(this::createActionButtons).setHeader("Actions").setAutoWidth(true);
-
     grid.setItemDetailsRenderer(new ComponentRenderer<>(MainView::createDetails));
     grid.setDetailsVisibleOnClick(true);
 
+    GridContextMenu<MovieRequest> contextMenu = grid.addContextMenu();
+    contextMenu.addItem("Refresh", e -> e.getItem().ifPresent(mr -> {
+      movieController.refresh(mr.getId());
+      movieController.validate(mr.getId());
+      refreshGrid();
+    }));
+    contextMenu.addItem("Search", e -> e.getItem().ifPresent(mr -> {
+      movieController.searchOne(mr.getId());
+      refreshGrid();
+    }));
+    GridMenuItem<MovieRequest> markAvailableItem = contextMenu.addItem("Mark Available",
+        e -> e.getItem().ifPresent(mr -> {
+          movieController.markAvailable(mr.getId());
+          movieController.refresh(mr.getId());
+          movieController.validate(mr.getId());
+          refreshGrid();
+        }));
+    contextMenu.addItem("Mark as Stale", e -> e.getItem().ifPresent(this::openMarkStaleDialog));
+    contextMenu.addItem("Add Note", e -> e.getItem().ifPresent(this::openAddNoteDialog));
+    contextMenu.addItem("View Notes", e -> e.getItem().ifPresent(this::openViewNotesDialog));
+    contextMenu.addItem("Delete Movie Request", e -> e.getItem().ifPresent(mr -> {
+      movieController.delete(mr.getId());
+      refreshGrid();
+    }));
+    contextMenu.setDynamicContentHandler(mr -> {
+      if (mr == null) {
+        return false;
+      }
+      markAvailableItem.setEnabled(mr.getOmbiRequestId() != null);
+      return true;
+    });
+
     grid.setPartNameGenerator(mr -> {
+      if (Boolean.TRUE.equals(mr.getStale())) {
+        return "stale";
+      }
+      if (movieRequestsWithNotes.contains(mr.getId()) && !mr.isAvailable()) {
+        return "has_notes";
+      }
       Map<String, Validation> latestForRow = latestValidations.getOrDefault(mr.getId(), Map.of());
       return mr.isValid(knownValidatorNames, latestForRow) ? "available" : "not_available";
     });
@@ -120,7 +177,13 @@ public class MainView extends VerticalLayout {
       refreshGrid();
     });
     showValidCheckbox.addValueChangeListener(e -> refreshGrid());
-    HorizontalLayout toolbar = new HorizontalLayout(refreshAll, validateAll, searchAll, showValidCheckbox);
+    showStaleCheckbox.addValueChangeListener(e -> refreshGrid());
+    showWithNotesCheckbox.addValueChangeListener(e -> refreshGrid());
+    showValidCheckbox.setLabelComponent(showValidLabel);
+    showStaleCheckbox.setLabelComponent(showStaleLabel);
+    showWithNotesCheckbox.setLabelComponent(showWithNotesLabel);
+    HorizontalLayout toolbar = new HorizontalLayout(refreshAll, validateAll, searchAll, showValidCheckbox,
+        showStaleCheckbox, showWithNotesCheckbox);
     toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
 
     add(toolbar, grid);
@@ -138,34 +201,36 @@ public class MainView extends VerticalLayout {
           .merge(v.getValidationName(), v,
               (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
     }
+    movieRequestsWithNotes.clear();
+    noteRepository.findAll().forEach(n -> movieRequestsWithNotes.add(n.getMovieRequest().getId()));
+    List<MovieRequest> all = movieRequestRepository.findAll();
+    long validCount = all.stream()
+        .filter(mr -> mr.isValid(knownValidatorNames, latestValidations.getOrDefault(mr.getId(), Map.of())))
+        .count();
+    long staleCount = all.stream().filter(mr -> Boolean.TRUE.equals(mr.getStale())).count();
+    long withNotesCount = all.stream().filter(mr -> movieRequestsWithNotes.contains(mr.getId())).count();
+    showValidLabel.setText("Show valid rows (" + validCount + ")");
+    showStaleLabel.setText("Show stale rows (" + staleCount + ")");
+    showWithNotesLabel.setText("Show rows with notes (" + withNotesCount + ")");
+
     boolean showValid = Boolean.TRUE.equals(showValidCheckbox.getValue());
-    List<MovieRequest> rows = movieRequestRepository.findAll().stream()
+    boolean showStale = Boolean.TRUE.equals(showStaleCheckbox.getValue());
+    boolean showWithNotes = Boolean.TRUE.equals(showWithNotesCheckbox.getValue());
+    List<MovieRequest> rows = all.stream()
+        .filter(mr -> showStale || !Boolean.TRUE.equals(mr.getStale()))
+        .filter(mr -> showWithNotes || !movieRequestsWithNotes.contains(mr.getId()))
         .filter(mr -> showValid || !mr.isValid(knownValidatorNames,
             latestValidations.getOrDefault(mr.getId(), Map.of())))
         .toList();
     grid.setItems(rows);
   }
 
-  private HorizontalLayout createActionButtons(MovieRequest mr) {
-    Button refresh = new Button("Refresh", e -> {
-      movieController.refresh(mr.getId());
-      movieController.validate(mr.getId());
-      refreshGrid();
-    });
-    Button search = new Button("Search", e -> {
-      movieController.searchOne(mr.getId());
-      refreshGrid();
-    });
-    Button markAvailable = new Button("Mark Available", e -> {
-      movieController.markAvailable(mr.getId());
-      movieController.refresh(mr.getId());
-      movieController.validate(mr.getId());
-      refreshGrid();
-    });
-    markAvailable.setEnabled(mr.getOmbiRequestId() != null);
-    Button markStale = new Button("Mark as Stale", e -> openMarkStaleDialog(mr));
-    return new HorizontalLayout(refresh, search, markAvailable, markStale);
-  }
+  private static final List<String> CANNED_STALE_REASONS = List.of(
+      "No search returned from Radarr",
+      "No tmdbid",
+      "Not in English",
+      "Movie misfiled in TV folder",
+      "Repeated download attempts without success");
 
   private void openMarkStaleDialog(MovieRequest mr) {
     Dialog dialog = new Dialog();
@@ -178,6 +243,13 @@ public class MainView extends VerticalLayout {
       reason.setValue(mr.getStaleReason());
     }
 
+    HorizontalLayout cannedReasons = new HorizontalLayout();
+    cannedReasons.getStyle().set("flex-wrap", "wrap");
+    for (String canned : CANNED_STALE_REASONS) {
+      Button preset = new Button(canned, e -> reason.setValue(canned));
+      cannedReasons.add(preset);
+    }
+
     Button submit = new Button("Submit", e -> {
       movieController.markStale(mr.getId(), reason.getValue());
       dialog.close();
@@ -185,8 +257,64 @@ public class MainView extends VerticalLayout {
     });
     Button cancel = new Button("Cancel", e -> dialog.close());
 
-    dialog.add(reason);
+    dialog.add(cannedReasons, reason);
     dialog.getFooter().add(cancel, submit);
+    dialog.open();
+  }
+
+  private void openAddNoteDialog(MovieRequest mr) {
+    Dialog dialog = new Dialog();
+    dialog.setHeaderTitle("Add note to \"" + mr.getTitle() + "\"");
+
+    TextArea note = new TextArea("Note");
+    note.setWidthFull();
+    note.setMinHeight("8em");
+
+    Button submit = new Button("Submit", e -> {
+      if (note.getValue() == null || note.getValue().isBlank()) {
+        return;
+      }
+      movieController.addNote(mr.getId(), note.getValue());
+      dialog.close();
+      refreshGrid();
+    });
+    Button cancel = new Button("Cancel", e -> dialog.close());
+
+    dialog.add(note);
+    dialog.getFooter().add(cancel, submit);
+    dialog.open();
+  }
+
+  private void openViewNotesDialog(MovieRequest mr) {
+    Dialog dialog = new Dialog();
+    dialog.setHeaderTitle("Notes for \"" + mr.getTitle() + "\"");
+    dialog.setWidth("600px");
+
+    VerticalLayout body = new VerticalLayout();
+    body.setPadding(false);
+    body.setSpacing(true);
+
+    List<Note> notes = noteRepository.findByMovieRequestOrderByCreatedAtDesc(mr);
+    if (notes.isEmpty()) {
+      body.add(new Span("No notes yet."));
+    } else {
+      for (Note n : notes) {
+        VerticalLayout entry = new VerticalLayout();
+        entry.setPadding(false);
+        entry.setSpacing(false);
+        Span timestamp = new Span(String.valueOf(n.getCreatedAt()));
+        timestamp.getStyle().set("font-size", "var(--lumo-font-size-s)");
+        timestamp.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        Span text = new Span(n.getNotes());
+        text.getStyle().set("white-space", "pre-wrap");
+        entry.add(timestamp, text);
+        body.add(entry);
+      }
+    }
+
+    Button close = new Button("Close", e -> dialog.close());
+    dialog.add(body);
+    dialog.getFooter().add(close);
     dialog.open();
   }
 
@@ -214,6 +342,16 @@ public class MainView extends VerticalLayout {
     return externalLink(url);
   }
 
+  private Component plexAppLink(MovieRequest mr) {
+    String ratingKey = mr.getPlexMetadataId();
+    if (ratingKey == null || ratingKey.isBlank() || plexMachineIdentifier == null) {
+      return new Span("—");
+    }
+    String url = plexUrl + "/web/index.html#!/server/" + plexMachineIdentifier
+        + "/details?key=/library/metadata/" + ratingKey;
+    return externalLink(url);
+  }
+
   private static Component tmdbLink(MovieRequest mr) {
     Integer tmdbid = mr.getTmdbid();
     if (tmdbid == null) {
@@ -226,6 +364,12 @@ public class MainView extends VerticalLayout {
     Span label = new Span(shortName);
     Tooltip.forComponent(label).setText(description);
     return label;
+  }
+
+  private static Span coloredLabel(String text, String color) {
+    Span span = new Span(text);
+    span.getStyle().set("color", color);
+    return span;
   }
 
   private static Anchor externalLink(String href) {
