@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import report.butt.mediamanager.exceptions.MovieRequestNotFoundException;
+import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 
@@ -42,7 +42,7 @@ public class MovieRequestController {
   MovieRequest one(@PathVariable Long id) {
 
     return repository.findById(id)
-        .orElseThrow(() -> new MovieRequestNotFoundException(id));
+        .orElseThrow(() -> new RequestNotFoundException(id));
   }
 
   @PutMapping("/movie_requests/{id}")

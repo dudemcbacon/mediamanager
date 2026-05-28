@@ -5,14 +5,14 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import report.butt.mediamanager.exceptions.MovieRequestNotFoundException;
+import report.butt.mediamanager.exceptions.RequestNotFoundException;
 
 @RestControllerAdvice
-class EmployeeNotFoundAdvice {
+class RequestNotFoundAdvice {
 
-  @ExceptionHandler(MovieRequestNotFoundException.class)
+  @ExceptionHandler(RequestNotFoundException.class)
   @ResponseStatus(HttpStatus.NOT_FOUND)
-  String movieRequestNotFoundHandler(MovieRequestNotFoundException ex) {
+  String requestNotFoundHandler(RequestNotFoundException ex) {
     return ex.getMessage();
   }
 }

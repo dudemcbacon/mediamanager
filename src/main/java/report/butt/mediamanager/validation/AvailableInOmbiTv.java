@@ -2,33 +2,33 @@ package report.butt.mediamanager.validation;
 
 import org.springframework.stereotype.Component;
 
-import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
+import report.butt.mediamanager.model.TvRequest;
 
 @Component
-public class AvailableInPlex implements Validator<MovieRequest> {
+public class AvailableInOmbiTv implements Validator<TvRequest> {
   @Override
-  public Boolean validate(MovieRequest request) {
-    return request.getPlexMediaId() != null;
+  public Boolean validate(TvRequest request) {
+    return request.getOmbiRequestId() != null;
   }
 
   @Override
   public RequestType supportedType() {
-    return RequestType.MOVIE;
+    return RequestType.TV;
   }
 
   @Override
   public int sortOrder() {
-    return 300;
+    return 100;
   }
 
   @Override
   public String shortName() {
-    return "Plex?";
+    return "Ombi?";
   }
 
   @Override
   public String description() {
-    return "Movie has a Plex media ID, meaning it is present in the Plex library.";
+    return "Show has an Ombi request ID, meaning it is tracked in Ombi.";
   }
 }

@@ -17,16 +17,16 @@ import jakarta.persistence.UniqueConstraint;
 
 @Entity
 @Table(uniqueConstraints = @UniqueConstraint(
-    name = "uk_validation_name_movie_request",
-    columnNames = {"validation_name", "movie_request_id"}))
+    name = "uk_validation_name_request",
+    columnNames = {"validation_name", "request_id"}))
 public class Validation {
   private @Id @GeneratedValue Long id;
   private String validationName;
   private Boolean result;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "movie_request_id", nullable = false)
-  private MovieRequest movieRequest;
+  @JoinColumn(name = "request_id", nullable = false)
+  private Request request;
 
   @CreationTimestamp
   private Instant createdAt;
@@ -37,10 +37,10 @@ public class Validation {
   Validation() {
   }
 
-  public Validation(String validationName, Boolean result, MovieRequest movieRequest) {
+  public Validation(String validationName, Boolean result, Request request) {
     this.validationName = validationName;
     this.result = result;
-    this.movieRequest = movieRequest;
+    this.request = request;
   }
 
   public Long getId() {
@@ -67,16 +67,16 @@ public class Validation {
     this.result = result;
   }
 
-  public MovieRequest getMovieRequest() {
-    return this.movieRequest;
+  public Request getRequest() {
+    return this.request;
   }
 
   public Instant getCreatedAt() {
     return this.createdAt;
   }
 
-  public void setMovieRequest(MovieRequest movieRequest) {
-    this.movieRequest = movieRequest;
+  public void setRequest(Request request) {
+    this.request = request;
   }
 
   public int hashCode() {

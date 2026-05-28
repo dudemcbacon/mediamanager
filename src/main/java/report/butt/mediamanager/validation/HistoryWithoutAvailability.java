@@ -3,9 +3,10 @@ package report.butt.mediamanager.validation;
 import org.springframework.stereotype.Component;
 
 import report.butt.mediamanager.model.MovieRequest;
+import report.butt.mediamanager.model.RequestType;
 
 @Component
-public class HistoryWithoutAvailability implements MovieValidator {
+public class HistoryWithoutAvailability implements Validator<MovieRequest> {
   @Override
   public Boolean validate(MovieRequest request) {
     Integer count = request.getRadarrHistoryCount();
@@ -13,6 +14,11 @@ public class HistoryWithoutAvailability implements MovieValidator {
       return true;
     }
     return !(count > 1 && !request.isAvailable());
+  }
+
+  @Override
+  public RequestType supportedType() {
+    return RequestType.MOVIE;
   }
 
   @Override

@@ -3,12 +3,18 @@ package report.butt.mediamanager.validation;
 import org.springframework.stereotype.Component;
 
 import report.butt.mediamanager.model.MovieRequest;
+import report.butt.mediamanager.model.RequestType;
 
 @Component
-public class AvailableInRadarr implements MovieValidator {
+public class AvailableInRadarr implements Validator<MovieRequest> {
   @Override
   public Boolean validate(MovieRequest request) {
     return request.getRadarrRequestId() != null;
+  }
+
+  @Override
+  public RequestType supportedType() {
+    return RequestType.MOVIE;
   }
 
   @Override

@@ -22,8 +22,8 @@ public class Note {
   private String notes;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "movie_request_id", nullable = false)
-  private MovieRequest movieRequest;
+  @JoinColumn(name = "request_id", nullable = false)
+  private Request request;
 
   @CreationTimestamp
   private Instant createdAt;
@@ -34,9 +34,9 @@ public class Note {
   Note() {
   }
 
-  public Note(String notes, MovieRequest movieRequest) {
+  public Note(String notes, Request request) {
     this.notes = notes;
-    this.movieRequest = movieRequest;
+    this.request = request;
   }
 
   public Long getId() {
@@ -51,12 +51,12 @@ public class Note {
     this.notes = notes;
   }
 
-  public MovieRequest getMovieRequest() {
-    return movieRequest;
+  public Request getRequest() {
+    return request;
   }
 
-  public void setMovieRequest(MovieRequest movieRequest) {
-    this.movieRequest = movieRequest;
+  public void setRequest(Request request) {
+    this.request = request;
   }
 
   public Instant getCreatedAt() {

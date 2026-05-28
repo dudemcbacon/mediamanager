@@ -2,19 +2,19 @@ package report.butt.mediamanager.validation;
 
 import org.springframework.stereotype.Component;
 
-import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
+import report.butt.mediamanager.model.TvRequest;
 
 @Component
-public class AvailableInPlex implements Validator<MovieRequest> {
+public class AvailableInPlexTv implements Validator<TvRequest> {
   @Override
-  public Boolean validate(MovieRequest request) {
+  public Boolean validate(TvRequest request) {
     return request.getPlexMediaId() != null;
   }
 
   @Override
   public RequestType supportedType() {
-    return RequestType.MOVIE;
+    return RequestType.TV;
   }
 
   @Override
@@ -29,6 +29,6 @@ public class AvailableInPlex implements Validator<MovieRequest> {
 
   @Override
   public String description() {
-    return "Movie has a Plex media ID, meaning it is present in the Plex library.";
+    return "Show has a Plex media ID, meaning it is present in the Plex library.";
   }
 }

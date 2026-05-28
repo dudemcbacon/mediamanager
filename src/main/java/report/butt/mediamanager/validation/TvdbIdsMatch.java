@@ -4,19 +4,19 @@ import java.util.Objects;
 
 import org.springframework.stereotype.Component;
 
-import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
+import report.butt.mediamanager.model.TvRequest;
 
 @Component
-public class TmdbIdsMatch implements Validator<MovieRequest> {
+public class TvdbIdsMatch implements Validator<TvRequest> {
   @Override
-  public Boolean validate(MovieRequest request) {
-    return Objects.equals(request.getTmdbid(), request.getPlexTmdbid());
+  public Boolean validate(TvRequest request) {
+    return Objects.equals(request.getTvdbId(), request.getPlexTvdbId());
   }
 
   @Override
   public RequestType supportedType() {
-    return RequestType.MOVIE;
+    return RequestType.TV;
   }
 
   @Override
@@ -26,11 +26,11 @@ public class TmdbIdsMatch implements Validator<MovieRequest> {
 
   @Override
   public String shortName() {
-    return "TMDB IDs?";
+    return "TVDB IDs?";
   }
 
   @Override
   public String description() {
-    return "The TMDB ID from the request matches the TMDB ID of the Plex media.";
+    return "The TVDB ID from the request matches the TVDB ID of the Plex media.";
   }
 }

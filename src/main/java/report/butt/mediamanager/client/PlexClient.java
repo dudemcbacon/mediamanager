@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import report.butt.mediamanager.model.plex.PlexDirectory;
 import report.butt.mediamanager.model.plex.PlexMetadata;
 import report.butt.mediamanager.model.plex.PlexSearchResponse;
 
@@ -24,14 +25,18 @@ public class PlexClient {
     private final RestClient restClient;
     private final String plexToken;
     private final String plexUrl;
+    private final String plexTvSectionName;
     private String machineIdentifier;
+    private String tvSectionId;
 
     public PlexClient(
             RestClient.Builder builder,
             @Value("${plex.url}") String plexUrl,
-            @Value("${plex.token}") String plexToken) {
+            @Value("${plex.token}") String plexToken,
+            @Value("${plex.tv-section-name:TV Shows}") String plexTvSectionName) {
         this.plexUrl = plexUrl;
         this.plexToken = plexToken;
+        this.plexTvSectionName = plexTvSectionName;
         this.restClient = builder
                 .baseUrl(plexUrl)
                 .defaultHeader("accept", "application/json")
@@ -63,12 +68,58 @@ public class PlexClient {
         }
     }
 
+    @PostConstruct
+    void cacheTvSectionId() {
+        try {
+            URI uri = UriComponentsBuilder
+                    .fromUriString(this.plexUrl)
+                    .path("/library/sections")
+                    .queryParam("X-Plex-Token", plexToken)
+                    .encode()
+                    .build()
+                    .toUri();
+            PlexSearchResponse response = restClient.get()
+                    .uri(uri)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(PlexSearchResponse.class);
+            if (response == null || response.getMediaContainer() == null
+                    || response.getMediaContainer().getDirectory() == null) {
+                log.warn("Plex sections response was empty; tvSectionId will be null");
+                return;
+            }
+            for (PlexDirectory dir : response.getMediaContainer().getDirectory()) {
+                if (plexTvSectionName.equals(dir.getTitle())) {
+                    this.tvSectionId = dir.getKey();
+                    log.info("Cached Plex tvSectionId={} for section '{}'", this.tvSectionId,
+                            plexTvSectionName);
+                    return;
+                }
+            }
+            log.warn("No Plex section found matching name '{}'", plexTvSectionName);
+        } catch (Exception e) {
+            log.warn("Failed to fetch Plex sections", e);
+        }
+    }
+
     public String getMachineIdentifier() {
         return machineIdentifier;
     }
 
+    public String getTvSectionId() {
+        return tvSectionId;
+    }
+
+    public String getPlexToken() {
+        return plexToken;
+    }
+
     public String getPlexUrl() {
         return plexUrl;
+    }
+
+    public String getPlexTvSectionName() {
+        return plexTvSectionName;
     }
 
     public MetadataResult getMovieByTmdbId(int tmdbId, String title, int year) {
@@ -115,5 +166,54 @@ public class PlexClient {
             return false;
         }
         return metadata.getGuids().stream().anyMatch(g -> tmdbGuid.equals(g.getId()));
+    }
+
+    public MetadataResult getShowByTvdbId(int tvdbId, String title, int year) {
+        log.info("Retrieving show from Plex via tvdbId={}, title={}, year={}", tvdbId, title, year);
+        String tvdbGuid = "tvdb://" + tvdbId;
+
+        if (tvSectionId == null) {
+            log.warn("Plex tvSectionId is not cached; cannot search for show '{}'", title);
+            return new MetadataResult(null, null);
+        }
+
+        URI uri = UriComponentsBuilder
+                .fromUriString(this.plexUrl)
+                .path("/library/sections/" + tvSectionId + "/all")
+                .queryParam("includeGuids", 1)
+                .queryParam("title", title)
+                .queryParam("X-Plex-Token", plexToken)
+                .encode()
+                .build()
+                .toUri();
+
+        PlexSearchResponse response = restClient.get()
+                .uri(uri)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(PlexSearchResponse.class);
+
+        if (response == null || response.getMediaContainer() == null) {
+            return new MetadataResult(uri.toString(), null);
+        }
+
+        List<PlexMetadata> results = response.getMediaContainer().getMetadata();
+        if (results == null || results.isEmpty()) {
+            return new MetadataResult(uri.toString(), null);
+        }
+
+        PlexMetadata metadata = results.stream()
+                .filter(m -> hasTvdbGuid(m, tvdbGuid))
+                .findFirst()
+                .orElse(results.get(0));
+
+        return new MetadataResult(uri.toString(), metadata);
+    }
+
+    private static boolean hasTvdbGuid(PlexMetadata metadata, String tvdbGuid) {
+        if (metadata.getGuids() == null) {
+            return false;
+        }
+        return metadata.getGuids().stream().anyMatch(g -> tvdbGuid.equals(g.getId()));
     }
 }

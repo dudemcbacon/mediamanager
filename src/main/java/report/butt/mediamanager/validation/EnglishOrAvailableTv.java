@@ -2,14 +2,14 @@ package report.butt.mediamanager.validation;
 
 import org.springframework.stereotype.Component;
 
-import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
+import report.butt.mediamanager.model.TvRequest;
 
 @Component
-public class EnglishOrAvailable implements Validator<MovieRequest> {
+public class EnglishOrAvailableTv implements Validator<TvRequest> {
   @Override
-  public Boolean validate(MovieRequest request) {
-    String language = request.getRadarrOriginalLanguage();
+  public Boolean validate(TvRequest request) {
+    String language = request.getSonarrOriginalLanguage();
     if (language == null || "English".equalsIgnoreCase(language)) {
       return true;
     }
@@ -18,7 +18,7 @@ public class EnglishOrAvailable implements Validator<MovieRequest> {
 
   @Override
   public RequestType supportedType() {
-    return RequestType.MOVIE;
+    return RequestType.TV;
   }
 
   @Override
@@ -33,6 +33,6 @@ public class EnglishOrAvailable implements Validator<MovieRequest> {
 
   @Override
   public String description() {
-    return "Movies whose original language is not English must already be available; otherwise they are flagged.";
+    return "Shows whose original language is not English must already be available; otherwise they are flagged.";
   }
 }

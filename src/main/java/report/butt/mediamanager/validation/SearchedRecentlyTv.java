@@ -5,20 +5,20 @@ import java.time.Instant;
 
 import org.springframework.stereotype.Component;
 
-import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
+import report.butt.mediamanager.model.TvRequest;
 
 @Component
-public class SearchedRecently implements Validator<MovieRequest> {
+public class SearchedRecentlyTv implements Validator<TvRequest> {
 
   private static final Duration ONE_WEEK = Duration.ofDays(7);
 
   @Override
-  public Boolean validate(MovieRequest request) {
+  public Boolean validate(TvRequest request) {
     if (request.isAvailable()) {
       return true;
     }
-    Instant lastSearched = request.getRadarrLastSearched();
+    Instant lastSearched = request.getSonarrLastSearched();
     if (lastSearched == null) {
       return false;
     }
@@ -27,7 +27,7 @@ public class SearchedRecently implements Validator<MovieRequest> {
 
   @Override
   public RequestType supportedType() {
-    return RequestType.MOVIE;
+    return RequestType.TV;
   }
 
   @Override
@@ -42,6 +42,6 @@ public class SearchedRecently implements Validator<MovieRequest> {
 
   @Override
   public String description() {
-    return "Movie is available, or Radarr searched for it within the last week.";
+    return "Show is available, or Sonarr searched for it within the last week.";
   }
 }

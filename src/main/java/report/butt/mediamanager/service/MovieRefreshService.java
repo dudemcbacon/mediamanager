@@ -11,7 +11,7 @@ import report.butt.mediamanager.client.MetadataResult;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.RadarrClient;
-import report.butt.mediamanager.exceptions.MovieRequestNotFoundException;
+import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.ombi.OmbiMovieRequest;
 import report.butt.mediamanager.model.plex.PlexMedia;
@@ -21,16 +21,16 @@ import report.butt.mediamanager.model.radarr.Movie;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 
 @Service
-public class RefreshService {
+public class MovieRefreshService {
 
-  private static final Logger log = LoggerFactory.getLogger(RefreshService.class);
+  private static final Logger log = LoggerFactory.getLogger(MovieRefreshService.class);
 
   private final MovieRequestRepository repository;
   private final OmbiClient ombiClient;
   private final RadarrClient radarrClient;
   private final PlexClient plexClient;
 
-  public RefreshService(MovieRequestRepository repository, OmbiClient ombiClient, RadarrClient radarrClient,
+  public MovieRefreshService(MovieRequestRepository repository, OmbiClient ombiClient, RadarrClient radarrClient,
       PlexClient plexClient) {
     this.repository = repository;
     this.ombiClient = ombiClient;
@@ -63,7 +63,7 @@ public class RefreshService {
 
   public void refreshOne(Long id) {
     MovieRequest movieRequest = repository.findById(id)
-        .orElseThrow(() -> new MovieRequestNotFoundException(id));
+        .orElseThrow(() -> new RequestNotFoundException(id));
 
     Integer ombiRequestId = movieRequest.getOmbiRequestId();
     OmbiMovieRequest ombiMovie = ombiRequestId == null ? null

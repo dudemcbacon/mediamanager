@@ -11,6 +11,7 @@ import org.springframework.web.client.RestClient;
 import report.butt.mediamanager.model.ombi.OmbiMarkAvailableRequest;
 import report.butt.mediamanager.model.ombi.OmbiMovieRequest;
 import report.butt.mediamanager.model.ombi.OmbiReprocessResponse;
+import report.butt.mediamanager.model.ombi.OmbiTvRequest;
 
 @Service
 public class OmbiClient {
@@ -47,6 +48,25 @@ public class OmbiClient {
   public OmbiReprocessResponse markMovieAvailable(Integer ombiRequestId) {
     return restClient.post()
         .uri("/api/v1/Request/movie/available")
+        .contentType(MediaType.APPLICATION_JSON)
+        .accept(MediaType.APPLICATION_JSON)
+        .body(new OmbiMarkAvailableRequest(ombiRequestId))
+        .retrieve()
+        .body(OmbiReprocessResponse.class);
+  }
+
+  public List<OmbiTvRequest> getTvRequests() {
+    return restClient.get()
+        .uri("/api/v1/Request/tv")
+        .accept(MediaType.APPLICATION_JSON)
+        .retrieve()
+        .body(new ParameterizedTypeReference<List<OmbiTvRequest>>() {
+        });
+  }
+
+  public OmbiReprocessResponse markTvAvailable(Integer ombiRequestId) {
+    return restClient.post()
+        .uri("/api/v1/Request/tv/available")
         .contentType(MediaType.APPLICATION_JSON)
         .accept(MediaType.APPLICATION_JSON)
         .body(new OmbiMarkAvailableRequest(ombiRequestId))

@@ -3,13 +3,19 @@ package report.butt.mediamanager.validation;
 import org.springframework.stereotype.Component;
 
 import report.butt.mediamanager.model.MovieRequest;
+import report.butt.mediamanager.model.RequestType;
 
 @Component
-public class NotInTvFolder implements MovieValidator {
+public class NotInTvFolder implements Validator<MovieRequest> {
   @Override
   public Boolean validate(MovieRequest request) {
     String path = request.getRadarrPath();
     return path == null || !path.contains("/TV/");
+  }
+
+  @Override
+  public RequestType supportedType() {
+    return RequestType.MOVIE;
   }
 
   @Override

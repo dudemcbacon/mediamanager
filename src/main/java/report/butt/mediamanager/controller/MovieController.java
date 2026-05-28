@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.RadarrClient;
-import report.butt.mediamanager.exceptions.MovieRequestNotFoundException;
+import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.ombi.OmbiReprocessResponse;
 import report.butt.mediamanager.model.radarr.RadarrCommand;
@@ -26,8 +26,8 @@ import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.ValidationRepository;
-import report.butt.mediamanager.service.MovieValidatorService;
-import report.butt.mediamanager.service.RefreshService;
+import report.butt.mediamanager.service.ValidatorService;
+import report.butt.mediamanager.service.MovieRefreshService;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -42,28 +42,28 @@ public class MovieController {
   private final OmbiClient ombiClient;
   private final RadarrClient radarrClient;
   private final ObjectMapper objectMapper;
-  private final RefreshService refreshService;
-  private final MovieValidatorService movieValidatorService;
+  private final MovieRefreshService movieRefreshService;
+  private final ValidatorService validatorService;
 
   @Autowired
   public MovieController(MovieRequestRepository movieRequestRepository,
       ValidationRepository validationRepository, NoteRepository noteRepository,
       OmbiClient ombiClient, RadarrClient radarrClient, ObjectMapper objectMapper,
-      RefreshService refreshService, MovieValidatorService movieValidatorService) {
+      MovieRefreshService movieRefreshService, ValidatorService validatorService) {
     this.movieRequestRepository = movieRequestRepository;
     this.validationRepository = validationRepository;
     this.noteRepository = noteRepository;
     this.ombiClient = ombiClient;
     this.radarrClient = radarrClient;
     this.objectMapper = objectMapper;
-    this.refreshService = refreshService;
-    this.movieValidatorService = movieValidatorService;
+    this.movieRefreshService = movieRefreshService;
+    this.validatorService = validatorService;
   }
 
   @PostMapping("/movies/refresh-all")
   public String refreshAll() {
     log.info("Refresh-all request");
-    refreshService.refreshAll();
+    movieRefreshService.refreshAll();
     return "redirect:/movies";
   }
 
@@ -125,7 +125,7 @@ public class MovieController {
   @PostMapping("/movies/{id}/refresh")
   public String refresh(@PathVariable Long id) {
     log.info("Refresh request for movie request {}", id);
-    refreshService.refreshOne(id);
+    movieRefreshService.refreshOne(id);
     return "redirect:/movies";
   }
 
@@ -133,15 +133,15 @@ public class MovieController {
   public String validate(@PathVariable Long id) {
     log.info("Validate request for movie request {}", id);
     MovieRequest movieRequest = movieRequestRepository.findById(id)
-        .orElseThrow(() -> new MovieRequestNotFoundException(id));
-    movieValidatorService.validate(movieRequest);
+        .orElseThrow(() -> new RequestNotFoundException(id));
+    validatorService.validate(movieRequest);
     return "redirect:/movies";
   }
 
   @PostMapping("/movies/validate-all")
   public String validateAll() {
     log.info("Validate-all request");
-    movieRequestRepository.findAll().forEach(movieValidatorService::validate);
+    movieRequestRepository.findAll().forEach(validatorService::validate);
     return "redirect:/movies";
   }
 
@@ -149,7 +149,7 @@ public class MovieController {
   public String searchOne(@PathVariable Long id) {
     log.info("Search request for movie request {}", id);
     MovieRequest movieRequest = movieRequestRepository.findById(id)
-        .orElseThrow(() -> new MovieRequestNotFoundException(id));
+        .orElseThrow(() -> new RequestNotFoundException(id));
 
     Integer radarrRequestId = movieRequest.getRadarrRequestId();
     if (radarrRequestId == null) {
@@ -194,7 +194,7 @@ public class MovieController {
   public String markAvailable(@PathVariable Long id) {
     log.info("Mark available request for movie request {}", id);
     MovieRequest movieRequest = movieRequestRepository.findById(id)
-        .orElseThrow(() -> new MovieRequestNotFoundException(id));
+        .orElseThrow(() -> new RequestNotFoundException(id));
 
     log.info("Found MovieRequest for {}", movieRequest.getTitle());
 
@@ -214,9 +214,9 @@ public class MovieController {
   public String delete(@PathVariable Long id) {
     log.info("Delete request for movie request {}", id);
     MovieRequest movieRequest = movieRequestRepository.findById(id)
-        .orElseThrow(() -> new MovieRequestNotFoundException(id));
-    validationRepository.deleteByMovieRequest(movieRequest);
-    noteRepository.deleteByMovieRequest(movieRequest);
+        .orElseThrow(() -> new RequestNotFoundException(id));
+    validationRepository.deleteByRequest(movieRequest);
+    noteRepository.deleteByRequest(movieRequest);
     movieRequestRepository.delete(movieRequest);
     return "redirect:/movies";
   }
@@ -225,7 +225,7 @@ public class MovieController {
   public Note addNote(@PathVariable Long id, @RequestParam("notes") String notes) {
     log.info("Add note request for movie request {}", id);
     MovieRequest movieRequest = movieRequestRepository.findById(id)
-        .orElseThrow(() -> new MovieRequestNotFoundException(id));
+        .orElseThrow(() -> new RequestNotFoundException(id));
     return noteRepository.save(new Note(notes, movieRequest));
   }
 
@@ -233,7 +233,7 @@ public class MovieController {
   public String markStale(@PathVariable Long id, @RequestParam("reason") String reason) {
     log.info("Mark stale request for movie request {} with reason: {}", id, reason);
     MovieRequest movieRequest = movieRequestRepository.findById(id)
-        .orElseThrow(() -> new MovieRequestNotFoundException(id));
+        .orElseThrow(() -> new RequestNotFoundException(id));
 
     movieRequest.setStale(true);
     movieRequest.setStaleReason(reason);
@@ -247,7 +247,7 @@ public class MovieController {
   public String reprocess(@PathVariable Long id) {
     log.info("Reprocess request for movie request {}", id);
     MovieRequest movieRequest = movieRequestRepository.findById(id)
-        .orElseThrow(() -> new MovieRequestNotFoundException(id));
+        .orElseThrow(() -> new RequestNotFoundException(id));
 
     log.info("Found MovieRequest for {}", movieRequest.getTitle());
 
@@ -259,7 +259,7 @@ public class MovieController {
       log.warn("Failed to serialize Ombi reprocess response for movie request {} ({})", id, movieRequest.getTitle(), e);
     }
 
-    refreshService.refreshOne(id);
+    movieRefreshService.refreshOne(id);
 
     log.info("MovieRequest successfully re-processed.");
     return "redirect:/movies";

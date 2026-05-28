@@ -6,28 +6,36 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import report.butt.mediamanager.repository.MovieRequestRepository;
+import report.butt.mediamanager.repository.TvRequestRepository;
 
 @Component
 public class ScheduledRefreshJob {
 
   private static final Logger log = LoggerFactory.getLogger(ScheduledRefreshJob.class);
 
-  private final RefreshService refreshService;
-  private final MovieValidatorService movieValidatorService;
+  private final MovieRefreshService movieRefreshService;
+  private final TvRefreshService tvRefreshService;
+  private final ValidatorService validatorService;
   private final MovieRequestRepository movieRequestRepository;
+  private final TvRequestRepository tvRequestRepository;
 
-  public ScheduledRefreshJob(RefreshService refreshService, MovieValidatorService movieValidatorService,
-      MovieRequestRepository movieRequestRepository) {
-    this.refreshService = refreshService;
-    this.movieValidatorService = movieValidatorService;
+  public ScheduledRefreshJob(MovieRefreshService movieRefreshService, TvRefreshService tvRefreshService,
+      ValidatorService validatorService, MovieRequestRepository movieRequestRepository,
+      TvRequestRepository tvRequestRepository) {
+    this.movieRefreshService = movieRefreshService;
+    this.tvRefreshService = tvRefreshService;
+    this.validatorService = validatorService;
     this.movieRequestRepository = movieRequestRepository;
+    this.tvRequestRepository = tvRequestRepository;
   }
 
   @Scheduled(cron = "0 0 * * * *")
   public void refreshAndValidate() {
     log.info("Hourly refresh-and-validate job starting");
-    refreshService.refreshAll();
-    movieRequestRepository.findAll().forEach(movieValidatorService::validate);
+    movieRefreshService.refreshAll();
+    tvRefreshService.refreshAll();
+    movieRequestRepository.findAll().forEach(validatorService::validate);
+    tvRequestRepository.findAll().forEach(validatorService::validate);
     log.info("Hourly refresh-and-validate job complete");
   }
 }
