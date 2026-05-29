@@ -1,9 +1,11 @@
 package report.butt.mediamanager.service;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,7 @@ public class TvRefreshService {
     private final OmbiClient ombiClient;
     private final SonarrClient sonarrClient;
     private final PlexClient plexClient;
+    private final PlexCacheService plexCacheService;
 
     public TvRefreshService(
             TvRequestRepository repository,
@@ -51,7 +54,8 @@ public class TvRefreshService {
             TvEpisodeRequestRepository episodeRepository,
             OmbiClient ombiClient,
             SonarrClient sonarrClient,
-            PlexClient plexClient) {
+            PlexClient plexClient,
+            PlexCacheService plexCacheService) {
         this.repository = repository;
         this.childRepository = childRepository;
         this.seasonRepository = seasonRepository;
@@ -59,12 +63,14 @@ public class TvRefreshService {
         this.ombiClient = ombiClient;
         this.sonarrClient = sonarrClient;
         this.plexClient = plexClient;
+        this.plexCacheService = plexCacheService;
     }
 
     @Transactional
     public void refreshAll() {
         List<OmbiTvRequest> ombiTvRequests = ombiClient.getTvRequests();
         List<Series> sonarrSeries = sonarrClient.getAllSeries();
+        Set<String> validCacheKeys = new HashSet<>();
 
         ombiTvRequests.forEach(ombiTv -> {
             OmbiTvChildRequest firstChild = firstChild(ombiTv);
@@ -83,10 +89,15 @@ public class TvRefreshService {
                     .orElse(null);
 
             applyUpdates(tvRequest, ombiTv, series);
+            if (series != null && series.getTvdbId() != null) {
+                validCacheKeys.add(PlexClient.tvCacheKey(series.getTvdbId()));
+            }
             tvRequest = repository.save(tvRequest);
             refreshChildren(tvRequest, ombiTv);
             log.info("Refreshed {}", tvRequest);
         });
+
+        plexCacheService.cleanExcept("tv-", validCacheKeys);
     }
 
     @Transactional
@@ -323,9 +334,8 @@ public class TvRefreshService {
             PlexMetadata plexMetadata = plexResult.metadata();
             if (plexMetadata != null) {
                 log.info(
-                        "Plex match found for tvdbId {} (url={}): {}",
+                        "Plex match found for tvdbId {}: {}",
                         series.getTvdbId(),
-                        plexResult.url(),
                         plexMetadata.getTitle());
                 tvRequest.setPlexMetadataId(plexMetadata.getRatingKey());
                 tvRequest.setPlexAddedAt(plexMetadata.getAddedAt());

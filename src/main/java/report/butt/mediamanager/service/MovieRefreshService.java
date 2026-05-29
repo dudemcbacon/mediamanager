@@ -1,7 +1,9 @@
 package report.butt.mediamanager.service;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -27,21 +29,25 @@ public class MovieRefreshService {
     private final OmbiClient ombiClient;
     private final RadarrClient radarrClient;
     private final PlexClient plexClient;
+    private final PlexCacheService plexCacheService;
 
     public MovieRefreshService(
             MovieRequestRepository repository,
             OmbiClient ombiClient,
             RadarrClient radarrClient,
-            PlexClient plexClient) {
+            PlexClient plexClient,
+            PlexCacheService plexCacheService) {
         this.repository = repository;
         this.ombiClient = ombiClient;
         this.radarrClient = radarrClient;
         this.plexClient = plexClient;
+        this.plexCacheService = plexCacheService;
     }
 
     public void refreshAll() {
         List<OmbiMovieRequest> ombiMovies = ombiClient.getMovies();
         List<Movie> radarrMovies = radarrClient.getMovies();
+        Set<String> validCacheKeys = new HashSet<>();
 
         ombiMovies.forEach(ombiMovie -> {
             MovieRequest movieRequest = repository
@@ -59,9 +65,14 @@ public class MovieRefreshService {
                     .orElse(null);
 
             applyUpdates(movieRequest, ombiMovie, radarrMovie);
+            if (radarrMovie != null && radarrMovie.getTmdbId() != null) {
+                validCacheKeys.add(PlexClient.movieCacheKey(radarrMovie.getTmdbId()));
+            }
             repository.save(movieRequest);
             log.info("Refreshed {}", movieRequest);
         });
+
+        plexCacheService.cleanExcept("movie-", validCacheKeys);
     }
 
     public void refreshOne(Long id) {
@@ -126,9 +137,8 @@ public class MovieRefreshService {
             PlexMetadata plexMetadata = plexResult.metadata();
             if (plexMetadata != null) {
                 log.info(
-                        "Plex match found for tmdbId {} (url={}): {}",
+                        "Plex match found for tmdbId {}: {}",
                         radarrMovie.getTmdbId(),
-                        plexResult.url(),
                         plexMetadata.getTitle());
                 movieRequest.setPlexMetadataId(plexMetadata.getRatingKey());
                 movieRequest.setPlexAddedAt(plexMetadata.getAddedAt());

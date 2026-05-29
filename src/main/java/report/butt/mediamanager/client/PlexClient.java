@@ -13,6 +13,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import report.butt.mediamanager.model.plex.PlexDirectory;
 import report.butt.mediamanager.model.plex.PlexMetadata;
 import report.butt.mediamanager.model.plex.PlexSearchResponse;
+import report.butt.mediamanager.service.PlexCacheService;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class PlexClient {
@@ -20,6 +22,8 @@ public class PlexClient {
     private static final Logger log = LoggerFactory.getLogger(PlexClient.class);
 
     private final RestClient restClient;
+    private final ObjectMapper objectMapper;
+    private final PlexCacheService plexCacheService;
     private final String plexToken;
     private final String plexUrl;
     private final String plexTvSectionName;
@@ -28,9 +32,13 @@ public class PlexClient {
 
     public PlexClient(
             RestClient.Builder builder,
+            ObjectMapper objectMapper,
+            PlexCacheService plexCacheService,
             @Value("${plex.url}") String plexUrl,
             @Value("${plex.token}") String plexToken,
             @Value("${plex.tv-section-name:TV Shows}") String plexTvSectionName) {
+        this.objectMapper = objectMapper;
+        this.plexCacheService = plexCacheService;
         this.plexUrl = plexUrl;
         this.plexToken = plexToken;
         this.plexTvSectionName = plexTvSectionName;
@@ -102,10 +110,6 @@ public class PlexClient {
         return tvSectionId;
     }
 
-    public String getPlexToken() {
-        return plexToken;
-    }
-
     public String getPlexUrl() {
         return plexUrl;
     }
@@ -121,7 +125,6 @@ public class PlexClient {
         URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
                 .path("/library/all")
                 .queryParam("type", 1)
-                // .queryParam("year", year)
                 .queryParam("includeGuids", 1)
                 .queryParam("title", title)
                 .queryParam("X-Plex-Token", plexToken)
@@ -129,20 +132,23 @@ public class PlexClient {
                 .build()
                 .toUri();
 
-        PlexSearchResponse response = restClient
+        String body = restClient
                 .get()
                 .uri(uri)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .body(PlexSearchResponse.class);
+                .body(String.class);
+
+        String cacheUrl = plexCacheService.store(movieCacheKey(tmdbId), body == null ? "" : body);
+        PlexSearchResponse response = parse(body);
 
         if (response == null || response.getMediaContainer() == null) {
-            return new MetadataResult(uri.toString(), null);
+            return new MetadataResult(cacheUrl, null);
         }
 
         List<PlexMetadata> results = response.getMediaContainer().getMetadata();
         if (results == null || results.isEmpty()) {
-            return new MetadataResult(uri.toString(), null);
+            return new MetadataResult(cacheUrl, null);
         }
 
         PlexMetadata metadata = results.stream()
@@ -150,7 +156,7 @@ public class PlexClient {
                 .findFirst()
                 .orElse(results.get(0));
 
-        return new MetadataResult(uri.toString(), metadata);
+        return new MetadataResult(cacheUrl, metadata);
     }
 
     private static boolean hasTmdbGuid(PlexMetadata metadata, String tmdbGuid) {
@@ -178,20 +184,23 @@ public class PlexClient {
                 .build()
                 .toUri();
 
-        PlexSearchResponse response = restClient
+        String body = restClient
                 .get()
                 .uri(uri)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .body(PlexSearchResponse.class);
+                .body(String.class);
+
+        String cacheUrl = plexCacheService.store(tvCacheKey(tvdbId), body == null ? "" : body);
+        PlexSearchResponse response = parse(body);
 
         if (response == null || response.getMediaContainer() == null) {
-            return new MetadataResult(uri.toString(), null);
+            return new MetadataResult(cacheUrl, null);
         }
 
         List<PlexMetadata> results = response.getMediaContainer().getMetadata();
         if (results == null || results.isEmpty()) {
-            return new MetadataResult(uri.toString(), null);
+            return new MetadataResult(cacheUrl, null);
         }
 
         PlexMetadata metadata = results.stream()
@@ -199,7 +208,7 @@ public class PlexClient {
                 .findFirst()
                 .orElse(results.get(0));
 
-        return new MetadataResult(uri.toString(), metadata);
+        return new MetadataResult(cacheUrl, metadata);
     }
 
     private static boolean hasTvdbGuid(PlexMetadata metadata, String tvdbGuid) {
@@ -234,5 +243,20 @@ public class PlexClient {
         }
         List<PlexMetadata> results = response.getMediaContainer().getMetadata();
         return results == null ? List.of() : results;
+    }
+
+    public static String movieCacheKey(int tmdbId) {
+        return "movie-" + tmdbId;
+    }
+
+    public static String tvCacheKey(int tvdbId) {
+        return "tv-" + tvdbId;
+    }
+
+    private PlexSearchResponse parse(String body) {
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        return objectMapper.readValue(body, PlexSearchResponse.class);
     }
 }

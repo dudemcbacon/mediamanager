@@ -43,3 +43,4 @@ src/main/frontend
 .env
 .env.*
 !.env.example
+plex-cache

@@ -17,7 +17,9 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(auth -> auth.requestMatchers("/*.css", "/*.js", "/*.ico", "/*.png", "/*.svg")
-                .permitAll());
+                .permitAll()
+                .requestMatchers("/plex-cache/**")
+                .authenticated());
         http.with(VaadinSecurityConfigurer.vaadin(), configurer -> configurer.loginView(LoginView.class));
         return http.build();
     }

@@ -25,8 +25,6 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import com.vaadin.flow.theme.aura.Aura;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -74,8 +72,6 @@ public class TvRequestView extends VerticalLayout {
     private final String sonarrUrl;
     private final String plexUrl;
     private final String plexMachineIdentifier;
-    private final String plexTvSectionId;
-    private final String plexToken;
 
     public TvRequestView(
             TvRequestRepository tvRequestRepository,
@@ -96,8 +92,6 @@ public class TvRequestView extends VerticalLayout {
         this.sonarrUrl = sonarrUrl;
         this.plexUrl = plexClient.getPlexUrl();
         this.plexMachineIdentifier = plexClient.getMachineIdentifier();
-        this.plexTvSectionId = plexClient.getTvSectionId();
-        this.plexToken = plexClient.getPlexToken();
         this.knownValidatorNames =
                 validators.stream().map(v -> v.getClass().getSimpleName()).collect(Collectors.toUnmodifiableSet());
         setSizeFull();
@@ -111,7 +105,7 @@ public class TvRequestView extends VerticalLayout {
 
         grid.addComponentColumn(this::ombiLink).setHeader("Ombi").setAutoWidth(true);
         grid.addComponentColumn(this::sonarrLink).setHeader("Sonarr").setAutoWidth(true);
-        grid.addComponentColumn(this::plexLink).setHeader("Plex").setAutoWidth(true);
+        grid.addComponentColumn(TvRequestView::plexLink).setHeader("Plex").setAutoWidth(true);
         grid.addComponentColumn(this::plexAppLink).setHeader("Plex App").setAutoWidth(true);
         grid.addComponentColumn(TvRequestView::tvdbLink).setHeader("TVDB").setAutoWidth(true);
 
@@ -353,14 +347,11 @@ public class TvRequestView extends VerticalLayout {
         return externalLink(sonarrUrl + "/series/" + tvdbId);
     }
 
-    private com.vaadin.flow.component.Component plexLink(TvRequest mr) {
-        String title = mr.getTitle();
-        if (title == null || title.isBlank() || plexTvSectionId == null) {
+    private static com.vaadin.flow.component.Component plexLink(TvRequest mr) {
+        String url = mr.getPlexMetadataUrl();
+        if (url == null || url.isBlank()) {
             return new Span("—");
         }
-        String url = plexUrl + "/library/sections/" + plexTvSectionId + "/all?includeGuids=1&title="
-                + URLEncoder.encode(title, StandardCharsets.UTF_8)
-                + "&X-Plex-Token=" + URLEncoder.encode(plexToken, StandardCharsets.UTF_8);
         return externalLink(url);
     }
 

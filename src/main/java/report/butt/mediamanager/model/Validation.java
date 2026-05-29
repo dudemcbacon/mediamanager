@@ -11,6 +11,8 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.util.Objects;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
@@ -30,10 +32,12 @@ public class Validation {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "request_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Request request;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tv_episode_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private TvEpisodeRequest tvEpisode;
 
     @CreationTimestamp

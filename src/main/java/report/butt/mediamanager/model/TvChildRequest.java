@@ -11,14 +11,18 @@ import jakarta.persistence.Table;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Entity
 @Table(name = "tv_child_request")
 @DiscriminatorValue("TV_CHILD")
+@OnDelete(action = OnDeleteAction.CASCADE)
 public class TvChildRequest extends TvRequest {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "parent_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private TvRequest parent;
 
     private Integer ombiParentRequestId;

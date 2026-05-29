@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
@@ -33,6 +35,7 @@ public class TvSeasonRequest {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "tv_child_request_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private TvChildRequest tvChildRequest;
 
     @Column(name = "ombi_season_request_id")

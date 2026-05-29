@@ -6,10 +6,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Entity
 @Table(name = "movie_request")
 @DiscriminatorValue("MOVIE")
+@OnDelete(action = OnDeleteAction.CASCADE)
 public class MovieRequest extends Request {
 
     private Integer tmdbid;

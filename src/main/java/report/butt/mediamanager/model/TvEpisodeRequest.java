@@ -12,6 +12,8 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.util.Objects;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
@@ -29,6 +31,7 @@ public class TvEpisodeRequest {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "tv_season_request_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private TvSeasonRequest tvSeasonRequest;
 
     @Column(name = "ombi_episode_id")

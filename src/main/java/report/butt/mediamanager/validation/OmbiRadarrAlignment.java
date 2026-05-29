@@ -8,7 +8,8 @@ import report.butt.mediamanager.model.RequestType;
 public class OmbiRadarrAlignment implements Validator<MovieRequest> {
     @Override
     public Boolean validate(MovieRequest request) {
-        return request.getRadarrHasFile() && request.getOmbiRequestStatus().equals("Common.Available");
+        return Boolean.TRUE.equals(request.getRadarrHasFile())
+                && "Common.Available".equals(request.getOmbiRequestStatus());
     }
 
     @Override

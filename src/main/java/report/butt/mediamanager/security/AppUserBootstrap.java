@@ -20,8 +20,8 @@ public class AppUserBootstrap implements CommandLineRunner {
     public AppUserBootstrap(
             AppUserRepository repository,
             PasswordEncoder passwordEncoder,
-            @Value("${mediamanager.bootstrap.username:admin}") String bootstrapUsername,
-            @Value("${mediamanager.bootstrap.password:admin}") String bootstrapPassword) {
+            @Value("${mediamanager.bootstrap.username:}") String bootstrapUsername,
+            @Value("${mediamanager.bootstrap.password:}") String bootstrapPassword) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.bootstrapUsername = bootstrapUsername;
@@ -32,6 +32,18 @@ public class AppUserBootstrap implements CommandLineRunner {
     public void run(String... args) {
         if (repository.count() > 0) {
             return;
+        }
+        if (bootstrapUsername == null || bootstrapUsername.isBlank()) {
+            throw new IllegalStateException(
+                    "MEDIAMANAGER_BOOTSTRAP_USERNAME must be set to bootstrap the initial admin user");
+        }
+        if (bootstrapPassword == null || bootstrapPassword.isBlank()) {
+            throw new IllegalStateException(
+                    "MEDIAMANAGER_BOOTSTRAP_PASSWORD must be set to bootstrap the initial admin user");
+        }
+        if (bootstrapPassword.equals(bootstrapUsername)) {
+            throw new IllegalStateException(
+                    "MEDIAMANAGER_BOOTSTRAP_PASSWORD must not equal MEDIAMANAGER_BOOTSTRAP_USERNAME");
         }
         AppUser admin = new AppUser(bootstrapUsername, passwordEncoder.encode(bootstrapPassword), "ADMIN");
         repository.save(admin);
