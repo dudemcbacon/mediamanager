@@ -41,61 +41,57 @@ public class PlexClient {
 
     @PostConstruct
     void cacheMachineIdentifier() {
-        try {
-            URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
-                    .queryParam("X-Plex-Token", plexToken)
-                    .encode()
-                    .build()
-                    .toUri();
-            PlexSearchResponse response = restClient
-                    .get()
-                    .uri(uri)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .retrieve()
-                    .body(PlexSearchResponse.class);
-            if (response != null && response.getMediaContainer() != null) {
-                this.machineIdentifier = response.getMediaContainer().getMachineIdentifier();
-                log.info("Cached Plex machineIdentifier={}", this.machineIdentifier);
-            } else {
-                log.warn("Plex identity response was empty; machineIdentifier will be null");
-            }
-        } catch (Exception e) {
-            log.warn("Failed to fetch Plex machineIdentifier", e);
+        if (plexUrl == null || plexUrl.isBlank()) {
+            throw new IllegalStateException("plex.url is not configured");
         }
+        URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
+                .queryParam("X-Plex-Token", plexToken)
+                .encode()
+                .build()
+                .toUri();
+        PlexSearchResponse response = restClient
+                .get()
+                .uri(uri)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(PlexSearchResponse.class);
+        if (response == null || response.getMediaContainer() == null) {
+            throw new IllegalStateException("Plex identity response was empty; cannot cache machineIdentifier");
+        }
+        this.machineIdentifier = response.getMediaContainer().getMachineIdentifier();
+        log.info("Cached Plex machineIdentifier={}", this.machineIdentifier);
     }
 
     @PostConstruct
     void cacheTvSectionId() {
-        try {
-            URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
-                    .path("/library/sections")
-                    .queryParam("X-Plex-Token", plexToken)
-                    .encode()
-                    .build()
-                    .toUri();
-            PlexSearchResponse response = restClient
-                    .get()
-                    .uri(uri)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .retrieve()
-                    .body(PlexSearchResponse.class);
-            if (response == null
-                    || response.getMediaContainer() == null
-                    || response.getMediaContainer().getDirectory() == null) {
-                log.warn("Plex sections response was empty; tvSectionId will be null");
+        if (plexUrl == null || plexUrl.isBlank()) {
+            throw new IllegalStateException("plex.url is not configured");
+        }
+        URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
+                .path("/library/sections")
+                .queryParam("X-Plex-Token", plexToken)
+                .encode()
+                .build()
+                .toUri();
+        PlexSearchResponse response = restClient
+                .get()
+                .uri(uri)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(PlexSearchResponse.class);
+        if (response == null
+                || response.getMediaContainer() == null
+                || response.getMediaContainer().getDirectory() == null) {
+            throw new IllegalStateException("Plex sections response was empty; cannot cache tvSectionId");
+        }
+        for (PlexDirectory dir : response.getMediaContainer().getDirectory()) {
+            if (plexTvSectionName.equals(dir.getTitle())) {
+                this.tvSectionId = dir.getKey();
+                log.info("Cached Plex tvSectionId={} for section '{}'", this.tvSectionId, plexTvSectionName);
                 return;
             }
-            for (PlexDirectory dir : response.getMediaContainer().getDirectory()) {
-                if (plexTvSectionName.equals(dir.getTitle())) {
-                    this.tvSectionId = dir.getKey();
-                    log.info("Cached Plex tvSectionId={} for section '{}'", this.tvSectionId, plexTvSectionName);
-                    return;
-                }
-            }
-            log.warn("No Plex section found matching name '{}'", plexTvSectionName);
-        } catch (Exception e) {
-            log.warn("Failed to fetch Plex sections", e);
         }
+        throw new IllegalStateException("No Plex section found matching name '" + plexTvSectionName + "'");
     }
 
     public String getMachineIdentifier() {
