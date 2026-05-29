@@ -1,156 +1,173 @@
 package report.butt.mediamanager.model;
 
-import java.time.Instant;
-import java.util.Objects;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.Objects;
 
 @Entity
 @Table(name = "tv_request")
 @DiscriminatorValue("TV")
 public class TvRequest extends Request {
 
-  private Integer tvdbId;
-  private Integer plexTvdbId;
+    private Integer tvdbId;
+    private Integer plexTvdbId;
 
-  @Column(unique = true)
-  private Integer sonarrSeriesId;
-  private Boolean sonarrMonitored;
+    @Column(unique = true)
+    private Integer sonarrSeriesId;
 
-  @Column(columnDefinition = "TEXT")
-  private String sonarrPath;
+    private Boolean sonarrMonitored;
 
-  @Column(columnDefinition = "TEXT")
-  private String sonarrRootFolderPath;
+    @Column(columnDefinition = "TEXT")
+    private String sonarrPath;
 
-  private Integer sonarrEpisodeFileCount;
-  private Integer sonarrTotalEpisodeCount;
-  private Instant sonarrLastSearched;
-  private String sonarrOriginalLanguage;
+    @Column(columnDefinition = "TEXT")
+    private String sonarrRootFolderPath;
 
-  private Integer ombiTotalSeasons;
+    private Integer sonarrEpisodeFileCount;
+    private Integer sonarrEpisodeCount;
+    private Integer sonarrTotalEpisodeCount;
+    private Instant sonarrLastSearched;
+    private String sonarrOriginalLanguage;
 
-  TvRequest() {
-  }
+    private Integer ombiTotalSeasons;
+    private Integer ombiExternalProviderId;
 
-  public TvRequest(String title, Integer tvdbId, Boolean ombiAvailable, Integer ombiRequestId,
-      String ombiRequestStatus) {
-    setTitle(title);
-    setTvdbId(tvdbId);
-    setOmbiAvailable(ombiAvailable);
-    setOmbiRequestId(ombiRequestId);
-    setOmbiRequestStatus(ombiRequestStatus);
-  }
+    TvRequest() {}
 
-  public Integer getTvdbId() {
-    return this.tvdbId;
-  }
+    public TvRequest(
+            String title, Integer tvdbId, Boolean ombiAvailable, Integer ombiRequestId, String ombiRequestStatus) {
+        setTitle(title);
+        setTvdbId(tvdbId);
+        setOmbiAvailable(ombiAvailable);
+        setOmbiRequestId(ombiRequestId);
+        setOmbiRequestStatus(ombiRequestStatus);
+    }
 
-  public void setTvdbId(Integer tvdbId) {
-    this.tvdbId = tvdbId;
-  }
+    public Integer getTvdbId() {
+        return this.tvdbId;
+    }
 
-  public Integer getPlexTvdbId() {
-    return this.plexTvdbId;
-  }
+    public void setTvdbId(Integer tvdbId) {
+        this.tvdbId = tvdbId;
+    }
 
-  public void setPlexTvdbId(Integer plexTvdbId) {
-    this.plexTvdbId = plexTvdbId;
-  }
+    public Integer getPlexTvdbId() {
+        return this.plexTvdbId;
+    }
 
-  public Integer getSonarrSeriesId() {
-    return this.sonarrSeriesId;
-  }
+    public void setPlexTvdbId(Integer plexTvdbId) {
+        this.plexTvdbId = plexTvdbId;
+    }
 
-  public void setSonarrSeriesId(Integer sonarrSeriesId) {
-    this.sonarrSeriesId = sonarrSeriesId;
-  }
+    public Integer getSonarrSeriesId() {
+        return this.sonarrSeriesId;
+    }
 
-  public Boolean getSonarrMonitored() {
-    return this.sonarrMonitored;
-  }
+    public void setSonarrSeriesId(Integer sonarrSeriesId) {
+        this.sonarrSeriesId = sonarrSeriesId;
+    }
 
-  public void setSonarrMonitored(Boolean sonarrMonitored) {
-    this.sonarrMonitored = sonarrMonitored;
-  }
+    public Boolean getSonarrMonitored() {
+        return this.sonarrMonitored;
+    }
 
-  public String getSonarrPath() {
-    return this.sonarrPath;
-  }
+    public void setSonarrMonitored(Boolean sonarrMonitored) {
+        this.sonarrMonitored = sonarrMonitored;
+    }
 
-  public void setSonarrPath(String sonarrPath) {
-    this.sonarrPath = sonarrPath;
-  }
+    public String getSonarrPath() {
+        return this.sonarrPath;
+    }
 
-  public String getSonarrRootFolderPath() {
-    return this.sonarrRootFolderPath;
-  }
+    public void setSonarrPath(String sonarrPath) {
+        this.sonarrPath = sonarrPath;
+    }
 
-  public void setSonarrRootFolderPath(String sonarrRootFolderPath) {
-    this.sonarrRootFolderPath = sonarrRootFolderPath;
-  }
+    public String getSonarrRootFolderPath() {
+        return this.sonarrRootFolderPath;
+    }
 
-  public Integer getSonarrEpisodeFileCount() {
-    return this.sonarrEpisodeFileCount;
-  }
+    public void setSonarrRootFolderPath(String sonarrRootFolderPath) {
+        this.sonarrRootFolderPath = sonarrRootFolderPath;
+    }
 
-  public void setSonarrEpisodeFileCount(Integer sonarrEpisodeFileCount) {
-    this.sonarrEpisodeFileCount = sonarrEpisodeFileCount;
-  }
+    public Integer getSonarrEpisodeFileCount() {
+        return this.sonarrEpisodeFileCount;
+    }
 
-  public Integer getSonarrTotalEpisodeCount() {
-    return this.sonarrTotalEpisodeCount;
-  }
+    public void setSonarrEpisodeFileCount(Integer sonarrEpisodeFileCount) {
+        this.sonarrEpisodeFileCount = sonarrEpisodeFileCount;
+    }
 
-  public void setSonarrTotalEpisodeCount(Integer sonarrTotalEpisodeCount) {
-    this.sonarrTotalEpisodeCount = sonarrTotalEpisodeCount;
-  }
+    public Integer getSonarrEpisodeCount() {
+        return this.sonarrEpisodeCount;
+    }
 
-  public Instant getSonarrLastSearched() {
-    return this.sonarrLastSearched;
-  }
+    public void setSonarrEpisodeCount(Integer sonarrEpisodeCount) {
+        this.sonarrEpisodeCount = sonarrEpisodeCount;
+    }
 
-  public void setSonarrLastSearched(Instant sonarrLastSearched) {
-    this.sonarrLastSearched = sonarrLastSearched;
-  }
+    public Integer getSonarrTotalEpisodeCount() {
+        return this.sonarrTotalEpisodeCount;
+    }
 
-  public String getSonarrOriginalLanguage() {
-    return this.sonarrOriginalLanguage;
-  }
+    public void setSonarrTotalEpisodeCount(Integer sonarrTotalEpisodeCount) {
+        this.sonarrTotalEpisodeCount = sonarrTotalEpisodeCount;
+    }
 
-  public void setSonarrOriginalLanguage(String sonarrOriginalLanguage) {
-    this.sonarrOriginalLanguage = sonarrOriginalLanguage;
-  }
+    public Instant getSonarrLastSearched() {
+        return this.sonarrLastSearched;
+    }
 
-  public Integer getOmbiTotalSeasons() {
-    return this.ombiTotalSeasons;
-  }
+    public void setSonarrLastSearched(Instant sonarrLastSearched) {
+        this.sonarrLastSearched = sonarrLastSearched;
+    }
 
-  public void setOmbiTotalSeasons(Integer ombiTotalSeasons) {
-    this.ombiTotalSeasons = ombiTotalSeasons;
-  }
+    public String getSonarrOriginalLanguage() {
+        return this.sonarrOriginalLanguage;
+    }
 
-  @Override
-  public boolean isAvailable() {
-    return sonarrEpisodeFileCount != null
-        && sonarrTotalEpisodeCount != null
-        && sonarrTotalEpisodeCount > 0
-        && sonarrEpisodeFileCount.intValue() >= sonarrTotalEpisodeCount.intValue()
-        && OMBI_AVAILABLE_STATUS.equals(getOmbiRequestStatus());
-  }
+    public void setSonarrOriginalLanguage(String sonarrOriginalLanguage) {
+        this.sonarrOriginalLanguage = sonarrOriginalLanguage;
+    }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(getId(), getTitle(), getTvdbId());
-  }
+    public Integer getOmbiTotalSeasons() {
+        return this.ombiTotalSeasons;
+    }
 
-  @Override
-  public String toString() {
-    return String.format(
-        "TvRequest{id=%s, title=%s, tvdbId=%d, ombiAvailable=%b, ombiRequestId=%d, omviRequestStatus=%s}",
-        getId(), getTitle(), getTvdbId(), getOmbiAvailable(), getOmbiRequestId(), getOmbiRequestStatus());
-  }
+    public void setOmbiTotalSeasons(Integer ombiTotalSeasons) {
+        this.ombiTotalSeasons = ombiTotalSeasons;
+    }
+
+    public Integer getOmbiExternalProviderId() {
+        return this.ombiExternalProviderId;
+    }
+
+    public void setOmbiExternalProviderId(Integer ombiExternalProviderId) {
+        this.ombiExternalProviderId = ombiExternalProviderId;
+    }
+
+    @Override
+    public boolean isAvailable() {
+        return sonarrEpisodeFileCount != null
+                && sonarrEpisodeCount != null
+                && sonarrEpisodeCount > 0
+                && sonarrEpisodeFileCount.intValue() >= sonarrEpisodeCount.intValue()
+                && OMBI_AVAILABLE_STATUS.equals(getOmbiRequestStatus());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getId(), getTitle(), getTvdbId());
+    }
+
+    @Override
+    public String toString() {
+        return String.format(
+                "TvRequest{id=%s, title=%s, tvdbId=%d, ombiAvailable=%b, ombiRequestId=%d, omviRequestStatus=%s}",
+                getId(), getTitle(), getTvdbId(), getOmbiAvailable(), getOmbiRequestId(), getOmbiRequestStatus());
+    }
 }

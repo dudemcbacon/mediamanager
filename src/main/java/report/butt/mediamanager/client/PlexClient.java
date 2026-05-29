@@ -1,10 +1,8 @@
 package report.butt.mediamanager.client;
 
+import jakarta.annotation.PostConstruct;
 import java.net.URI;
 import java.util.List;
-
-import jakarta.annotation.PostConstruct;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,7 +10,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
-
 import report.butt.mediamanager.model.plex.PlexDirectory;
 import report.butt.mediamanager.model.plex.PlexMetadata;
 import report.butt.mediamanager.model.plex.PlexSearchResponse;
@@ -37,8 +34,7 @@ public class PlexClient {
         this.plexUrl = plexUrl;
         this.plexToken = plexToken;
         this.plexTvSectionName = plexTvSectionName;
-        this.restClient = builder
-                .baseUrl(plexUrl)
+        this.restClient = builder.baseUrl(plexUrl)
                 .defaultHeader("accept", "application/json")
                 .build();
     }
@@ -46,13 +42,13 @@ public class PlexClient {
     @PostConstruct
     void cacheMachineIdentifier() {
         try {
-            URI uri = UriComponentsBuilder
-                    .fromUriString(this.plexUrl)
+            URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
                     .queryParam("X-Plex-Token", plexToken)
                     .encode()
                     .build()
                     .toUri();
-            PlexSearchResponse response = restClient.get()
+            PlexSearchResponse response = restClient
+                    .get()
                     .uri(uri)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
@@ -71,19 +67,20 @@ public class PlexClient {
     @PostConstruct
     void cacheTvSectionId() {
         try {
-            URI uri = UriComponentsBuilder
-                    .fromUriString(this.plexUrl)
+            URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
                     .path("/library/sections")
                     .queryParam("X-Plex-Token", plexToken)
                     .encode()
                     .build()
                     .toUri();
-            PlexSearchResponse response = restClient.get()
+            PlexSearchResponse response = restClient
+                    .get()
                     .uri(uri)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(PlexSearchResponse.class);
-            if (response == null || response.getMediaContainer() == null
+            if (response == null
+                    || response.getMediaContainer() == null
                     || response.getMediaContainer().getDirectory() == null) {
                 log.warn("Plex sections response was empty; tvSectionId will be null");
                 return;
@@ -91,8 +88,7 @@ public class PlexClient {
             for (PlexDirectory dir : response.getMediaContainer().getDirectory()) {
                 if (plexTvSectionName.equals(dir.getTitle())) {
                     this.tvSectionId = dir.getKey();
-                    log.info("Cached Plex tvSectionId={} for section '{}'", this.tvSectionId,
-                            plexTvSectionName);
+                    log.info("Cached Plex tvSectionId={} for section '{}'", this.tvSectionId, plexTvSectionName);
                     return;
                 }
             }
@@ -126,8 +122,7 @@ public class PlexClient {
         log.info("Retrieving media from Plex via tmdbId={}, title={}, year={}", tmdbId, title, year);
         String tmdbGuid = "tmdb://" + tmdbId;
 
-        URI uri = UriComponentsBuilder
-                .fromUriString(this.plexUrl)
+        URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
                 .path("/library/all")
                 .queryParam("type", 1)
                 // .queryParam("year", year)
@@ -138,7 +133,8 @@ public class PlexClient {
                 .build()
                 .toUri();
 
-        PlexSearchResponse response = restClient.get()
+        PlexSearchResponse response = restClient
+                .get()
                 .uri(uri)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
@@ -177,8 +173,7 @@ public class PlexClient {
             return new MetadataResult(null, null);
         }
 
-        URI uri = UriComponentsBuilder
-                .fromUriString(this.plexUrl)
+        URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
                 .path("/library/sections/" + tvSectionId + "/all")
                 .queryParam("includeGuids", 1)
                 .queryParam("title", title)
@@ -187,7 +182,8 @@ public class PlexClient {
                 .build()
                 .toUri();
 
-        PlexSearchResponse response = restClient.get()
+        PlexSearchResponse response = restClient
+                .get()
                 .uri(uri)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
@@ -215,5 +211,32 @@ public class PlexClient {
             return false;
         }
         return metadata.getGuids().stream().anyMatch(g -> tvdbGuid.equals(g.getId()));
+    }
+
+    public List<PlexMetadata> getShowGrandchildren(String plexMetadataId) {
+        log.info("Retrieving Plex grandchildren for plexMetadataId={}", plexMetadataId);
+
+        URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
+                .path("/library/metadata/" + plexMetadataId + "/grandchildren")
+                .queryParam("includeGuids", 1)
+                .queryParam("includeDetails", 1)
+                .queryParam("includeChildren", 1)
+                .queryParam("X-Plex-Token", plexToken)
+                .encode()
+                .build()
+                .toUri();
+
+        PlexSearchResponse response = restClient
+                .get()
+                .uri(uri)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(PlexSearchResponse.class);
+
+        if (response == null || response.getMediaContainer() == null) {
+            return List.of();
+        }
+        List<PlexMetadata> results = response.getMediaContainer().getMetadata();
+        return results == null ? List.of() : results;
     }
 }

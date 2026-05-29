@@ -1,74 +1,70 @@
 package report.butt.mediamanager.model.radarr;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.annotation.processing.Generated;
-
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.processing.Generated;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({
-    "movieFileCount",
-    "sizeOnDisk",
-    "releaseGroups"
-})
+@JsonPropertyOrder({"movieFileCount", "sizeOnDisk", "releaseGroups"})
 @Generated("jsonschema2pojo")
 public class Statistics {
 
-  @JsonProperty("movieFileCount")
-  private Integer movieFileCount;
-  @JsonProperty("sizeOnDisk")
-  private Long sizeOnDisk;
-  @JsonProperty("releaseGroups")
-  private List<Object> releaseGroups;
-  @JsonIgnore
-  private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
+    @JsonProperty("movieFileCount")
+    private Integer movieFileCount;
 
-  @JsonProperty("movieFileCount")
-  public Integer getMovieFileCount() {
-    return movieFileCount;
-  }
+    @JsonProperty("sizeOnDisk")
+    private Long sizeOnDisk;
 
-  @JsonProperty("movieFileCount")
-  public void setMovieFileCount(Integer movieFileCount) {
-    this.movieFileCount = movieFileCount;
-  }
+    @JsonProperty("releaseGroups")
+    private List<Object> releaseGroups;
 
-  @JsonProperty("sizeOnDisk")
-  public Long getSizeOnDisk() {
-    return sizeOnDisk;
-  }
+    @JsonIgnore
+    private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
-  @JsonProperty("sizeOnDisk")
-  public void setSizeOnDisk(Long sizeOnDisk) {
-    this.sizeOnDisk = sizeOnDisk;
-  }
+    @JsonProperty("movieFileCount")
+    public Integer getMovieFileCount() {
+        return movieFileCount;
+    }
 
-  @JsonProperty("releaseGroups")
-  public List<Object> getReleaseGroups() {
-    return releaseGroups;
-  }
+    @JsonProperty("movieFileCount")
+    public void setMovieFileCount(Integer movieFileCount) {
+        this.movieFileCount = movieFileCount;
+    }
 
-  @JsonProperty("releaseGroups")
-  public void setReleaseGroups(List<Object> releaseGroups) {
-    this.releaseGroups = releaseGroups;
-  }
+    @JsonProperty("sizeOnDisk")
+    public Long getSizeOnDisk() {
+        return sizeOnDisk;
+    }
 
-  @JsonAnyGetter
-  public Map<String, Object> getAdditionalProperties() {
-    return this.additionalProperties;
-  }
+    @JsonProperty("sizeOnDisk")
+    public void setSizeOnDisk(Long sizeOnDisk) {
+        this.sizeOnDisk = sizeOnDisk;
+    }
 
-  @JsonAnySetter
-  public void setAdditionalProperty(String name, Object value) {
-    this.additionalProperties.put(name, value);
-  }
+    @JsonProperty("releaseGroups")
+    public List<Object> getReleaseGroups() {
+        return releaseGroups;
+    }
 
+    @JsonProperty("releaseGroups")
+    public void setReleaseGroups(List<Object> releaseGroups) {
+        this.releaseGroups = releaseGroups;
+    }
+
+    @JsonAnyGetter
+    public Map<String, Object> getAdditionalProperties() {
+        return this.additionalProperties;
+    }
+
+    @JsonAnySetter
+    public void setAdditionalProperty(String name, Object value) {
+        this.additionalProperties.put(name, value);
+    }
 }

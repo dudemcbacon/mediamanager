@@ -1,0 +1,30 @@
+services:
+  app:
+    image: ${MEDIAMANAGER_IMAGE:-ghcr.io/bburnett/mediamanager:latest}
+    container_name: mediamanager-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '${APP_PORT:-8080}:8080'
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-mediamanager}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-mediamanager}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+
+      OMBI_URL: ${OMBI_URL:?OMBI_URL is required}
+      OMBI_API_KEY: ${OMBI_API_KEY:?OMBI_API_KEY is required}
+
+      RADARR_URL: ${RADARR_URL:?RADARR_URL is required}
+      RADARR_API_KEY: ${RADARR_API_KEY:?RADARR_API_KEY is required}
+
+      SONARR_URL: ${SONARR_URL:?SONARR_URL is required}
+      SONARR_API_KEY: ${SONARR_API_KEY:?SONARR_API_KEY is required}
+
+      PLEX_URL: ${PLEX_URL:?PLEX_URL is required}
+      PLEX_TOKEN: ${PLEX_TOKEN:?PLEX_TOKEN is required}
+      PLEX_MOVIES_SECTION_NAME: ${PLEX_MOVIES_SECTION_NAME:-Movies}
+      PLEX_TV_SECTION_NAME: ${PLEX_TV_SECTION_NAME:-TV Shows}
+
+      JAVA_OPTS: ${JAVA_OPTS:-}

@@ -1,152 +1,150 @@
 package report.butt.mediamanager.model;
 
-import java.time.Instant;
-import java.util.Objects;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.Objects;
 
 @Entity
 @Table(name = "movie_request")
 @DiscriminatorValue("MOVIE")
 public class MovieRequest extends Request {
 
-  private Integer tmdbid;
-  private Integer plexTmdbid;
+    private Integer tmdbid;
+    private Integer plexTmdbid;
 
-  @Column(unique = true)
-  private Integer radarrRequestId;
-  private Boolean radarrHasFile;
-  private Boolean radarrMonitored;
-  private Boolean radarrIsAvailable;
-  private Integer radarrHistoryCount;
-  private Instant radarrLastSearched;
+    @Column(unique = true)
+    private Integer radarrRequestId;
 
-  @Column(columnDefinition = "TEXT")
-  private String radarrPath;
+    private Boolean radarrHasFile;
+    private Boolean radarrMonitored;
+    private Boolean radarrIsAvailable;
+    private Integer radarrHistoryCount;
+    private Instant radarrLastSearched;
 
-  @Column(columnDefinition = "TEXT")
-  private String radarrRootFolderPath;
+    @Column(columnDefinition = "TEXT")
+    private String radarrPath;
 
-  private String radarrOriginalLanguage;
+    @Column(columnDefinition = "TEXT")
+    private String radarrRootFolderPath;
 
-  MovieRequest() {
-  }
+    private String radarrOriginalLanguage;
 
-  public MovieRequest(String title, Integer tmdbid, Boolean ombiAvailable, Integer ombiRequestId,
-      String ombiRequestStatus) {
-    setTitle(title);
-    setTmdbid(tmdbid);
-    setOmbiAvailable(ombiAvailable);
-    setOmbiRequestId(ombiRequestId);
-    setOmbiRequestStatus(ombiRequestStatus);
-  }
+    MovieRequest() {}
 
-  public Integer getTmdbid() {
-    return this.tmdbid;
-  }
+    public MovieRequest(
+            String title, Integer tmdbid, Boolean ombiAvailable, Integer ombiRequestId, String ombiRequestStatus) {
+        setTitle(title);
+        setTmdbid(tmdbid);
+        setOmbiAvailable(ombiAvailable);
+        setOmbiRequestId(ombiRequestId);
+        setOmbiRequestStatus(ombiRequestStatus);
+    }
 
-  public void setTmdbid(Integer tmdbid) {
-    this.tmdbid = tmdbid;
-  }
+    public Integer getTmdbid() {
+        return this.tmdbid;
+    }
 
-  public Integer getPlexTmdbid() {
-    return this.plexTmdbid;
-  }
+    public void setTmdbid(Integer tmdbid) {
+        this.tmdbid = tmdbid;
+    }
 
-  public void setPlexTmdbid(Integer plexTmdbid) {
-    this.plexTmdbid = plexTmdbid;
-  }
+    public Integer getPlexTmdbid() {
+        return this.plexTmdbid;
+    }
 
-  public Integer getRadarrRequestId() {
-    return this.radarrRequestId;
-  }
+    public void setPlexTmdbid(Integer plexTmdbid) {
+        this.plexTmdbid = plexTmdbid;
+    }
 
-  public void setRadarrRequestId(Integer radarrRequestId) {
-    this.radarrRequestId = radarrRequestId;
-  }
+    public Integer getRadarrRequestId() {
+        return this.radarrRequestId;
+    }
 
-  public Boolean getRadarrHasFile() {
-    return this.radarrHasFile;
-  }
+    public void setRadarrRequestId(Integer radarrRequestId) {
+        this.radarrRequestId = radarrRequestId;
+    }
 
-  public void setRadarrHasFile(Boolean radarrHasFile) {
-    this.radarrHasFile = radarrHasFile;
-  }
+    public Boolean getRadarrHasFile() {
+        return this.radarrHasFile;
+    }
 
-  public Boolean getRadarrMonitored() {
-    return this.radarrMonitored;
-  }
+    public void setRadarrHasFile(Boolean radarrHasFile) {
+        this.radarrHasFile = radarrHasFile;
+    }
 
-  public void setRadarrMonitored(Boolean radarrMonitored) {
-    this.radarrMonitored = radarrMonitored;
-  }
+    public Boolean getRadarrMonitored() {
+        return this.radarrMonitored;
+    }
 
-  public Boolean getRadarrIsAvailable() {
-    return this.radarrIsAvailable;
-  }
+    public void setRadarrMonitored(Boolean radarrMonitored) {
+        this.radarrMonitored = radarrMonitored;
+    }
 
-  public void setRadarrIsAvailable(Boolean radarrIsAvailable) {
-    this.radarrIsAvailable = radarrIsAvailable;
-  }
+    public Boolean getRadarrIsAvailable() {
+        return this.radarrIsAvailable;
+    }
 
-  public Integer getRadarrHistoryCount() {
-    return this.radarrHistoryCount;
-  }
+    public void setRadarrIsAvailable(Boolean radarrIsAvailable) {
+        this.radarrIsAvailable = radarrIsAvailable;
+    }
 
-  public void setRadarrHistoryCount(Integer radarrHistoryCount) {
-    this.radarrHistoryCount = radarrHistoryCount;
-  }
+    public Integer getRadarrHistoryCount() {
+        return this.radarrHistoryCount;
+    }
 
-  public Instant getRadarrLastSearched() {
-    return this.radarrLastSearched;
-  }
+    public void setRadarrHistoryCount(Integer radarrHistoryCount) {
+        this.radarrHistoryCount = radarrHistoryCount;
+    }
 
-  public void setRadarrLastSearched(Instant radarrLastSearched) {
-    this.radarrLastSearched = radarrLastSearched;
-  }
+    public Instant getRadarrLastSearched() {
+        return this.radarrLastSearched;
+    }
 
-  public String getRadarrPath() {
-    return this.radarrPath;
-  }
+    public void setRadarrLastSearched(Instant radarrLastSearched) {
+        this.radarrLastSearched = radarrLastSearched;
+    }
 
-  public void setRadarrPath(String radarrPath) {
-    this.radarrPath = radarrPath;
-  }
+    public String getRadarrPath() {
+        return this.radarrPath;
+    }
 
-  public String getRadarrRootFolderPath() {
-    return this.radarrRootFolderPath;
-  }
+    public void setRadarrPath(String radarrPath) {
+        this.radarrPath = radarrPath;
+    }
 
-  public void setRadarrRootFolderPath(String radarrRootFolderPath) {
-    this.radarrRootFolderPath = radarrRootFolderPath;
-  }
+    public String getRadarrRootFolderPath() {
+        return this.radarrRootFolderPath;
+    }
 
-  public String getRadarrOriginalLanguage() {
-    return this.radarrOriginalLanguage;
-  }
+    public void setRadarrRootFolderPath(String radarrRootFolderPath) {
+        this.radarrRootFolderPath = radarrRootFolderPath;
+    }
 
-  public void setRadarrOriginalLanguage(String radarrOriginalLanguage) {
-    this.radarrOriginalLanguage = radarrOriginalLanguage;
-  }
+    public String getRadarrOriginalLanguage() {
+        return this.radarrOriginalLanguage;
+    }
 
-  @Override
-  public boolean isAvailable() {
-    return Boolean.TRUE.equals(this.radarrHasFile)
-        && OMBI_AVAILABLE_STATUS.equals(getOmbiRequestStatus());
-  }
+    public void setRadarrOriginalLanguage(String radarrOriginalLanguage) {
+        this.radarrOriginalLanguage = radarrOriginalLanguage;
+    }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(getId(), getTitle(), getTmdbid());
-  }
+    @Override
+    public boolean isAvailable() {
+        return Boolean.TRUE.equals(this.radarrHasFile) && OMBI_AVAILABLE_STATUS.equals(getOmbiRequestStatus());
+    }
 
-  @Override
-  public String toString() {
-    return String.format(
-        "MovieRequest{id=%s, title=%s, tmdbid=%d, ombiAvailable=%b, ombiRequestId=%d, omviRequestStatus=%s}",
-        getId(), getTitle(), getTmdbid(), getOmbiAvailable(), getOmbiRequestId(), getOmbiRequestStatus());
-  }
+    @Override
+    public int hashCode() {
+        return Objects.hash(getId(), getTitle(), getTmdbid());
+    }
+
+    @Override
+    public String toString() {
+        return String.format(
+                "MovieRequest{id=%s, title=%s, tmdbid=%d, ombiAvailable=%b, ombiRequestId=%d, omviRequestStatus=%s}",
+                getId(), getTitle(), getTmdbid(), getOmbiAvailable(), getOmbiRequestId(), getOmbiRequestStatus());
+    }
 }

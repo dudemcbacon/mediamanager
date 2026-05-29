@@ -1,8 +1,7 @@
 package report.butt.mediamanager.model.plex;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 public class PlexMetadata {
 
@@ -17,6 +16,12 @@ public class PlexMetadata {
 
     @JsonProperty("year")
     private Integer year;
+
+    @JsonProperty("index")
+    private Integer index;
+
+    @JsonProperty("parentIndex")
+    private Integer parentIndex;
 
     @JsonProperty("addedAt")
     private Long addedAt;
@@ -60,6 +65,22 @@ public class PlexMetadata {
 
     public void setYear(Integer year) {
         this.year = year;
+    }
+
+    public Integer getIndex() {
+        return index;
+    }
+
+    public void setIndex(Integer index) {
+        this.index = index;
+    }
+
+    public Integer getParentIndex() {
+        return parentIndex;
+    }
+
+    public void setParentIndex(Integer parentIndex) {
+        this.parentIndex = parentIndex;
     }
 
     public Long getAddedAt() {

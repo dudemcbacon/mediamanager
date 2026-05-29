@@ -1,18 +1,15 @@
 package report.butt.mediamanager.model.radarr;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.annotation.processing.Generated;
-
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.processing.Generated;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({
@@ -32,161 +29,172 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @Generated("jsonschema2pojo")
 public class Moviefile {
 
-  @JsonProperty("movieId")
-  private Integer movieId;
-  @JsonProperty("relativePath")
-  private String relativePath;
-  @JsonProperty("path")
-  private String path;
-  @JsonProperty("size")
-  private Long size;
-  @JsonProperty("dateAdded")
-  private String dateAdded;
-  @JsonProperty("edition")
-  private String edition;
-  @JsonProperty("languages")
-  private List<Language> languages;
-  @JsonProperty("quality")
-  private Quality quality;
-  @JsonProperty("indexerFlags")
-  private Integer indexerFlags;
-  @JsonProperty("mediaInfo")
-  private MediaInfo mediaInfo;
-  @JsonProperty("qualityCutoffNotMet")
-  private Boolean qualityCutoffNotMet;
-  @JsonProperty("id")
-  private Integer id;
-  @JsonIgnore
-  private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
+    @JsonProperty("movieId")
+    private Integer movieId;
 
-  @JsonProperty("movieId")
-  public Integer getMovieId() {
-    return movieId;
-  }
+    @JsonProperty("relativePath")
+    private String relativePath;
 
-  @JsonProperty("movieId")
-  public void setMovieId(Integer movieId) {
-    this.movieId = movieId;
-  }
+    @JsonProperty("path")
+    private String path;
 
-  @JsonProperty("relativePath")
-  public String getRelativePath() {
-    return relativePath;
-  }
+    @JsonProperty("size")
+    private Long size;
 
-  @JsonProperty("relativePath")
-  public void setRelativePath(String relativePath) {
-    this.relativePath = relativePath;
-  }
+    @JsonProperty("dateAdded")
+    private String dateAdded;
 
-  @JsonProperty("path")
-  public String getPath() {
-    return path;
-  }
+    @JsonProperty("edition")
+    private String edition;
 
-  @JsonProperty("path")
-  public void setPath(String path) {
-    this.path = path;
-  }
+    @JsonProperty("languages")
+    private List<Language> languages;
 
-  @JsonProperty("size")
-  public Long getSize() {
-    return size;
-  }
+    @JsonProperty("quality")
+    private Quality quality;
 
-  @JsonProperty("size")
-  public void setSize(Long size) {
-    this.size = size;
-  }
+    @JsonProperty("indexerFlags")
+    private Integer indexerFlags;
 
-  @JsonProperty("dateAdded")
-  public String getDateAdded() {
-    return dateAdded;
-  }
+    @JsonProperty("mediaInfo")
+    private MediaInfo mediaInfo;
 
-  @JsonProperty("dateAdded")
-  public void setDateAdded(String dateAdded) {
-    this.dateAdded = dateAdded;
-  }
+    @JsonProperty("qualityCutoffNotMet")
+    private Boolean qualityCutoffNotMet;
 
-  @JsonProperty("edition")
-  public String getEdition() {
-    return edition;
-  }
+    @JsonProperty("id")
+    private Integer id;
 
-  @JsonProperty("edition")
-  public void setEdition(String edition) {
-    this.edition = edition;
-  }
+    @JsonIgnore
+    private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
-  @JsonProperty("languages")
-  public List<Language> getLanguages() {
-    return languages;
-  }
+    @JsonProperty("movieId")
+    public Integer getMovieId() {
+        return movieId;
+    }
 
-  @JsonProperty("languages")
-  public void setLanguages(List<Language> languages) {
-    this.languages = languages;
-  }
+    @JsonProperty("movieId")
+    public void setMovieId(Integer movieId) {
+        this.movieId = movieId;
+    }
 
-  @JsonProperty("quality")
-  public Quality getQuality() {
-    return quality;
-  }
+    @JsonProperty("relativePath")
+    public String getRelativePath() {
+        return relativePath;
+    }
 
-  @JsonProperty("quality")
-  public void setQuality(Quality quality) {
-    this.quality = quality;
-  }
+    @JsonProperty("relativePath")
+    public void setRelativePath(String relativePath) {
+        this.relativePath = relativePath;
+    }
 
-  @JsonProperty("indexerFlags")
-  public Integer getIndexerFlags() {
-    return indexerFlags;
-  }
+    @JsonProperty("path")
+    public String getPath() {
+        return path;
+    }
 
-  @JsonProperty("indexerFlags")
-  public void setIndexerFlags(Integer indexerFlags) {
-    this.indexerFlags = indexerFlags;
-  }
+    @JsonProperty("path")
+    public void setPath(String path) {
+        this.path = path;
+    }
 
-  @JsonProperty("mediaInfo")
-  public MediaInfo getMediaInfo() {
-    return mediaInfo;
-  }
+    @JsonProperty("size")
+    public Long getSize() {
+        return size;
+    }
 
-  @JsonProperty("mediaInfo")
-  public void setMediaInfo(MediaInfo mediaInfo) {
-    this.mediaInfo = mediaInfo;
-  }
+    @JsonProperty("size")
+    public void setSize(Long size) {
+        this.size = size;
+    }
 
-  @JsonProperty("qualityCutoffNotMet")
-  public Boolean getQualityCutoffNotMet() {
-    return qualityCutoffNotMet;
-  }
+    @JsonProperty("dateAdded")
+    public String getDateAdded() {
+        return dateAdded;
+    }
 
-  @JsonProperty("qualityCutoffNotMet")
-  public void setQualityCutoffNotMet(Boolean qualityCutoffNotMet) {
-    this.qualityCutoffNotMet = qualityCutoffNotMet;
-  }
+    @JsonProperty("dateAdded")
+    public void setDateAdded(String dateAdded) {
+        this.dateAdded = dateAdded;
+    }
 
-  @JsonProperty("id")
-  public Integer getId() {
-    return id;
-  }
+    @JsonProperty("edition")
+    public String getEdition() {
+        return edition;
+    }
 
-  @JsonProperty("id")
-  public void setId(Integer id) {
-    this.id = id;
-  }
+    @JsonProperty("edition")
+    public void setEdition(String edition) {
+        this.edition = edition;
+    }
 
-  @JsonAnyGetter
-  public Map<String, Object> getAdditionalProperties() {
-    return this.additionalProperties;
-  }
+    @JsonProperty("languages")
+    public List<Language> getLanguages() {
+        return languages;
+    }
 
-  @JsonAnySetter
-  public void setAdditionalProperty(String name, Object value) {
-    this.additionalProperties.put(name, value);
-  }
+    @JsonProperty("languages")
+    public void setLanguages(List<Language> languages) {
+        this.languages = languages;
+    }
 
+    @JsonProperty("quality")
+    public Quality getQuality() {
+        return quality;
+    }
+
+    @JsonProperty("quality")
+    public void setQuality(Quality quality) {
+        this.quality = quality;
+    }
+
+    @JsonProperty("indexerFlags")
+    public Integer getIndexerFlags() {
+        return indexerFlags;
+    }
+
+    @JsonProperty("indexerFlags")
+    public void setIndexerFlags(Integer indexerFlags) {
+        this.indexerFlags = indexerFlags;
+    }
+
+    @JsonProperty("mediaInfo")
+    public MediaInfo getMediaInfo() {
+        return mediaInfo;
+    }
+
+    @JsonProperty("mediaInfo")
+    public void setMediaInfo(MediaInfo mediaInfo) {
+        this.mediaInfo = mediaInfo;
+    }
+
+    @JsonProperty("qualityCutoffNotMet")
+    public Boolean getQualityCutoffNotMet() {
+        return qualityCutoffNotMet;
+    }
+
+    @JsonProperty("qualityCutoffNotMet")
+    public void setQualityCutoffNotMet(Boolean qualityCutoffNotMet) {
+        this.qualityCutoffNotMet = qualityCutoffNotMet;
+    }
+
+    @JsonProperty("id")
+    public Integer getId() {
+        return id;
+    }
+
+    @JsonProperty("id")
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    @JsonAnyGetter
+    public Map<String, Object> getAdditionalProperties() {
+        return this.additionalProperties;
+    }
+
+    @JsonAnySetter
+    public void setAdditionalProperty(String name, Object value) {
+        this.additionalProperties.put(name, value);
+    }
 }

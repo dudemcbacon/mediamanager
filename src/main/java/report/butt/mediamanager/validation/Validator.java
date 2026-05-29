@@ -5,13 +5,13 @@ import report.butt.mediamanager.model.Request;
 import report.butt.mediamanager.model.RequestType;
 
 public interface Validator<T extends Request> {
-  Boolean validate(T request) throws RequestValidationException;
+    Boolean validate(T request) throws RequestValidationException;
 
-  RequestType supportedType();
+    RequestType supportedType();
 
-  int sortOrder();
+    int sortOrder();
 
-  String shortName();
+    String shortName();
 
-  String description();
+    String description();
 }

@@ -1,8 +1,7 @@
 package report.butt.mediamanager.model.plex;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 public class PlexMedia {
 

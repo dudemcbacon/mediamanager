@@ -38,3 +38,8 @@ out/
 node_modules
 vite.generated.ts
 src/main/frontend
+
+### Local secrets ###
+.env
+.env.*
+!.env.example

@@ -6,25 +6,36 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SeriesStatistics {
 
-  @JsonProperty("episodeFileCount")
-  private Integer episodeFileCount;
+    @JsonProperty("episodeFileCount")
+    private Integer episodeFileCount;
 
-  @JsonProperty("totalEpisodeCount")
-  private Integer totalEpisodeCount;
+    @JsonProperty("episodeCount")
+    private Integer episodeCount;
 
-  public Integer getEpisodeFileCount() {
-    return episodeFileCount;
-  }
+    @JsonProperty("totalEpisodeCount")
+    private Integer totalEpisodeCount;
 
-  public void setEpisodeFileCount(Integer episodeFileCount) {
-    this.episodeFileCount = episodeFileCount;
-  }
+    public Integer getEpisodeFileCount() {
+        return episodeFileCount;
+    }
 
-  public Integer getTotalEpisodeCount() {
-    return totalEpisodeCount;
-  }
+    public void setEpisodeFileCount(Integer episodeFileCount) {
+        this.episodeFileCount = episodeFileCount;
+    }
 
-  public void setTotalEpisodeCount(Integer totalEpisodeCount) {
-    this.totalEpisodeCount = totalEpisodeCount;
-  }
+    public Integer getEpisodeCount() {
+        return episodeCount;
+    }
+
+    public void setEpisodeCount(Integer episodeCount) {
+        this.episodeCount = episodeCount;
+    }
+
+    public Integer getTotalEpisodeCount() {
+        return totalEpisodeCount;
+    }
+
+    public void setTotalEpisodeCount(Integer totalEpisodeCount) {
+        this.totalEpisodeCount = totalEpisodeCount;
+    }
 }
