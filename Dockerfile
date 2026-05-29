@@ -19,7 +19,7 @@ RUN cp build/libs/*.jar app.jar
 FROM eclipse-temurin:25-jre
 WORKDIR /app
 
-RUN useradd --system --uid 1000 --create-home --shell /usr/sbin/nologin app
+RUN useradd --system --create-home --shell /usr/sbin/nologin app
 USER app
 
 COPY --from=build --chown=app:app /workspace/app.jar /app/app.jar
