@@ -2,7 +2,9 @@ package report.butt.mediamanager.client;
 
 import jakarta.annotation.PostConstruct;
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import report.butt.mediamanager.model.plex.PlexDirectory;
+import report.butt.mediamanager.model.plex.PlexGuid;
+import report.butt.mediamanager.model.plex.PlexMediaContainer;
 import report.butt.mediamanager.model.plex.PlexMetadata;
 import report.butt.mediamanager.model.plex.PlexSearchResponse;
 import report.butt.mediamanager.service.PlexCacheService;
@@ -27,8 +31,10 @@ public class PlexClient {
     private final String plexToken;
     private final String plexUrl;
     private final String plexTvSectionName;
+    private final String plexMoviesSectionName;
     private String machineIdentifier;
     private String tvSectionId;
+    private String moviesSectionId;
 
     public PlexClient(
             RestClient.Builder builder,
@@ -36,12 +42,14 @@ public class PlexClient {
             PlexCacheService plexCacheService,
             @Value("${plex.url}") String plexUrl,
             @Value("${plex.token}") String plexToken,
-            @Value("${plex.tv-section-name:TV Shows}") String plexTvSectionName) {
+            @Value("${plex.tv-section-name:TV Shows}") String plexTvSectionName,
+            @Value("${plex.movies-section-name:Movies}") String plexMoviesSectionName) {
         this.objectMapper = objectMapper;
         this.plexCacheService = plexCacheService;
         this.plexUrl = plexUrl;
         this.plexToken = plexToken;
         this.plexTvSectionName = plexTvSectionName;
+        this.plexMoviesSectionName = plexMoviesSectionName;
         this.restClient = builder.baseUrl(plexUrl)
                 .defaultHeader("accept", "application/json")
                 .build();
@@ -102,12 +110,51 @@ public class PlexClient {
         throw new IllegalStateException("No Plex section found matching name '" + plexTvSectionName + "'");
     }
 
+    @PostConstruct
+    void cacheMoviesSectionId() {
+        if (plexUrl == null || plexUrl.isBlank()) {
+            throw new IllegalStateException("plex.url is not configured");
+        }
+        URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
+                .path("/library/sections")
+                .queryParam("X-Plex-Token", plexToken)
+                .encode()
+                .build()
+                .toUri();
+        PlexSearchResponse response = restClient
+                .get()
+                .uri(uri)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(PlexSearchResponse.class);
+        if (response == null
+                || response.getMediaContainer() == null
+                || response.getMediaContainer().getDirectory() == null) {
+            throw new IllegalStateException("Plex sections response was empty; cannot cache moviesSectionId");
+        }
+        for (PlexDirectory dir : response.getMediaContainer().getDirectory()) {
+            if (plexMoviesSectionName.equals(dir.getTitle())) {
+                this.moviesSectionId = dir.getKey();
+                log.info(
+                        "Cached Plex moviesSectionId={} for section '{}'",
+                        this.moviesSectionId,
+                        plexMoviesSectionName);
+                return;
+            }
+        }
+        throw new IllegalStateException("No Plex section found matching name '" + plexMoviesSectionName + "'");
+    }
+
     public String getMachineIdentifier() {
         return machineIdentifier;
     }
 
     public String getTvSectionId() {
         return tvSectionId;
+    }
+
+    public String getMoviesSectionId() {
+        return moviesSectionId;
     }
 
     public String getPlexUrl() {
@@ -164,6 +211,68 @@ public class PlexClient {
             return false;
         }
         return metadata.getGuids().stream().anyMatch(g -> tmdbGuid.equals(g.getId()));
+    }
+
+    public Map<Integer, PlexMetadata> getAllMoviesIndexedByTmdb() {
+        if (moviesSectionId == null) {
+            log.warn("Plex moviesSectionId is not cached; cannot bulk-fetch movies");
+            return Map.of();
+        }
+
+        log.info("Bulk-fetching all Plex movies from sectionId={}", moviesSectionId);
+        URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
+                .path("/library/sections/" + moviesSectionId + "/all")
+                .queryParam("type", 1)
+                .queryParam("includeGuids", 1)
+                .queryParam("X-Plex-Token", plexToken)
+                .encode()
+                .build()
+                .toUri();
+
+        PlexSearchResponse response = restClient
+                .get()
+                .uri(uri)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(PlexSearchResponse.class);
+
+        if (response == null || response.getMediaContainer() == null) {
+            return Map.of();
+        }
+        List<PlexMetadata> results = response.getMediaContainer().getMetadata();
+        if (results == null || results.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Integer, PlexMetadata> indexed = new HashMap<>(results.size());
+        for (PlexMetadata m : results) {
+            if (m.getGuids() == null) {
+                continue;
+            }
+            for (PlexGuid guid : m.getGuids()) {
+                String id = guid.getId();
+                if (id == null || !id.startsWith("tmdb://")) {
+                    continue;
+                }
+                try {
+                    int tmdbId = Integer.parseInt(id.substring("tmdb://".length()));
+                    indexed.putIfAbsent(tmdbId, m);
+                } catch (NumberFormatException e) {
+                    log.debug("Skipping non-numeric tmdb guid '{}' on Plex item {}", id, m.getRatingKey());
+                }
+            }
+        }
+        log.info("Indexed {} Plex movies by tmdbId", indexed.size());
+        return indexed;
+    }
+
+    public String cacheMovieMetadata(int tmdbId, PlexMetadata metadata) {
+        PlexMediaContainer container = new PlexMediaContainer();
+        container.setMetadata(metadata == null ? List.of() : List.of(metadata));
+        PlexSearchResponse wrapper = new PlexSearchResponse();
+        wrapper.setMediaContainer(container);
+        String body = objectMapper.writeValueAsString(wrapper);
+        return plexCacheService.store(movieCacheKey(tmdbId), body);
     }
 
     public MetadataResult getShowByTvdbId(int tvdbId, String title, int year) {

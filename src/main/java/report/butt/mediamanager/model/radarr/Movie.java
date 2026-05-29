@@ -54,6 +54,7 @@ import javax.annotation.processing.Generated;
     "movieFile",
     "popularity",
     "statistics",
+    "lastSearchTime",
     "id"
 })
 @Generated("jsonschema2pojo")
@@ -181,6 +182,9 @@ public class Movie {
 
     @JsonProperty("statistics")
     private report.butt.mediamanager.model.radarr.Statistics statistics;
+
+    @JsonProperty("lastSearchTime")
+    private String lastSearchTime;
 
     @JsonProperty("id")
     private Integer id;
@@ -596,6 +600,16 @@ public class Movie {
     @JsonProperty("statistics")
     public void setStatistics(report.butt.mediamanager.model.radarr.Statistics statistics) {
         this.statistics = statistics;
+    }
+
+    @JsonProperty("lastSearchTime")
+    public String getLastSearchTime() {
+        return lastSearchTime;
+    }
+
+    @JsonProperty("lastSearchTime")
+    public void setLastSearchTime(String lastSearchTime) {
+        this.lastSearchTime = lastSearchTime;
     }
 
     @JsonProperty("id")

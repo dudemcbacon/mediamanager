@@ -62,14 +62,14 @@
         <input type="checkbox" id="toggle-unsearched" checked
                onchange="(function(checked){ document.querySelectorAll('tr.row-unsearched').forEach(function(r){ r.style.display = checked ? '' : 'none'; }); })(this.checked);">
         Show unsearched
-        (<span th:text="${#lists.size(movies.?[ombiRequestStatus == 'Common.ProcessingRequest' and radarrHasFile == false and radarrHistoryCount == 0])}">0</span>)
+        (<span th:text="${#lists.size(movies.?[ombiRequestStatus == 'Common.ProcessingRequest' and radarrHasFile == false])}">0</span>)
     </label>
 
     <label style="display: inline-block; margin-bottom: 16px; margin-left: 16px;">
         <input type="checkbox" id="toggle-normal" checked
                onchange="(function(checked){ document.querySelectorAll('tr.row-normal').forEach(function(r){ r.style.display = checked ? '' : 'none'; }); })(this.checked);">
         Show normal requests
-        (<span th:text="${#lists.size(movies.?[!(ombiRequestStatus == 'Common.Available' and radarrHasFile == true) and !(radarrHasFile == true and ombiRequestStatus != 'Common.Available') and !(ombiRequestStatus == 'Common.ProcessingRequest' and radarrHasFile == false and radarrHistoryCount == 0)])}">0</span>)
+        (<span th:text="${#lists.size(movies.?[!(ombiRequestStatus == 'Common.Available' and radarrHasFile == true) and !(radarrHasFile == true and ombiRequestStatus != 'Common.Available') and !(ombiRequestStatus == 'Common.ProcessingRequest' and radarrHasFile == false)])}">0</span>)
     </label>
 
     <table>
@@ -84,7 +84,6 @@
                 <th>Radarr Request Id</th>
                 <th>Radarr Has File</th>
                 <th>Radarr Is Available</th>
-                <th>Radarr History Count</th>
                 <th>Radarr Last Searched</th>
                 <th>Plex Media Id</th>
                 <th>Plex tmdbId</th>
@@ -95,13 +94,13 @@
         <tbody>
             <!-- If the list is empty, show a friendly message -->
             <tr th:if="${#lists.isEmpty(movies)}">
-                <td colspan="15" style="text-align: center;">No movie requests found.</td>
+                <td colspan="14" style="text-align: center;">No movie requests found.</td>
             </tr>
 
             <!-- Loop through the list of movies -->
             <tr th:each="movie : ${movies}"
-                th:classappend="${movie.ombiRequestStatus == 'Common.Available' and movie.radarrHasFile == true} ? 'row-available' : (${movie.radarrHasFile == true and movie.ombiRequestStatus != 'Common.Available'} ? 'row-potentially-available' : (${movie.ombiRequestStatus == 'Common.ProcessingRequest' and movie.radarrHasFile == false and movie.radarrHistoryCount == 0} ? 'row-unsearched' : 'row-normal'))"
-                th:style="${movie.radarrHasFile == true and movie.ombiRequestStatus != 'Common.Available'} ? 'background-color: rgb(248, 215, 218);' : (${movie.ombiRequestStatus == 'Common.ProcessingRequest' and movie.radarrHasFile == false and movie.radarrHistoryCount == 0} ? 'background-color: rgb(255, 243, 205);' : (${movie.ombiRequestStatus == 'Common.Available' and movie.radarrHasFile == true} ? 'background-color: rgb(209, 231, 221);' : ''))">
+                th:classappend="${movie.ombiRequestStatus == 'Common.Available' and movie.radarrHasFile == true} ? 'row-available' : (${movie.radarrHasFile == true and movie.ombiRequestStatus != 'Common.Available'} ? 'row-potentially-available' : (${movie.ombiRequestStatus == 'Common.ProcessingRequest' and movie.radarrHasFile == false} ? 'row-unsearched' : 'row-normal'))"
+                th:style="${movie.radarrHasFile == true and movie.ombiRequestStatus != 'Common.Available'} ? 'background-color: rgb(248, 215, 218);' : (${movie.ombiRequestStatus == 'Common.ProcessingRequest' and movie.radarrHasFile == false} ? 'background-color: rgb(255, 243, 205);' : (${movie.ombiRequestStatus == 'Common.Available' and movie.radarrHasFile == true} ? 'background-color: rgb(209, 231, 221);' : ''))">
                 <td th:text="${movie.title}">Movie Title</td>
                 <td><a th:href="${'https://www.themoviedb.org/movie/' + movie.tmdbid}" th:text="${movie.tmdbid}" target="_blank"></a></td>
                 <td th:text="${movie.ombiAvailable}">2000</td>
@@ -111,8 +110,7 @@
                 <td th:text="${movie.radarrRequestId}"></td>
                 <td th:text="${movie.radarrHasFile}"></td>
                 <td th:text="${movie.radarrIsAvailable}"></td>
-                <td th:text="${movie.radarrHistoryCount}"></td>
-                <td th:text="${movie.radarrLastSearched != null ? #temporals.format(movie.radarrLastSearched, 'MM/dd/yy HH:mm:ss') : ''}"></td>
+                <td th:text="${movie.radarrLastSearchTime != null ? #temporals.format(movie.radarrLastSearchTime, 'MM/dd/yy HH:mm:ss') : ''}"></td>
                 <td th:text="${movie.plexMediaId}"></td>
                 <td><a th:if="${movie.plexTmdbid != null}" th:href="${'https://www.themoviedb.org/movie/' + movie.plexTmdbid}" th:text="${movie.plexTmdbid}" target="_blank"></a></td>
                 <td>

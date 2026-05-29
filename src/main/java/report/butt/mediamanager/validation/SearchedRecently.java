@@ -16,7 +16,7 @@ public class SearchedRecently implements Validator<MovieRequest> {
         if (request.isAvailable()) {
             return true;
         }
-        Instant lastSearched = request.getRadarrLastSearched();
+        Instant lastSearched = request.getRadarrLastSearchTime();
         if (lastSearched == null) {
             return false;
         }

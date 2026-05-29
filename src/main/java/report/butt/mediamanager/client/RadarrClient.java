@@ -8,7 +8,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import report.butt.mediamanager.model.radarr.Movie;
-import report.butt.mediamanager.model.radarr.MovieHistory;
 import report.butt.mediamanager.model.radarr.RadarrCommand;
 
 @Service
@@ -36,19 +35,6 @@ public class RadarrClient {
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .body(new ParameterizedTypeReference<List<Movie>>() {});
-    }
-
-    public List<MovieHistory> getMovieHistory(Integer radarrRequestId) {
-        return restClient
-                .get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/api/v3/history/movie")
-                        .queryParam("movieId", radarrRequestId)
-                        .queryParam("includeMovie", false)
-                        .build())
-                .accept(MediaType.APPLICATION_JSON)
-                .retrieve()
-                .body(new ParameterizedTypeReference<List<MovieHistory>>() {});
     }
 
     public RadarrCommand searchMovies(List<Integer> movieIds) {

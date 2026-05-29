@@ -1,9 +1,15 @@
 package report.butt.mediamanager.service;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -47,30 +53,54 @@ public class MovieRefreshService {
     public void refreshAll() {
         List<OmbiMovieRequest> ombiMovies = ombiClient.getMovies();
         List<Movie> radarrMovies = radarrClient.getMovies();
+        Map<Integer, Movie> radarrByTmdb = radarrMovies.stream()
+                .filter(m -> m.getTmdbId() != null)
+                .collect(Collectors.toMap(Movie::getTmdbId, Function.identity(), (a, b) -> a));
+        Map<Integer, PlexMetadata> plexByTmdb = plexClient.getAllMoviesIndexedByTmdb();
         Set<String> validCacheKeys = new HashSet<>();
 
-        ombiMovies.forEach(ombiMovie -> {
-            MovieRequest movieRequest = repository
-                    .findByOmbiRequestId(ombiMovie.getId())
-                    .orElseGet(() -> new MovieRequest(
+        Set<Integer> ombiRequestIds = ombiMovies.stream()
+                .map(OmbiMovieRequest::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Integer, MovieRequest> existingByOmbiId = repository.findByOmbiRequestIdIn(ombiRequestIds).stream()
+                .collect(Collectors.toMap(MovieRequest::getOmbiRequestId, Function.identity(), (a, b) -> a));
+
+        List<MovieRequest> toSave = new ArrayList<>();
+        int unchanged = 0;
+        for (OmbiMovieRequest ombiMovie : ombiMovies) {
+            MovieRequest existing = existingByOmbiId.get(ombiMovie.getId());
+            MovieRequest movieRequest = existing != null
+                    ? existing
+                    : new MovieRequest(
                             ombiMovie.getTitle(),
                             ombiMovie.getTheMovieDbId(),
                             ombiMovie.getAvailable(),
                             ombiMovie.getId(),
-                            ombiMovie.getRequestStatus()));
+                            ombiMovie.getRequestStatus());
 
-            Movie radarrMovie = radarrMovies.stream()
-                    .filter(rm -> Objects.equals(rm.getTmdbId(), ombiMovie.getTheMovieDbId()))
-                    .findFirst()
-                    .orElse(null);
+            Movie radarrMovie =
+                    ombiMovie.getTheMovieDbId() == null ? null : radarrByTmdb.get(ombiMovie.getTheMovieDbId());
 
-            applyUpdates(movieRequest, ombiMovie, radarrMovie);
+            Integer beforeHash = existing == null ? null : movieRequest.hashCode();
+            applyUpdates(movieRequest, ombiMovie, radarrMovie, plexByTmdb);
+
             if (radarrMovie != null && radarrMovie.getTmdbId() != null) {
                 validCacheKeys.add(PlexClient.movieCacheKey(radarrMovie.getTmdbId()));
             }
-            repository.save(movieRequest);
-            log.info("Refreshed {}", movieRequest);
-        });
+
+            if (beforeHash == null || beforeHash != movieRequest.hashCode()) {
+                toSave.add(movieRequest);
+                log.info("Refreshed {}", movieRequest);
+            } else {
+                unchanged++;
+            }
+        }
+
+        if (!toSave.isEmpty()) {
+            repository.saveAll(toSave);
+        }
+        log.info("Refresh complete: {} saved, {} unchanged", toSave.size(), unchanged);
 
         plexCacheService.cleanExcept("movie-", validCacheKeys);
     }
@@ -95,12 +125,16 @@ public class MovieRefreshService {
             }
         }
 
-        applyUpdates(movieRequest, ombiMovie, radarrMovie);
+        applyUpdates(movieRequest, ombiMovie, radarrMovie, null);
         repository.save(movieRequest);
         log.info("Refreshed {} ({})", id, movieRequest.getTitle());
     }
 
-    private void applyUpdates(MovieRequest movieRequest, OmbiMovieRequest ombiMovie, Movie radarrMovie) {
+    private void applyUpdates(
+            MovieRequest movieRequest,
+            OmbiMovieRequest ombiMovie,
+            Movie radarrMovie,
+            Map<Integer, PlexMetadata> plexByTmdb) {
         if (ombiMovie != null) {
             String ombiUserName = ombiMovie.getRequestedUser() == null
                     ? null
@@ -123,16 +157,38 @@ public class MovieRefreshService {
                     radarrMovie.getOriginalLanguage() == null
                             ? null
                             : radarrMovie.getOriginalLanguage().getName());
-            movieRequest.setRadarrHistoryCount(
-                    radarrClient.getMovieHistory(radarrMovie.getId()).size());
-            applyPlexUpdates(movieRequest, radarrMovie);
+            movieRequest.setRadarrLastSearchTime(parseInstant(radarrMovie.getLastSearchTime()));
+            movieRequest.setRadarrMovieFilePath(
+                    radarrMovie.getMovieFile() == null ? null : radarrMovie.getMovieFile().getPath());
+            applyPlexUpdates(movieRequest, radarrMovie, plexByTmdb);
         }
     }
 
-    private void applyPlexUpdates(MovieRequest movieRequest, Movie radarrMovie) {
+    private static Instant parseInstant(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
         try {
-            MetadataResult plexResult =
-                    plexClient.getMovieByTmdbId(radarrMovie.getTmdbId(), radarrMovie.getTitle(), radarrMovie.getYear());
+            return Instant.parse(value);
+        } catch (DateTimeParseException e) {
+            log.warn("Could not parse Radarr timestamp '{}'", value);
+            return null;
+        }
+    }
+
+    private void applyPlexUpdates(
+            MovieRequest movieRequest, Movie radarrMovie, Map<Integer, PlexMetadata> plexByTmdb) {
+        try {
+            MetadataResult plexResult;
+            if (plexByTmdb != null) {
+                PlexMetadata prefetched =
+                        radarrMovie.getTmdbId() == null ? null : plexByTmdb.get(radarrMovie.getTmdbId());
+                String cacheUrl = plexClient.cacheMovieMetadata(radarrMovie.getTmdbId(), prefetched);
+                plexResult = new MetadataResult(cacheUrl, prefetched);
+            } else {
+                plexResult = plexClient.getMovieByTmdbId(
+                        radarrMovie.getTmdbId(), radarrMovie.getTitle(), radarrMovie.getYear());
+            }
             movieRequest.setPlexMetadataUrl(plexResult.url());
             PlexMetadata plexMetadata = plexResult.metadata();
             if (plexMetadata != null) {

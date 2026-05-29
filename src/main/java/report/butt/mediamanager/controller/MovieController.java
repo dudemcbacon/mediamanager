@@ -74,8 +74,6 @@ public class MovieController {
         List<MovieRequest> movieRequests = movieRequestRepository.findAll().stream()
                 .filter(movieRequest -> "Common.ProcessingRequest".equals(movieRequest.getOmbiRequestStatus())
                         && Boolean.FALSE.equals(movieRequest.getRadarrHasFile())
-                        && movieRequest.getRadarrHistoryCount() != null
-                        && movieRequest.getRadarrHistoryCount() == 0
                         && movieRequest.getRadarrRequestId() != null)
                 .toList();
 
@@ -93,7 +91,7 @@ public class MovieController {
                     command.getResult());
 
             Instant now = Instant.now();
-            movieRequests.forEach(movieRequest -> movieRequest.setRadarrLastSearched(now));
+            movieRequests.forEach(movieRequest -> movieRequest.setRadarrLastSearchTime(now));
             movieRequestRepository.saveAll(movieRequests);
         }
 
@@ -126,7 +124,7 @@ public class MovieController {
         movieRequestRepository.findAll().stream()
                 .filter(movieRequest -> movieId.equals(movieRequest.getRadarrRequestId()))
                 .forEach(movieRequest -> {
-                    movieRequest.setRadarrLastSearched(now);
+                    movieRequest.setRadarrLastSearchTime(now);
                     movieRequestRepository.save(movieRequest);
                 });
 
@@ -176,7 +174,7 @@ public class MovieController {
                 command.getStatus(),
                 command.getResult());
 
-        movieRequest.setRadarrLastSearched(Instant.now());
+        movieRequest.setRadarrLastSearchTime(Instant.now());
         movieRequestRepository.save(movieRequest);
         return "redirect:/movies";
     }
@@ -205,7 +203,7 @@ public class MovieController {
                 command.getResult());
 
         Instant now = Instant.now();
-        movieRequests.forEach(mr -> mr.setRadarrLastSearched(now));
+        movieRequests.forEach(mr -> mr.setRadarrLastSearchTime(now));
         movieRequestRepository.saveAll(movieRequests);
         return "redirect:/movies";
     }

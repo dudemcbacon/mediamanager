@@ -24,14 +24,16 @@ public class MovieRequest extends Request {
     private Boolean radarrHasFile;
     private Boolean radarrMonitored;
     private Boolean radarrIsAvailable;
-    private Integer radarrHistoryCount;
-    private Instant radarrLastSearched;
+    private Instant radarrLastSearchTime;
 
     @Column(columnDefinition = "TEXT")
     private String radarrPath;
 
     @Column(columnDefinition = "TEXT")
     private String radarrRootFolderPath;
+
+    @Column(columnDefinition = "TEXT")
+    private String radarrMovieFilePath;
 
     private String radarrOriginalLanguage;
 
@@ -94,20 +96,12 @@ public class MovieRequest extends Request {
         this.radarrIsAvailable = radarrIsAvailable;
     }
 
-    public Integer getRadarrHistoryCount() {
-        return this.radarrHistoryCount;
+    public Instant getRadarrLastSearchTime() {
+        return this.radarrLastSearchTime;
     }
 
-    public void setRadarrHistoryCount(Integer radarrHistoryCount) {
-        this.radarrHistoryCount = radarrHistoryCount;
-    }
-
-    public Instant getRadarrLastSearched() {
-        return this.radarrLastSearched;
-    }
-
-    public void setRadarrLastSearched(Instant radarrLastSearched) {
-        this.radarrLastSearched = radarrLastSearched;
+    public void setRadarrLastSearchTime(Instant radarrLastSearchTime) {
+        this.radarrLastSearchTime = radarrLastSearchTime;
     }
 
     public String getRadarrPath() {
@@ -126,6 +120,14 @@ public class MovieRequest extends Request {
         this.radarrRootFolderPath = radarrRootFolderPath;
     }
 
+    public String getRadarrMovieFilePath() {
+        return this.radarrMovieFilePath;
+    }
+
+    public void setRadarrMovieFilePath(String radarrMovieFilePath) {
+        this.radarrMovieFilePath = radarrMovieFilePath;
+    }
+
     public String getRadarrOriginalLanguage() {
         return this.radarrOriginalLanguage;
     }
@@ -141,7 +143,37 @@ public class MovieRequest extends Request {
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getTitle(), getTmdbid());
+        return Objects.hash(
+                getId(),
+                getTitle(),
+                getOmbiAvailable(),
+                getOmbiRequestId(),
+                getOmbiRequestStatus(),
+                getOmbiUserName(),
+                getStale(),
+                getStaleReason(),
+                getMarkedStaleAt(),
+                getPlexMetadataUrl(),
+                getPlexMetadataId(),
+                getPlexAddedAt(),
+                getPlexUpdatedAt(),
+                getPlexMediaId(),
+                getPlexMediaFilename(),
+                getPlexMediaSize(),
+                getPlexMediaDuration(),
+                getCreatedAt(),
+                getUpdatedAt(),
+                getTmdbid(),
+                getPlexTmdbid(),
+                getRadarrRequestId(),
+                getRadarrHasFile(),
+                getRadarrMonitored(),
+                getRadarrIsAvailable(),
+                getRadarrLastSearchTime(),
+                getRadarrPath(),
+                getRadarrRootFolderPath(),
+                getRadarrMovieFilePath(),
+                getRadarrOriginalLanguage());
     }
 
     @Override
