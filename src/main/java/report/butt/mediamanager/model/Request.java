@@ -73,6 +73,11 @@ public abstract class Request {
         return this.title;
     }
 
+    /** Title normalized for URLs: lowercased with spaces replaced by '+'. */
+    public String normalizedTitle() {
+        return this.title == null ? null : this.title.toLowerCase().replace(' ', '+');
+    }
+
     public Boolean getOmbiAvailable() {
         return this.ombiAvailable;
     }

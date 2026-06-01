@@ -12,10 +12,13 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
+import report.butt.mediamanager.model.plex.EpisodeKey;
 import report.butt.mediamanager.model.plex.PlexDirectory;
 import report.butt.mediamanager.model.plex.PlexGuid;
+import report.butt.mediamanager.model.plex.PlexMedia;
 import report.butt.mediamanager.model.plex.PlexMediaContainer;
 import report.butt.mediamanager.model.plex.PlexMetadata;
+import report.butt.mediamanager.model.plex.PlexPart;
 import report.butt.mediamanager.model.plex.PlexSearchResponse;
 import report.butt.mediamanager.service.PlexCacheService;
 import tools.jackson.databind.ObjectMapper;
@@ -352,6 +355,127 @@ public class PlexClient {
         }
         List<PlexMetadata> results = response.getMediaContainer().getMetadata();
         return results == null ? List.of() : results;
+    }
+
+    public Map<Integer, PlexMetadata> getAllShowsIndexedByTvdb() {
+        if (tvSectionId == null) {
+            log.warn("Plex tvSectionId is not cached; cannot bulk-fetch shows");
+            return Map.of();
+        }
+
+        log.info("Bulk-fetching all Plex shows from sectionId={}", tvSectionId);
+        URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
+                .path("/library/sections/" + tvSectionId + "/all")
+                .queryParam("includeGuids", 1)
+                .queryParam("X-Plex-Token", plexToken)
+                .encode()
+                .build()
+                .toUri();
+
+        PlexSearchResponse response = restClient
+                .get()
+                .uri(uri)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(PlexSearchResponse.class);
+
+        if (response == null || response.getMediaContainer() == null) {
+            return Map.of();
+        }
+        List<PlexMetadata> results = response.getMediaContainer().getMetadata();
+        if (results == null || results.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Integer, PlexMetadata> indexed = new HashMap<>(results.size());
+        for (PlexMetadata m : results) {
+            if (m.getGuids() == null) {
+                continue;
+            }
+            for (PlexGuid guid : m.getGuids()) {
+                String id = guid.getId();
+                if (id == null || !id.startsWith("tvdb://")) {
+                    continue;
+                }
+                try {
+                    int tvdbId = Integer.parseInt(id.substring("tvdb://".length()));
+                    indexed.putIfAbsent(tvdbId, m);
+                } catch (NumberFormatException e) {
+                    log.debug("Skipping non-numeric tvdb guid '{}' on Plex item {}", id, m.getRatingKey());
+                }
+            }
+        }
+        log.info("Indexed {} Plex shows by tvdbId", indexed.size());
+        return indexed;
+    }
+
+    public Map<String, Map<EpisodeKey, String>> getAllEpisodesIndexedByShow() {
+        if (tvSectionId == null) {
+            log.warn("Plex tvSectionId is not cached; cannot bulk-fetch episodes");
+            return Map.of();
+        }
+
+        log.info("Bulk-fetching all Plex episodes from sectionId={}", tvSectionId);
+        URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
+                .path("/library/sections/" + tvSectionId + "/all")
+                .queryParam("type", 4)
+                .queryParam("X-Plex-Token", plexToken)
+                .encode()
+                .build()
+                .toUri();
+
+        PlexSearchResponse response = restClient
+                .get()
+                .uri(uri)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(PlexSearchResponse.class);
+
+        if (response == null || response.getMediaContainer() == null) {
+            return Map.of();
+        }
+        List<PlexMetadata> results = response.getMediaContainer().getMetadata();
+        if (results == null || results.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, Map<EpisodeKey, String>> indexed = new HashMap<>();
+        for (PlexMetadata episode : results) {
+            String showRatingKey = episode.getGrandparentRatingKey();
+            Integer seasonNumber = episode.getParentIndex();
+            Integer episodeNumber = episode.getIndex();
+            if (showRatingKey == null || seasonNumber == null || episodeNumber == null) {
+                continue;
+            }
+            String file = firstFile(episode);
+            if (file == null) {
+                continue;
+            }
+            indexed.computeIfAbsent(showRatingKey, k -> new HashMap<>())
+                    .putIfAbsent(new EpisodeKey(seasonNumber, episodeNumber), file);
+        }
+        log.info("Indexed Plex episodes for {} shows", indexed.size());
+        return indexed;
+    }
+
+    public String cacheTvMetadata(int tvdbId, PlexMetadata metadata) {
+        PlexMediaContainer container = new PlexMediaContainer();
+        container.setMetadata(metadata == null ? List.of() : List.of(metadata));
+        PlexSearchResponse wrapper = new PlexSearchResponse();
+        wrapper.setMediaContainer(container);
+        String body = objectMapper.writeValueAsString(wrapper);
+        return plexCacheService.store(tvCacheKey(tvdbId), body);
+    }
+
+    private static String firstFile(PlexMetadata episode) {
+        if (episode.getMedia() == null || episode.getMedia().isEmpty()) {
+            return null;
+        }
+        PlexMedia media = episode.getMedia().get(0);
+        if (media.getPart() == null || media.getPart().isEmpty()) {
+            return null;
+        }
+        return media.getPart().get(0).getFile();
     }
 
     public static String movieCacheKey(int tmdbId) {

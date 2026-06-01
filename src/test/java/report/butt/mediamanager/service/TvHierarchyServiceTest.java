@@ -8,7 +8,9 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
+import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.model.TvChildRequest;
 import report.butt.mediamanager.model.TvEpisodeRequest;
 import report.butt.mediamanager.model.TvRequest;
@@ -18,7 +20,13 @@ import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
 
-@SpringBootTest
+// Bootstrap credentials have no default in application.properties (fail-fast in production). Supply
+// test values here so the context can start without the MEDIAMANAGER_BOOTSTRAP_* env vars.
+@SpringBootTest(
+        properties = {
+            "mediamanager.bootstrap.username=test",
+            "mediamanager.bootstrap.password=test"
+        })
 @Transactional
 class TvHierarchyServiceTest {
 
@@ -39,6 +47,12 @@ class TvHierarchyServiceTest {
 
     @Autowired
     private EntityManager entityManager;
+
+    // PlexClient's @PostConstruct methods perform live Plex HTTP calls at startup, which would fail
+    // to load the context in environments without a reachable Plex server. This test exercises only
+    // the JPA hierarchy load, so a mock bean keeps the context bootable without external services.
+    @MockitoBean
+    private PlexClient plexClient;
 
     @Test
     void loadHierarchy_returnsChildrenSeasonsAndEpisodesInOrder() {

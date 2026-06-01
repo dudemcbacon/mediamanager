@@ -109,6 +109,12 @@ public class TvRequestView extends VerticalLayout {
         grid.addComponentColumn(this::plexAppLink).setHeader("Plex App").setAutoWidth(true);
         grid.addComponentColumn(TvRequestView::tvdbLink).setHeader("TVDB").setAutoWidth(true);
 
+        grid.addColumn(TvRequestView::episodesAvailable)
+                .setHeader("Episodes")
+                .setAutoWidth(true)
+                .setSortable(true)
+                .setComparator(Comparator.comparingDouble(TvRequestView::episodeAvailabilityRatio));
+
         validators.stream()
                 .sorted(Comparator.comparingInt(Validator<TvRequest>::sortOrder))
                 .forEach(validator -> {
@@ -340,11 +346,28 @@ public class TvRequestView extends VerticalLayout {
     }
 
     private com.vaadin.flow.component.Component sonarrLink(TvRequest mr) {
-        Integer tvdbId = mr.getTvdbId();
-        if (tvdbId == null) {
+        String normalizedTitle = mr.normalizedTitle();
+        if (normalizedTitle == null || normalizedTitle.isBlank()) {
             return new Span("—");
         }
-        return externalLink(sonarrUrl + "/series/" + tvdbId);
+        return externalLink(sonarrUrl + "/series/" + normalizedTitle);
+    }
+
+    /** Available (downloaded) episodes over total episodes, per Sonarr — e.g. "52/236". */
+    private static String episodesAvailable(TvRequest mr) {
+        int available = mr.getSonarrEpisodeFileCount() == null ? 0 : mr.getSonarrEpisodeFileCount();
+        int total = mr.getSonarrEpisodeCount() == null ? 0 : mr.getSonarrEpisodeCount();
+        return available + "/" + total;
+    }
+
+    /** Fraction of episodes available (0.0–1.0), for sorting the Episodes column by completeness. */
+    private static double episodeAvailabilityRatio(TvRequest mr) {
+        int total = mr.getSonarrEpisodeCount() == null ? 0 : mr.getSonarrEpisodeCount();
+        if (total == 0) {
+            return 0.0;
+        }
+        int available = mr.getSonarrEpisodeFileCount() == null ? 0 : mr.getSonarrEpisodeFileCount();
+        return (double) available / total;
     }
 
     private static com.vaadin.flow.component.Component plexLink(TvRequest mr) {

@@ -23,6 +23,9 @@ public class PlexMetadata {
     @JsonProperty("parentIndex")
     private Integer parentIndex;
 
+    @JsonProperty("grandparentRatingKey")
+    private String grandparentRatingKey;
+
     @JsonProperty("addedAt")
     private Long addedAt;
 
@@ -81,6 +84,14 @@ public class PlexMetadata {
 
     public void setParentIndex(Integer parentIndex) {
         this.parentIndex = parentIndex;
+    }
+
+    public String getGrandparentRatingKey() {
+        return grandparentRatingKey;
+    }
+
+    public void setGrandparentRatingKey(String grandparentRatingKey) {
+        this.grandparentRatingKey = grandparentRatingKey;
     }
 
     public Long getAddedAt() {

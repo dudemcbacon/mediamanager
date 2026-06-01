@@ -126,7 +126,7 @@ public class TvSeasonRequest {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, ombiSeasonRequestId, ombiSeasonNumber);
+        return Objects.hash(id, ombiSeasonRequestId, ombiSeasonNumber, ombiSeasonAvailable);
     }
 
     @Override

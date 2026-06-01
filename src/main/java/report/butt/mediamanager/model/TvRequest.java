@@ -18,7 +18,9 @@ public class TvRequest extends Request {
     private Integer tvdbId;
     private Integer plexTvdbId;
 
-    @Column(unique = true)
+    // Not unique: a show can be requested in Ombi more than once (e.g. removed and re-requested,
+    // yielding a new Ombi request id) while still mapping to the same Sonarr series. We persist one
+    // row per Ombi request, so multiple rows may share a sonarrSeriesId.
     private Integer sonarrSeriesId;
 
     private Boolean sonarrMonitored;
@@ -164,7 +166,39 @@ public class TvRequest extends Request {
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getTitle(), getTvdbId());
+        return Objects.hash(
+                getId(),
+                getTitle(),
+                getOmbiAvailable(),
+                getOmbiRequestId(),
+                getOmbiRequestStatus(),
+                getOmbiUserName(),
+                getStale(),
+                getStaleReason(),
+                getMarkedStaleAt(),
+                getPlexMetadataUrl(),
+                getPlexMetadataId(),
+                getPlexAddedAt(),
+                getPlexUpdatedAt(),
+                getPlexMediaId(),
+                getPlexMediaFilename(),
+                getPlexMediaSize(),
+                getPlexMediaDuration(),
+                getCreatedAt(),
+                getUpdatedAt(),
+                getTvdbId(),
+                getPlexTvdbId(),
+                getSonarrSeriesId(),
+                getSonarrMonitored(),
+                getSonarrPath(),
+                getSonarrRootFolderPath(),
+                getSonarrEpisodeFileCount(),
+                getSonarrEpisodeCount(),
+                getSonarrTotalEpisodeCount(),
+                getSonarrLastSearched(),
+                getSonarrOriginalLanguage(),
+                getOmbiTotalSeasons(),
+                getOmbiExternalProviderId());
     }
 
     @Override

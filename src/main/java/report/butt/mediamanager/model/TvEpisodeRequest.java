@@ -153,7 +153,16 @@ public class TvEpisodeRequest {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, ombiEpisodeId, ombiEpisodeNumber);
+        return Objects.hash(
+                id,
+                ombiEpisodeId,
+                ombiEpisodeNumber,
+                ombiTitle,
+                ombiAvailable,
+                ombiApproved,
+                ombiRequested,
+                ombiRequestStatus,
+                sonarrPath);
     }
 
     @Override
