@@ -20,6 +20,8 @@ import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.ombi.OmbiReprocessResponse;
 import report.butt.mediamanager.model.radarr.RadarrCommand;
+import report.butt.mediamanager.model.radarr.RadarrHealthItem;
+import report.butt.mediamanager.model.radarr.RadarrQueue;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.ValidationRepository;
@@ -60,6 +62,26 @@ public class MovieController {
         this.objectMapper = objectMapper;
         this.movieRefreshService = movieRefreshService;
         this.validatorService = validatorService;
+    }
+
+    /** Radarr's current download queue, or null if Radarr can't be reached. */
+    public RadarrQueue getRadarrQueue() {
+        try {
+            return radarrClient.getQueue();
+        } catch (Exception e) {
+            log.warn("Failed to fetch Radarr queue", e);
+            return null;
+        }
+    }
+
+    /** Active Radarr health issues, or null if Radarr can't be reached. */
+    public List<RadarrHealthItem> getRadarrHealth() {
+        try {
+            return radarrClient.getHealth();
+        } catch (Exception e) {
+            log.warn("Failed to fetch Radarr health", e);
+            return null;
+        }
     }
 
     @PostMapping("/movies/refresh-all")

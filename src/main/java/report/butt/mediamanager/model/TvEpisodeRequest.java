@@ -49,6 +49,11 @@ public class TvEpisodeRequest {
     @Column(columnDefinition = "TEXT")
     private String sonarrPath;
 
+    @Column(columnDefinition = "TEXT")
+    private String plexPath;
+
+    private Instant sonarrLastSearchTime;
+
     @CreationTimestamp
     private Instant createdAt;
 
@@ -143,6 +148,22 @@ public class TvEpisodeRequest {
         this.sonarrPath = sonarrPath;
     }
 
+    public String getPlexPath() {
+        return this.plexPath;
+    }
+
+    public void setPlexPath(String plexPath) {
+        this.plexPath = plexPath;
+    }
+
+    public Instant getSonarrLastSearchTime() {
+        return this.sonarrLastSearchTime;
+    }
+
+    public void setSonarrLastSearchTime(Instant sonarrLastSearchTime) {
+        this.sonarrLastSearchTime = sonarrLastSearchTime;
+    }
+
     public Instant getCreatedAt() {
         return this.createdAt;
     }
@@ -162,7 +183,9 @@ public class TvEpisodeRequest {
                 ombiApproved,
                 ombiRequested,
                 ombiRequestStatus,
-                sonarrPath);
+                sonarrPath,
+                plexPath,
+                sonarrLastSearchTime);
     }
 
     @Override

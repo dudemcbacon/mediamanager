@@ -23,7 +23,10 @@ public class TvRequest extends Request {
     // row per Ombi request, so multiple rows may share a sonarrSeriesId.
     private Integer sonarrSeriesId;
 
+    private String sonarrTitleSlug;
+
     private Boolean sonarrMonitored;
+    private String sonarrMonitoredAll;
 
     @Column(columnDefinition = "TEXT")
     private String sonarrPath;
@@ -75,12 +78,28 @@ public class TvRequest extends Request {
         this.sonarrSeriesId = sonarrSeriesId;
     }
 
+    public String getSonarrTitleSlug() {
+        return this.sonarrTitleSlug;
+    }
+
+    public void setSonarrTitleSlug(String sonarrTitleSlug) {
+        this.sonarrTitleSlug = sonarrTitleSlug;
+    }
+
     public Boolean getSonarrMonitored() {
         return this.sonarrMonitored;
     }
 
     public void setSonarrMonitored(Boolean sonarrMonitored) {
         this.sonarrMonitored = sonarrMonitored;
+    }
+
+    public String getSonarrMonitoredAll() {
+        return this.sonarrMonitoredAll;
+    }
+
+    public void setSonarrMonitoredAll(String sonarrMonitoredAll) {
+        this.sonarrMonitoredAll = sonarrMonitoredAll;
     }
 
     public String getSonarrPath() {
@@ -189,7 +208,9 @@ public class TvRequest extends Request {
                 getTvdbId(),
                 getPlexTvdbId(),
                 getSonarrSeriesId(),
+                getSonarrTitleSlug(),
                 getSonarrMonitored(),
+                getSonarrMonitoredAll(),
                 getSonarrPath(),
                 getSonarrRootFolderPath(),
                 getSonarrEpisodeFileCount(),

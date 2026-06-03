@@ -1,5 +1,7 @@
 package report.butt.mediamanager.service;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,6 +33,8 @@ import report.butt.mediamanager.model.plex.EpisodeKey;
 import report.butt.mediamanager.model.plex.PlexMedia;
 import report.butt.mediamanager.model.plex.PlexMetadata;
 import report.butt.mediamanager.model.plex.PlexPart;
+import report.butt.mediamanager.model.sonarr.Episode;
+import report.butt.mediamanager.model.sonarr.EpisodeFile;
 import report.butt.mediamanager.model.sonarr.Series;
 import report.butt.mediamanager.repository.TvChildRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
@@ -176,6 +180,7 @@ public class TvRefreshService {
                     seasonsByChild,
                     episodesBySeason,
                     resolveEpisodePaths(tvRequest, episodesByShow),
+                    resolveSonarrEpisodes(series),
                     toSaveChildren,
                     toSaveSeasons,
                     toSaveEpisodes);
@@ -214,6 +219,54 @@ public class TvRefreshService {
         return episodesByShow.getOrDefault(ratingKey, Map.of());
     }
 
+    /** The Sonarr-sourced fields recorded per episode: the media file path and last search time. */
+    private record SonarrEpisodeData(String path, Instant lastSearchTime) {}
+
+    /**
+     * Fetches per-episode media file paths and last-search times from Sonarr for one series, keyed
+     * by season/episode number. Sonarr has no bulk episode-file endpoint, so this is one call per
+     * matched series. Degrades to an empty map when the series is unmatched or the lookup fails.
+     */
+    private Map<EpisodeKey, SonarrEpisodeData> resolveSonarrEpisodes(Series series) {
+        if (series == null || series.getId() == null) {
+            return Map.of();
+        }
+        try {
+            List<Episode> episodes = sonarrClient.getEpisodes(series.getId());
+            Map<EpisodeKey, SonarrEpisodeData> result = new HashMap<>();
+            for (Episode episode : episodes) {
+                if (episode.getSeasonNumber() == null || episode.getEpisodeNumber() == null) {
+                    continue;
+                }
+                EpisodeFile file = episode.getEpisodeFile();
+                String path = file == null ? null : file.getPath();
+                Instant lastSearchTime = parseInstant(episode.getLastSearchTime());
+                if (path == null && lastSearchTime == null) {
+                    continue;
+                }
+                result.put(
+                        new EpisodeKey(episode.getSeasonNumber(), episode.getEpisodeNumber()),
+                        new SonarrEpisodeData(path, lastSearchTime));
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("Sonarr episode lookup failed for seriesId {}", series.getId(), e);
+            return Map.of();
+        }
+    }
+
+    private static Instant parseInstant(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Instant.parse(value);
+        } catch (DateTimeParseException e) {
+            log.warn("Could not parse Sonarr timestamp '{}'", value);
+            return null;
+        }
+    }
+
     /**
      * Applies and change-detects the child/season/episode hierarchy for one show using preloaded
      * rows, appending changed entities to the supplied save lists. Returns the number of unchanged
@@ -226,6 +279,7 @@ public class TvRefreshService {
             Map<Long, Map<Integer, TvSeasonRequest>> seasonsByChild,
             Map<Long, Map<Integer, TvEpisodeRequest>> episodesBySeason,
             Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes,
             List<TvChildRequest> toSaveChildren,
             List<TvSeasonRequest> toSaveSeasons,
             List<TvEpisodeRequest> toSaveEpisodes) {
@@ -257,7 +311,14 @@ public class TvRefreshService {
                     ? Map.of()
                     : seasonsByChild.getOrDefault(existingChild.getId(), Map.of());
             unchanged += applySeasons(
-                    child, ombiChild, existingSeasons, episodesBySeason, episodePaths, toSaveSeasons, toSaveEpisodes);
+                    child,
+                    ombiChild,
+                    existingSeasons,
+                    episodesBySeason,
+                    episodePaths,
+                    sonarrEpisodes,
+                    toSaveSeasons,
+                    toSaveEpisodes);
         }
         return unchanged;
     }
@@ -268,6 +329,7 @@ public class TvRefreshService {
             Map<Integer, TvSeasonRequest> existingSeasons,
             Map<Long, Map<Integer, TvEpisodeRequest>> episodesBySeason,
             Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes,
             List<TvSeasonRequest> toSaveSeasons,
             List<TvEpisodeRequest> toSaveEpisodes) {
         if (ombiChild.getSeasonRequests() == null) {
@@ -297,7 +359,8 @@ public class TvRefreshService {
             Map<Integer, TvEpisodeRequest> existingEpisodes = existingSeason == null || existingSeason.getId() == null
                     ? Map.of()
                     : episodesBySeason.getOrDefault(existingSeason.getId(), Map.of());
-            unchanged += refreshEpisodes(season, ombiSeason, existingEpisodes, episodePaths, toSaveEpisodes);
+            unchanged += refreshEpisodes(
+                    season, ombiSeason, existingEpisodes, episodePaths, sonarrEpisodes, toSaveEpisodes);
         }
         return unchanged;
     }
@@ -307,6 +370,7 @@ public class TvRefreshService {
             OmbiTvSeasonRequest ombiSeason,
             Map<Integer, TvEpisodeRequest> existingEpisodes,
             Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes,
             List<TvEpisodeRequest> toSaveEpisodes) {
         if (ombiSeason.getEpisodes() == null) {
             return 0;
@@ -321,7 +385,7 @@ public class TvRefreshService {
                     : new TvEpisodeRequest(season, ombiEpisode.getId(), ombiEpisode.getEpisodeNumber());
 
             Integer beforeHash = existingEpisode == null ? null : episode.hashCode();
-            applyEpisodeUpdates(episode, season, ombiEpisode, episodePaths);
+            applyEpisodeUpdates(episode, season, ombiEpisode, episodePaths, sonarrEpisodes);
             if (beforeHash == null || beforeHash != episode.hashCode()) {
                 toSaveEpisodes.add(episode);
             } else {
@@ -355,7 +419,7 @@ public class TvRefreshService {
         applyUpdates(tvRequest, ombiTv, series, null);
         tvRequest = repository.save(tvRequest);
         if (ombiTv != null) {
-            refreshChildren(tvRequest, ombiTv);
+            refreshChildren(tvRequest, ombiTv, series);
         }
         log.info("Refreshed {} ({})", id, tvRequest.getTitle());
     }
@@ -379,7 +443,9 @@ public class TvRefreshService {
 
         if (series != null) {
             tvRequest.setSonarrSeriesId(series.getId());
+            tvRequest.setSonarrTitleSlug(series.getTitleSlug());
             tvRequest.setSonarrMonitored(series.getMonitored());
+            tvRequest.setSonarrMonitoredAll(series.getMonitorNewItems());
             tvRequest.setSonarrPath(series.getPath());
             tvRequest.setSonarrRootFolderPath(series.getRootFolderPath());
             tvRequest.setSonarrOriginalLanguage(
@@ -395,11 +461,12 @@ public class TvRefreshService {
         }
     }
 
-    private void refreshChildren(TvRequest tvRequest, OmbiTvRequest ombiTv) {
+    private void refreshChildren(TvRequest tvRequest, OmbiTvRequest ombiTv, Series series) {
         if (ombiTv.getChildRequests() == null) {
             return;
         }
         Map<EpisodeKey, String> episodePaths = loadEpisodePaths(tvRequest);
+        Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes = resolveSonarrEpisodes(series);
         ombiTv.getChildRequests().forEach(ombiChild -> {
             TvChildRequest child = childRepository
                     .findByOmbiRequestId(ombiChild.getId())
@@ -412,7 +479,7 @@ public class TvRefreshService {
                             ombiChild.getRequestStatus()));
             applyChildUpdates(child, tvRequest, ombiTv, ombiChild);
             TvChildRequest savedChild = childRepository.save(child);
-            refreshSeasons(savedChild, ombiChild, episodePaths);
+            refreshSeasons(savedChild, ombiChild, episodePaths, sonarrEpisodes);
         });
     }
 
@@ -470,7 +537,10 @@ public class TvRefreshService {
     }
 
     private void refreshSeasons(
-            TvChildRequest child, OmbiTvChildRequest ombiChild, Map<EpisodeKey, String> episodePaths) {
+            TvChildRequest child,
+            OmbiTvChildRequest ombiChild,
+            Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes) {
         if (ombiChild.getSeasonRequests() == null) {
             return;
         }
@@ -485,7 +555,7 @@ public class TvRefreshService {
             season.setOmbiSeasonNumber(ombiSeason.getSeasonNumber());
             season.setOmbiSeasonAvailable(allEpisodesAvailable);
             TvSeasonRequest savedSeason = seasonRepository.save(season);
-            refreshEpisodes(savedSeason, ombiSeason, episodePaths);
+            refreshEpisodes(savedSeason, ombiSeason, episodePaths, sonarrEpisodes);
         });
     }
 
@@ -498,7 +568,10 @@ public class TvRefreshService {
     }
 
     private void refreshEpisodes(
-            TvSeasonRequest season, OmbiTvSeasonRequest ombiSeason, Map<EpisodeKey, String> episodePaths) {
+            TvSeasonRequest season,
+            OmbiTvSeasonRequest ombiSeason,
+            Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes) {
         if (ombiSeason.getEpisodes() == null) {
             return;
         }
@@ -506,7 +579,7 @@ public class TvRefreshService {
             TvEpisodeRequest episode = episodeRepository
                     .findByTvSeasonRequestIdAndOmbiEpisodeNumber(season.getId(), ombiEpisode.getEpisodeNumber())
                     .orElseGet(() -> new TvEpisodeRequest(season, ombiEpisode.getId(), ombiEpisode.getEpisodeNumber()));
-            applyEpisodeUpdates(episode, season, ombiEpisode, episodePaths);
+            applyEpisodeUpdates(episode, season, ombiEpisode, episodePaths, sonarrEpisodes);
             episodeRepository.save(episode);
         });
     }
@@ -515,7 +588,8 @@ public class TvRefreshService {
             TvEpisodeRequest episode,
             TvSeasonRequest season,
             OmbiTvEpisode ombiEpisode,
-            Map<EpisodeKey, String> episodePaths) {
+            Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes) {
         episode.setTvSeasonRequest(season);
         episode.setOmbiEpisodeId(ombiEpisode.getId());
         episode.setOmbiEpisodeNumber(ombiEpisode.getEpisodeNumber());
@@ -525,10 +599,19 @@ public class TvRefreshService {
         episode.setOmbiRequested(ombiEpisode.getRequested());
         episode.setOmbiRequestStatus(ombiEpisode.getRequestStatus());
         if (season.getOmbiSeasonNumber() != null && ombiEpisode.getEpisodeNumber() != null) {
-            String path = episodePaths.get(
-                    new EpisodeKey(season.getOmbiSeasonNumber(), ombiEpisode.getEpisodeNumber()));
-            if (path != null) {
-                episode.setSonarrPath(path);
+            EpisodeKey key = new EpisodeKey(season.getOmbiSeasonNumber(), ombiEpisode.getEpisodeNumber());
+            String plexPath = episodePaths.get(key);
+            if (plexPath != null) {
+                episode.setPlexPath(plexPath);
+            }
+            SonarrEpisodeData sonarrData = sonarrEpisodes.get(key);
+            if (sonarrData != null) {
+                if (sonarrData.path() != null) {
+                    episode.setSonarrPath(sonarrData.path());
+                }
+                if (sonarrData.lastSearchTime() != null) {
+                    episode.setSonarrLastSearchTime(sonarrData.lastSearchTime());
+                }
             }
         }
     }

@@ -2,7 +2,10 @@ package report.butt.mediamanager.controller;
 
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,11 +20,21 @@ import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.SonarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.Note;
+import report.butt.mediamanager.model.TvChildRequest;
+import report.butt.mediamanager.model.TvEpisodeRequest;
 import report.butt.mediamanager.model.TvRequest;
+import report.butt.mediamanager.model.TvSeasonRequest;
 import report.butt.mediamanager.model.ombi.OmbiReprocessResponse;
+import report.butt.mediamanager.model.plex.EpisodeKey;
+import report.butt.mediamanager.model.sonarr.Episode;
 import report.butt.mediamanager.model.sonarr.SonarrCommand;
+import report.butt.mediamanager.model.sonarr.SonarrHealthItem;
+import report.butt.mediamanager.model.sonarr.SonarrQueue;
 import report.butt.mediamanager.repository.NoteRepository;
+import report.butt.mediamanager.repository.TvChildRequestRepository;
+import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
+import report.butt.mediamanager.repository.TvSeasonRequestRepository;
 import report.butt.mediamanager.repository.ValidationRepository;
 import report.butt.mediamanager.service.TvRefreshService;
 import report.butt.mediamanager.service.ValidatorService;
@@ -34,6 +47,9 @@ public class TvController {
     private static final Logger log = LoggerFactory.getLogger(TvController.class);
 
     private final TvRequestRepository tvRequestRepository;
+    private final TvChildRequestRepository tvChildRequestRepository;
+    private final TvSeasonRequestRepository tvSeasonRequestRepository;
+    private final TvEpisodeRequestRepository tvEpisodeRequestRepository;
     private final ValidationRepository validationRepository;
     private final NoteRepository noteRepository;
     private final OmbiClient ombiClient;
@@ -45,6 +61,9 @@ public class TvController {
     @Autowired
     public TvController(
             TvRequestRepository tvRequestRepository,
+            TvChildRequestRepository tvChildRequestRepository,
+            TvSeasonRequestRepository tvSeasonRequestRepository,
+            TvEpisodeRequestRepository tvEpisodeRequestRepository,
             ValidationRepository validationRepository,
             NoteRepository noteRepository,
             OmbiClient ombiClient,
@@ -53,6 +72,9 @@ public class TvController {
             TvRefreshService tvRefreshService,
             ValidatorService validatorService) {
         this.tvRequestRepository = tvRequestRepository;
+        this.tvChildRequestRepository = tvChildRequestRepository;
+        this.tvSeasonRequestRepository = tvSeasonRequestRepository;
+        this.tvEpisodeRequestRepository = tvEpisodeRequestRepository;
         this.validationRepository = validationRepository;
         this.noteRepository = noteRepository;
         this.ombiClient = ombiClient;
@@ -145,14 +167,14 @@ public class TvController {
     public String validate(@PathVariable Long id) {
         log.info("Validate request for tv request {}", id);
         TvRequest tvRequest = tvRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
-        validatorService.validate(tvRequest);
+        validatorService.validateWithEpisodes(tvRequest);
         return "redirect:/tv";
     }
 
     @PostMapping("/tv/validate-all")
     public String validateAll() {
         log.info("Validate-all request");
-        tvRequestRepository.findAll().forEach(validatorService::validate);
+        tvRequestRepository.findAll().forEach(validatorService::validateWithEpisodes);
         return "redirect:/tv";
     }
 
@@ -180,15 +202,16 @@ public class TvController {
         return "redirect:/tv";
     }
 
-    @PostMapping("/tv/search-all")
-    public String searchAll() {
-        log.info("Search-all request");
+    @PostMapping("/tv/search-all-series")
+    public String searchAllSeries() {
+        log.info("Search-all-series request (not available)");
         List<TvRequest> tvRequests = tvRequestRepository.findAll().stream()
                 .filter(tr -> tr.getSonarrSeriesId() != null)
+                .filter(tr -> !tr.isAvailable())
                 .toList();
 
         if (tvRequests.isEmpty()) {
-            log.info("No tv requests with a sonarrSeriesId; nothing to search");
+            log.info("No unavailable tv requests with a sonarrSeriesId; nothing to search");
             return "redirect:/tv";
         }
 
@@ -209,6 +232,228 @@ public class TvController {
         return "redirect:/tv";
     }
 
+    /** Triggers a Sonarr SeasonSearch for every season not marked available, across all shows. */
+    @Transactional
+    public void searchAllSeasons() {
+        log.info("Search-all-seasons request (not available)");
+        for (TvRequest tvRequest : tvRequestRepository.findAll()) {
+            if (tvRequest.getSonarrSeriesId() == null) {
+                continue;
+            }
+            List<TvSeasonRequest> seasons = seasonsOf(tvRequest).stream()
+                    .filter(season -> !Boolean.TRUE.equals(season.getOmbiSeasonAvailable()))
+                    .toList();
+            if (!seasons.isEmpty()) {
+                searchSeasons(tvRequest.getSonarrSeriesId(), "tv request " + tvRequest.getId(), seasons);
+            }
+        }
+    }
+
+    /** Triggers a Sonarr EpisodeSearch for every episode not marked available, across all shows. */
+    @Transactional
+    public void searchAllEpisodes() {
+        log.info("Search-all-episodes request (not available)");
+        for (TvRequest tvRequest : tvRequestRepository.findAll()) {
+            if (tvRequest.getSonarrSeriesId() == null) {
+                continue;
+            }
+            Set<EpisodeKey> keys = unavailableEpisodeKeys(seasonsOf(tvRequest));
+            if (!keys.isEmpty()) {
+                searchEpisodes(tvRequest.getSonarrSeriesId(), "tv request " + tvRequest.getId(), keys);
+            }
+        }
+    }
+
+    @Transactional
+    public void searchAllSeasonsForRequest(Long tvRequestId) {
+        TvRequest tvRequest =
+                tvRequestRepository.findById(tvRequestId).orElseThrow(() -> new RequestNotFoundException(tvRequestId));
+        searchSeasons(tvRequest.getSonarrSeriesId(), "tv request " + tvRequestId, seasonsOf(tvRequest));
+    }
+
+    @Transactional
+    public void searchAllEpisodesForRequest(Long tvRequestId) {
+        TvRequest tvRequest =
+                tvRequestRepository.findById(tvRequestId).orElseThrow(() -> new RequestNotFoundException(tvRequestId));
+        searchEpisodes(tvRequest.getSonarrSeriesId(), "tv request " + tvRequestId, episodeKeysOfSeasons(seasonsOf(tvRequest)));
+    }
+
+    @Transactional
+    public void searchAllSeasonsForChild(Long childId) {
+        TvChildRequest child = tvChildRequestRepository
+                .findById(childId)
+                .orElseThrow(() -> new RequestNotFoundException(childId));
+        searchSeasons(seriesId(child), "tv child request " + childId, child.getSeasonRequests());
+    }
+
+    @Transactional
+    public void searchAllEpisodesForChild(Long childId) {
+        TvChildRequest child = tvChildRequestRepository
+                .findById(childId)
+                .orElseThrow(() -> new RequestNotFoundException(childId));
+        searchEpisodes(seriesId(child), "tv child request " + childId, episodeKeysOfSeasons(child.getSeasonRequests()));
+    }
+
+    @Transactional
+    public void searchSeason(Long seasonId) {
+        TvSeasonRequest season = tvSeasonRequestRepository
+                .findById(seasonId)
+                .orElseThrow(() -> new RequestNotFoundException(seasonId));
+        searchSeasons(seriesId(season), "tv season request " + seasonId, List.of(season));
+    }
+
+    @Transactional
+    public void searchAllEpisodesForSeason(Long seasonId) {
+        TvSeasonRequest season = tvSeasonRequestRepository
+                .findById(seasonId)
+                .orElseThrow(() -> new RequestNotFoundException(seasonId));
+        searchEpisodes(seriesId(season), "tv season request " + seasonId, episodeKeysOfEpisodes(season.getEpisodeRequests()));
+    }
+
+    @Transactional
+    public void searchEpisode(Long episodeId) {
+        TvEpisodeRequest episode = tvEpisodeRequestRepository
+                .findById(episodeId)
+                .orElseThrow(() -> new RequestNotFoundException(episodeId));
+        searchEpisodes(seriesId(episode), "tv episode request " + episodeId, episodeKeysOfEpisodes(List.of(episode)));
+    }
+
+    /** Triggers one Sonarr SeasonSearch per (distinct) season number under the given node. */
+    private void searchSeasons(Integer sonarrSeriesId, String label, List<TvSeasonRequest> seasons) {
+        if (sonarrSeriesId == null) {
+            log.warn("{} has no sonarrSeriesId; skipping season search", label);
+            return;
+        }
+        List<Integer> seasonNumbers = seasons.stream()
+                .map(TvSeasonRequest::getOmbiSeasonNumber)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (seasonNumbers.isEmpty()) {
+            log.info("{} has no seasons; nothing to search", label);
+            return;
+        }
+        log.info("Triggering Sonarr SeasonSearch for {} seasons {} of series {}", label, seasonNumbers, sonarrSeriesId);
+        for (Integer seasonNumber : seasonNumbers) {
+            SonarrCommand command = sonarrClient.searchSeason(sonarrSeriesId, seasonNumber);
+            log.info(
+                    "Sonarr command {} ({}) status={} result={}",
+                    command.getId(),
+                    command.getCommandName(),
+                    command.getStatus(),
+                    command.getResult());
+        }
+    }
+
+    /**
+     * Resolves the requested episodes to Sonarr episode ids by matching season/episode number, then
+     * triggers a single Sonarr EpisodeSearch. Sonarr's EpisodeSearch keys off its own episode ids,
+     * which we don't persist, so we look them up from Sonarr at search time.
+     */
+    private void searchEpisodes(Integer sonarrSeriesId, String label, Set<EpisodeKey> keys) {
+        if (sonarrSeriesId == null) {
+            log.warn("{} has no sonarrSeriesId; skipping episode search", label);
+            return;
+        }
+        if (keys.isEmpty()) {
+            log.info("{} has no episodes; nothing to search", label);
+            return;
+        }
+        List<Integer> episodeIds = sonarrClient.getEpisodes(sonarrSeriesId).stream()
+                .filter(e -> e.getId() != null && e.getSeasonNumber() != null && e.getEpisodeNumber() != null)
+                .filter(e -> keys.contains(new EpisodeKey(e.getSeasonNumber(), e.getEpisodeNumber())))
+                .map(Episode::getId)
+                .toList();
+        if (episodeIds.isEmpty()) {
+            log.warn("{} matched no Sonarr episodes for series {}; nothing to search", label, sonarrSeriesId);
+            return;
+        }
+        log.info("Triggering Sonarr EpisodeSearch for {} ({} episodes of series {})", label, episodeIds.size(), sonarrSeriesId);
+        SonarrCommand command = sonarrClient.searchEpisodes(episodeIds);
+        log.info(
+                "Sonarr command {} ({}) status={} result={}",
+                command.getId(),
+                command.getCommandName(),
+                command.getStatus(),
+                command.getResult());
+    }
+
+    private List<TvSeasonRequest> seasonsOf(TvRequest tvRequest) {
+        return tvChildRequestRepository.findByParentOrderByIdAsc(tvRequest).stream()
+                .flatMap(child -> child.getSeasonRequests().stream())
+                .toList();
+    }
+
+    private static Set<EpisodeKey> episodeKeysOfSeasons(List<TvSeasonRequest> seasons) {
+        Set<EpisodeKey> keys = new HashSet<>();
+        for (TvSeasonRequest season : seasons) {
+            keys.addAll(episodeKeysOfEpisodes(season.getEpisodeRequests()));
+        }
+        return keys;
+    }
+
+    private static Set<EpisodeKey> unavailableEpisodeKeys(List<TvSeasonRequest> seasons) {
+        Set<EpisodeKey> keys = new HashSet<>();
+        for (TvSeasonRequest season : seasons) {
+            if (season.getOmbiSeasonNumber() == null) {
+                continue;
+            }
+            for (TvEpisodeRequest episode : season.getEpisodeRequests()) {
+                if (Boolean.TRUE.equals(episode.getOmbiAvailable()) || episode.getOmbiEpisodeNumber() == null) {
+                    continue;
+                }
+                keys.add(new EpisodeKey(season.getOmbiSeasonNumber(), episode.getOmbiEpisodeNumber()));
+            }
+        }
+        return keys;
+    }
+
+    private static Set<EpisodeKey> episodeKeysOfEpisodes(List<TvEpisodeRequest> episodes) {
+        Set<EpisodeKey> keys = new HashSet<>();
+        for (TvEpisodeRequest episode : episodes) {
+            Integer seasonNumber = episode.getTvSeasonRequest() == null
+                    ? null
+                    : episode.getTvSeasonRequest().getOmbiSeasonNumber();
+            if (seasonNumber == null || episode.getOmbiEpisodeNumber() == null) {
+                continue;
+            }
+            keys.add(new EpisodeKey(seasonNumber, episode.getOmbiEpisodeNumber()));
+        }
+        return keys;
+    }
+
+    private static Integer seriesId(TvChildRequest child) {
+        return child.getParent() == null ? null : child.getParent().getSonarrSeriesId();
+    }
+
+    private static Integer seriesId(TvSeasonRequest season) {
+        return season.getTvChildRequest() == null ? null : seriesId(season.getTvChildRequest());
+    }
+
+    private static Integer seriesId(TvEpisodeRequest episode) {
+        return episode.getTvSeasonRequest() == null ? null : seriesId(episode.getTvSeasonRequest());
+    }
+
+    /** Sonarr's current download queue, or null if Sonarr can't be reached. */
+    public SonarrQueue getSonarrQueue() {
+        try {
+            return sonarrClient.getQueue();
+        } catch (Exception e) {
+            log.warn("Failed to fetch Sonarr queue", e);
+            return null;
+        }
+    }
+
+    /** Active Sonarr health issues, or null if Sonarr can't be reached. */
+    public List<SonarrHealthItem> getSonarrHealth() {
+        try {
+            return sonarrClient.getHealth();
+        } catch (Exception e) {
+            log.warn("Failed to fetch Sonarr health", e);
+            return null;
+        }
+    }
+
     @PostMapping("/tv/{id}/mark-available")
     public String markAvailable(@PathVariable Long id) {
         log.info("Mark available request for tv request {}", id);
@@ -216,19 +461,36 @@ public class TvController {
 
         log.info("Found TvRequest for {}", tvRequest.getTitle());
 
-        OmbiReprocessResponse response = ombiClient.markTvAvailable(tvRequest.getOmbiRequestId());
-        try {
-            log.info(
-                    "Ombi mark-available response for tv request {} ({}): {}",
-                    id,
-                    tvRequest.getTitle(),
-                    objectMapper.writeValueAsString(response));
-        } catch (JacksonException e) {
-            log.warn(
-                    "Failed to serialize Ombi mark-available response for tv request {} ({})",
-                    id,
-                    tvRequest.getTitle(),
-                    e);
+        // Ombi's tv/available endpoint operates on child (per-user) request ids, not the parent
+        // request id, so mark every child of this show available.
+        List<TvChildRequest> children = tvChildRequestRepository.findByParentOrderByIdAsc(tvRequest);
+        if (children.isEmpty()) {
+            log.warn("No child requests for tv request {} ({}); nothing to mark available", id, tvRequest.getTitle());
+            return "redirect:/tv";
+        }
+
+        for (TvChildRequest child : children) {
+            Integer childOmbiRequestId = child.getOmbiRequestId();
+            if (childOmbiRequestId == null) {
+                log.warn("Skipping child {} of tv request {} with null ombiRequestId", child.getId(), id);
+                continue;
+            }
+            OmbiReprocessResponse response = ombiClient.markTvAvailable(childOmbiRequestId);
+            try {
+                log.info(
+                        "Ombi mark-available response for tv child request {} (parent {} - {}): {}",
+                        childOmbiRequestId,
+                        id,
+                        tvRequest.getTitle(),
+                        objectMapper.writeValueAsString(response));
+            } catch (JacksonException e) {
+                log.warn(
+                        "Failed to serialize Ombi mark-available response for tv child request {} (parent {} - {})",
+                        childOmbiRequestId,
+                        id,
+                        tvRequest.getTitle(),
+                        e);
+            }
         }
 
         return "redirect:/tv";

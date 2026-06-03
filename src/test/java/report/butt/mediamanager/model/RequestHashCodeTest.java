@@ -28,7 +28,9 @@ class RequestHashCodeTest {
         h = assertChanged(h, tv, () -> tv.setOmbiExternalProviderId(42));
         h = assertChanged(h, tv, () -> tv.setOmbiTotalSeasons(3));
         h = assertChanged(h, tv, () -> tv.setSonarrSeriesId(77));
+        h = assertChanged(h, tv, () -> tv.setSonarrTitleSlug("show-title-slug"));
         h = assertChanged(h, tv, () -> tv.setSonarrMonitored(true));
+        h = assertChanged(h, tv, () -> tv.setSonarrMonitoredAll("all"));
         h = assertChanged(h, tv, () -> tv.setSonarrPath("/tv/show"));
         h = assertChanged(h, tv, () -> tv.setSonarrRootFolderPath("/tv"));
         h = assertChanged(h, tv, () -> tv.setSonarrOriginalLanguage("English"));
@@ -96,7 +98,9 @@ class RequestHashCodeTest {
         h = assertChanged(h, episode, () -> episode.setOmbiApproved(true));
         h = assertChanged(h, episode, () -> episode.setOmbiRequested(true));
         h = assertChanged(h, episode, () -> episode.setOmbiRequestStatus("Common.Available"));
-        assertChanged(h, episode, () -> episode.setSonarrPath("/tv/show/s01e01.mkv"));
+        h = assertChanged(h, episode, () -> episode.setSonarrPath("/tv/show/s01e01.mkv"));
+        h = assertChanged(h, episode, () -> episode.setPlexPath("/plex/show/s01e01.mkv"));
+        assertChanged(h, episode, () -> episode.setSonarrLastSearchTime(java.time.Instant.parse("2026-06-01T00:00:00Z")));
     }
 
     private static int assertChanged(int previousHash, Object entity, Runnable mutation) {

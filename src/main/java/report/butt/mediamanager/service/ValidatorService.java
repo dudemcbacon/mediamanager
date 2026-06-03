@@ -21,16 +21,25 @@ public class ValidatorService {
     private final Map<RequestType, List<Validator<? extends Request>>> validatorsByType;
     private final List<EpisodeValidator> episodeValidators;
     private final ValidationRepository validationRepository;
+    private final TvHierarchyService tvHierarchyService;
 
     public ValidatorService(
             List<Validator<? extends Request>> validators,
             List<EpisodeValidator> episodeValidators,
-            ValidationRepository validationRepository) {
+            ValidationRepository validationRepository,
+            TvHierarchyService tvHierarchyService) {
         this.validationRepository = validationRepository;
         this.validatorsByType = validators.stream()
                 .collect(Collectors.groupingBy(
                         Validator::supportedType, () -> new EnumMap<>(RequestType.class), Collectors.toList()));
         this.episodeValidators = episodeValidators;
+        this.tvHierarchyService = tvHierarchyService;
+    }
+
+    /** Validates a TV show and every episode beneath it (children → seasons → episodes). */
+    public void validateWithEpisodes(TvRequest tvRequest) {
+        validate(tvRequest);
+        tvHierarchyService.loadEpisodes(tvRequest).forEach(this::validate);
     }
 
     public List<Validation> validate(Request request) {

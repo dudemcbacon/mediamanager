@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import report.butt.mediamanager.model.radarr.Movie;
 import report.butt.mediamanager.model.radarr.RadarrCommand;
+import report.butt.mediamanager.model.radarr.RadarrHealthItem;
+import report.butt.mediamanager.model.radarr.RadarrQueue;
 
 @Service
 public class RadarrClient {
@@ -46,6 +48,25 @@ public class RadarrClient {
                 .body(Map.of("name", "MoviesSearch", "movieIds", movieIds))
                 .retrieve()
                 .body(RadarrCommand.class);
+    }
+
+    public RadarrQueue getQueue() {
+        return restClient
+                .get()
+                .uri(uriBuilder ->
+                        uriBuilder.path("/api/v3/queue").queryParam("pageSize", 10000).build())
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(RadarrQueue.class);
+    }
+
+    public List<RadarrHealthItem> getHealth() {
+        return restClient
+                .get()
+                .uri("/api/v3/health")
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<RadarrHealthItem>>() {});
     }
 
     public List<Movie> getMoviesByTmdbId(Integer tmdbId) {

@@ -12,6 +12,9 @@ public class Series {
     @JsonProperty("title")
     private String title;
 
+    @JsonProperty("titleSlug")
+    private String titleSlug;
+
     @JsonProperty("tvdbId")
     private Integer tvdbId;
 
@@ -20,6 +23,9 @@ public class Series {
 
     @JsonProperty("monitored")
     private Boolean monitored;
+
+    @JsonProperty("monitorNewItems")
+    private String monitorNewItems;
 
     @JsonProperty("path")
     private String path;
@@ -49,6 +55,14 @@ public class Series {
         this.title = title;
     }
 
+    public String getTitleSlug() {
+        return titleSlug;
+    }
+
+    public void setTitleSlug(String titleSlug) {
+        this.titleSlug = titleSlug;
+    }
+
     public Integer getTvdbId() {
         return tvdbId;
     }
@@ -71,6 +85,14 @@ public class Series {
 
     public void setMonitored(Boolean monitored) {
         this.monitored = monitored;
+    }
+
+    public String getMonitorNewItems() {
+        return monitorNewItems;
+    }
+
+    public void setMonitorNewItems(String monitorNewItems) {
+        this.monitorNewItems = monitorNewItems;
     }
 
     public String getPath() {

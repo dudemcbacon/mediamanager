@@ -1,6 +1,7 @@
 package report.butt.mediamanager.route;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.card.Card;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.dependency.StyleSheet;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -19,8 +20,10 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.shared.Tooltip;
 import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.UIScope;
 import com.vaadin.flow.theme.aura.Aura;
 import java.lang.reflect.Field;
@@ -40,6 +43,9 @@ import report.butt.mediamanager.controller.MovieController;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.Validation;
+import report.butt.mediamanager.model.radarr.RadarrHealthItem;
+import report.butt.mediamanager.model.radarr.RadarrQueue;
+import report.butt.mediamanager.model.radarr.RadarrQueueRecord;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.ValidationRepository;
@@ -65,6 +71,15 @@ public class MovieRequestView extends VerticalLayout {
     private final Span showValidLabel = coloredLabel("Show valid rows", "#2e8b57");
     private final Span showStaleLabel = coloredLabel("Show stale rows", "#b8860b");
     private final Span showWithNotesLabel = coloredLabel("Show rows with notes", "#1e6fce");
+    private final Span totalLabel = coloredLabel("Total movies", "#333");
+    private final Span radarrQueueValue = new Span("—");
+    private final Card radarrQueueCard = statCard("Radarr Queue", radarrQueueValue);
+    private final Tooltip radarrQueueTooltip = Tooltip.forComponent(radarrQueueCard);
+    private final Span radarrHealthValue = new Span("—");
+    private final Card radarrHealthCard = statCard("Health Issues", radarrHealthValue);
+    private final Tooltip radarrHealthTooltip = Tooltip.forComponent(radarrHealthCard);
+    private final TextField searchField = new TextField();
+    private List<MovieRequest> allRequests = List.of();
     private final String ombiUrl;
     private final String radarrUrl;
     private final String plexUrl;
@@ -93,7 +108,8 @@ public class MovieRequestView extends VerticalLayout {
 
         Grid.Column<MovieRequest> titleColumn = grid.addColumn(MovieRequest::getTitle)
                 .setHeader("Title")
-                .setAutoWidth(true)
+                .setFlexGrow(1)
+                .setWidth("10em")
                 .setSortable(true)
                 .setComparator(Comparator.comparing(
                         MovieRequest::getTitle, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
@@ -165,7 +181,8 @@ public class MovieRequestView extends VerticalLayout {
 
         refreshGrid();
         grid.sort(List.of(new GridSortOrder<>(titleColumn, SortDirection.ASCENDING)));
-        grid.setSizeFull();
+        grid.setWidthFull();
+        grid.setMinHeight("0");
 
         Button refreshAll = new Button("Refresh All", e -> {
             movieController.refreshAll();
@@ -186,11 +203,24 @@ public class MovieRequestView extends VerticalLayout {
         showValidCheckbox.setLabelComponent(showValidLabel);
         showStaleCheckbox.setLabelComponent(showStaleLabel);
         showWithNotesCheckbox.setLabelComponent(showWithNotesLabel);
+        searchField.setPlaceholder("Search by title");
+        searchField.setClearButtonVisible(true);
+        searchField.setValueChangeMode(ValueChangeMode.LAZY);
+        searchField.addValueChangeListener(e -> applyFilters());
+        HorizontalLayout statsRow = new HorizontalLayout(radarrQueueCard, radarrHealthCard);
         HorizontalLayout toolbar = new HorizontalLayout(
-                refreshAll, validateAll, searchAll, showValidCheckbox, showStaleCheckbox, showWithNotesCheckbox);
+                searchField,
+                refreshAll,
+                validateAll,
+                searchAll,
+                showValidCheckbox,
+                showStaleCheckbox,
+                showWithNotesCheckbox,
+                totalLabel);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
 
-        add(toolbar, grid);
+        add(statsRow, toolbar, grid);
+        setFlexGrow(1, grid);
     }
 
     private void refreshGrid() {
@@ -220,17 +250,39 @@ public class MovieRequestView extends VerticalLayout {
         showValidLabel.setText("Show valid rows (" + validCount + ")");
         showStaleLabel.setText("Show stale rows (" + staleCount + ")");
         showWithNotesLabel.setText("Show rows with notes (" + withNotesCount + ")");
+        totalLabel.setText("Total movies: " + all.size());
+        updateRadarrQueueCard(movieController.getRadarrQueue());
+        updateRadarrHealthCard(movieController.getRadarrHealth());
+
+        allRequests = all;
+        applyFilters();
+    }
+
+    /**
+     * Applies the toolbar filters to the already-loaded {@link #allRequests} without re-querying.
+     * A non-blank search matches rows by title and ignores the show/stale/notes toggles, so
+     * matching rows surface even when those filters would otherwise hide them.
+     */
+    private void applyFilters() {
+        String term = searchField.getValue() == null ? "" : searchField.getValue().trim();
+        if (!term.isBlank()) {
+            String lower = term.toLowerCase();
+            grid.setItems(allRequests.stream()
+                    .filter(mr -> mr.getTitle() != null
+                            && mr.getTitle().toLowerCase().contains(lower))
+                    .toList());
+            return;
+        }
 
         boolean showValid = Boolean.TRUE.equals(showValidCheckbox.getValue());
         boolean showStale = Boolean.TRUE.equals(showStaleCheckbox.getValue());
         boolean showWithNotes = Boolean.TRUE.equals(showWithNotesCheckbox.getValue());
-        List<MovieRequest> rows = all.stream()
+        grid.setItems(allRequests.stream()
                 .filter(mr -> showStale || !Boolean.TRUE.equals(mr.getStale()))
                 .filter(mr -> showWithNotes || !movieRequestsWithNotes.contains(mr.getId()))
                 .filter(mr -> showValid
                         || !mr.isValid(knownValidatorNames, latestValidations.getOrDefault(mr.getId(), Map.of())))
-                .toList();
-        grid.setItems(rows);
+                .toList());
     }
 
     private static final List<String> CANNED_STALE_REASONS = List.of(
@@ -374,6 +426,85 @@ public class MovieRequestView extends VerticalLayout {
         return label;
     }
 
+    private static final String IMPORT_BLOCKED_COLOR = "#f44336";
+    private static final String IMPORT_PENDING_COLOR = "#ffeb3b";
+    private static final String HEALTH_WARNING_COLOR = "#ffeb3b";
+
+    /**
+     * Updates the queue card's number, a per-state breakdown tooltip, and a severity background:
+     * red when any item is importBlocked (highest priority), yellow when any is importPending.
+     */
+    private void updateRadarrQueueCard(RadarrQueue queue) {
+        if (queue == null) {
+            radarrQueueValue.setText("—");
+            radarrQueueTooltip.setText("Radarr queue unavailable");
+            radarrQueueCard.getStyle().remove("background-color");
+            return;
+        }
+
+        Integer total = queue.getTotalRecords();
+        radarrQueueValue.setText(total == null ? "—" : String.valueOf(total));
+
+        List<RadarrQueueRecord> records = queue.getRecords() == null ? List.of() : queue.getRecords();
+        Map<String, Long> byState = records.stream()
+                .map(RadarrQueueRecord::getTrackedDownloadState)
+                .filter(state -> state != null)
+                .collect(Collectors.groupingBy(state -> state, Collectors.counting()));
+
+        String breakdown = byState.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue()
+                        .reversed()
+                        .thenComparing(Map.Entry.<String, Long>comparingByKey()))
+                .map(e -> e.getKey() + ": " + e.getValue())
+                .collect(Collectors.joining(", "));
+        radarrQueueTooltip.setText(breakdown.isEmpty() ? "No active downloads" : breakdown);
+
+        if (byState.containsKey("importBlocked")) {
+            radarrQueueCard.getStyle().set("background-color", IMPORT_BLOCKED_COLOR);
+        } else if (byState.containsKey("importPending")) {
+            radarrQueueCard.getStyle().set("background-color", IMPORT_PENDING_COLOR);
+        } else {
+            radarrQueueCard.getStyle().remove("background-color");
+        }
+    }
+
+    /** Sets the health count and a tooltip listing each reported issue. */
+    private void updateRadarrHealthCard(List<RadarrHealthItem> health) {
+        if (health == null) {
+            radarrHealthValue.setText("—");
+            radarrHealthTooltip.setText("Radarr health unavailable");
+            radarrHealthCard.getStyle().remove("background-color");
+            return;
+        }
+        radarrHealthValue.setText(String.valueOf(health.size()));
+        if (health.isEmpty()) {
+            radarrHealthTooltip.setText("No health issues");
+            radarrHealthCard.getStyle().remove("background-color");
+            return;
+        }
+        radarrHealthTooltip.setText(
+                health.stream().map(MovieRequestView::healthIssueLine).collect(Collectors.joining("\n")));
+        if (health.stream().anyMatch(h -> "warning".equalsIgnoreCase(h.getType()))) {
+            radarrHealthCard.getStyle().set("background-color", HEALTH_WARNING_COLOR);
+        } else {
+            radarrHealthCard.getStyle().remove("background-color");
+        }
+    }
+
+    private static String healthIssueLine(RadarrHealthItem item) {
+        String type = item.getType() == null ? "" : "[" + item.getType() + "] ";
+        String message = item.getMessage() == null ? "" : item.getMessage();
+        return "• " + type + message;
+    }
+
+    private static Card statCard(String title, Span value) {
+        value.getStyle().set("font-size", "var(--lumo-font-size-xxl)").set("font-weight", "bold");
+        Card card = new Card();
+        card.setTitle(title);
+        card.add(value);
+        return card;
+    }
+
     private static Span coloredLabel(String text, String color) {
         Span span = new Span(text);
         span.getStyle().set("color", color);
@@ -383,6 +514,9 @@ public class MovieRequestView extends VerticalLayout {
     private static Anchor externalLink(String href) {
         Anchor link = new Anchor(href, new Icon(VaadinIcon.EXTERNAL_LINK));
         link.setTarget(AnchorTarget.BLANK);
+        // Keep right-clicks on the link from bubbling to the grid's context menu, so the browser's
+        // own link menu (open in new tab, copy link) handles them instead.
+        link.getElement().executeJs("this.addEventListener('contextmenu', e => e.stopPropagation())");
         return link;
     }
 

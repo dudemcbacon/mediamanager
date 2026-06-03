@@ -37,7 +37,7 @@ public class ScheduledRefreshJob {
         movieRefreshService.refreshAll();
         tvRefreshService.refreshAll();
         movieRequestRepository.findAll().forEach(validatorService::validate);
-        tvRequestRepository.findAll().forEach(validatorService::validate);
+        tvRequestRepository.findAll().forEach(validatorService::validateWithEpisodes);
         log.info("Hourly refresh-and-validate job complete");
     }
 }
