@@ -1,23 +1,32 @@
 package report.butt.mediamanager.route;
 
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.badge.Badge;
+import com.vaadin.flow.component.badge.BadgeVariant;
 import com.vaadin.flow.component.grid.contextmenu.GridContextMenu;
 import com.vaadin.flow.component.grid.contextmenu.GridMenuItem;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.shared.Tooltip;
 import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.data.provider.hierarchy.TreeData;
 import com.vaadin.flow.data.provider.hierarchy.TreeDataProvider;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import report.butt.mediamanager.controller.TvController;
 import report.butt.mediamanager.model.TvChildRequest;
 import report.butt.mediamanager.model.TvEpisodeRequest;
 import report.butt.mediamanager.model.TvSeasonRequest;
 import report.butt.mediamanager.model.Validation;
+import report.butt.mediamanager.model.deluge.DelugeTorrent;
+import report.butt.mediamanager.model.plex.EpisodeKey;
+import report.butt.mediamanager.model.sabnzbd.SabnzbdSlot;
 import report.butt.mediamanager.route.TvHierarchyRow.ChildRow;
 import report.butt.mediamanager.route.TvHierarchyRow.EpisodeRow;
 import report.butt.mediamanager.route.TvHierarchyRow.SeasonRow;
@@ -25,10 +34,22 @@ import report.butt.mediamanager.validation.EpisodeValidator;
 
 class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
 
+    /** A queued episode's Sonarr protocol joined to its Deluge torrent or SABnzbd slot (either may be null). */
+    record EpisodeDownload(String protocol, DelugeTorrent torrent, SabnzbdSlot slot) {}
+
+    // Resolved once at construction (using each episode's known season number) so the Type/Progress/Peers
+    // renderers never touch the lazy TvSeasonRequest association off the UI/transaction.
+    private final Map<Long, EpisodeDownload> downloadByEpisodeId = new HashMap<>();
+    // Type badges roll up: a season carries the protocols of its downloading episodes, a child the
+    // protocols of its downloading seasons. Progress/Peers stay episode-only.
+    private final Map<Long, Set<String>> protocolsBySeasonId = new HashMap<>();
+    private final Map<Long, Set<String>> protocolsByChildId = new HashMap<>();
+
     TvHierarchyTreeGrid(
             List<TvChildRequest> children,
             List<EpisodeValidator> episodeValidators,
             Map<Long, Map<String, Validation>> latestEpisodeValidations,
+            Map<EpisodeKey, EpisodeDownload> episodeDownloads,
             TvController tvController) {
         setSizeFull();
 
@@ -41,6 +62,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
                 treeData.addItem(childRow, seasonRow);
                 for (TvEpisodeRequest episode : season.getEpisodeRequests()) {
                     treeData.addItem(seasonRow, new EpisodeRow(episode));
+                    indexDownload(child, season, episode, episodeDownloads);
                 }
             }
         }
@@ -54,10 +76,15 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         addColumn(TvHierarchyTreeGrid::countsText).setHeader("Counts").setAutoWidth(true);
         addColumn(TvHierarchyTreeGrid::statusText).setHeader("Status").setAutoWidth(true);
 
+        addComponentColumn(this::typeComponent).setHeader("Type").setAutoWidth(true);
+        addColumn(this::progressText).setHeader("Progress").setAutoWidth(true);
+        addColumn(this::peersText).setHeader("Peers").setAutoWidth(true);
+
         for (EpisodeValidator validator : episodeValidators) {
             String name = validator.getClass().getSimpleName();
             addComponentColumn(row -> episodeValidationComponent(row, name, latestEpisodeValidations))
-                    .setHeader(headerWithTooltip(validator.shortName(), validator.description()))
+                    .setHeader(headerWithTooltip(
+                            validator.shortName(), validator.title(), validator.description()))
                     .setAutoWidth(true);
         }
 
@@ -107,6 +134,102 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
             searchEpisode.setVisible(row instanceof EpisodeRow);
             return true;
         });
+    }
+
+    /**
+     * Records an episode's queued-download info (keyed by its persistent id) and rolls its protocol up
+     * to the owning season and child, so the Type badge can be shown at every level. Skipped unless the
+     * episode is in the Sonarr queue and both numbers are known.
+     */
+    private void indexDownload(
+            TvChildRequest child,
+            TvSeasonRequest season,
+            TvEpisodeRequest episode,
+            Map<EpisodeKey, EpisodeDownload> episodeDownloads) {
+        if (episode.getId() == null || season.getOmbiSeasonNumber() == null || episode.getOmbiEpisodeNumber() == null) {
+            return;
+        }
+        EpisodeDownload download =
+                episodeDownloads.get(new EpisodeKey(season.getOmbiSeasonNumber(), episode.getOmbiEpisodeNumber()));
+        if (download == null) {
+            return;
+        }
+        downloadByEpisodeId.put(episode.getId(), download);
+        if (download.protocol() == null) {
+            return;
+        }
+        if (season.getId() != null) {
+            protocolsBySeasonId.computeIfAbsent(season.getId(), k -> new HashSet<>()).add(download.protocol());
+        }
+        if (child.getId() != null) {
+            protocolsByChildId.computeIfAbsent(child.getId(), k -> new HashSet<>()).add(download.protocol());
+        }
+    }
+
+    /**
+     * Type cell: a {@link Badge} per Sonarr protocol — solid blue (default) for torrent, solid green for
+     * usenet — or a dash when nothing under the row is in the Sonarr queue. Episodes carry their own
+     * protocol; seasons and children carry the rolled-up protocols of their downloading descendants.
+     */
+    private Component typeComponent(TvHierarchyRow row) {
+        Set<String> protocols = switch (row) {
+            case EpisodeRow(TvEpisodeRequest episode) -> {
+                EpisodeDownload download = episode.getId() == null ? null : downloadByEpisodeId.get(episode.getId());
+                yield download == null || download.protocol() == null ? Set.of() : Set.of(download.protocol());
+            }
+            case SeasonRow(TvSeasonRequest season) ->
+                season.getId() == null ? Set.of() : protocolsBySeasonId.getOrDefault(season.getId(), Set.of());
+            case ChildRow(TvChildRequest child) ->
+                child.getId() == null ? Set.of() : protocolsByChildId.getOrDefault(child.getId(), Set.of());
+        };
+        return protocolBadges(protocols);
+    }
+
+    private static Component protocolBadges(Set<String> protocols) {
+        if (protocols.isEmpty()) {
+            return new Span("—");
+        }
+        HorizontalLayout badges = new HorizontalLayout();
+        badges.setSpacing(false);
+        badges.getStyle().set("gap", "var(--lumo-space-xs)");
+        if (protocols.stream().anyMatch(MovieRequestView::isTorrent)) {
+            Badge torrent = new Badge("torrent");
+            torrent.addThemeVariants(BadgeVariant.FILLED);
+            badges.add(torrent);
+        }
+        if (protocols.stream().anyMatch(p -> !MovieRequestView.isTorrent(p))) {
+            Badge usenet = new Badge("usenet");
+            usenet.addThemeVariants(BadgeVariant.SUCCESS, BadgeVariant.FILLED);
+            badges.add(usenet);
+        }
+        return badges;
+    }
+
+    /** Download progress for a queued episode: torrent progress or SABnzbd percentage, else a dash. */
+    private String progressText(TvHierarchyRow row) {
+        EpisodeDownload download = downloadFor(row);
+        if (download == null || download.protocol() == null) {
+            return "—";
+        }
+        if (MovieRequestView.isTorrent(download.protocol())) {
+            return download.torrent() == null ? "—" : MovieRequestView.formatProgress(download.torrent().getProgress());
+        }
+        return download.slot() == null ? "—" : MovieRequestView.formatPercentage(download.slot().getPercentage());
+    }
+
+    /** Peer/seed counts for a queued torrent episode, or a dash for usenet or episodes not in the queue. */
+    private String peersText(TvHierarchyRow row) {
+        EpisodeDownload download = downloadFor(row);
+        if (download == null || !MovieRequestView.isTorrent(download.protocol())) {
+            return "—";
+        }
+        return download.torrent() == null ? "—" : MovieRequestView.formatPeers(download.torrent());
+    }
+
+    private EpisodeDownload downloadFor(TvHierarchyRow row) {
+        return row instanceof EpisodeRow(TvEpisodeRequest episode) && episode.getId() != null
+                ? downloadByEpisodeId.get(episode.getId())
+                : null;
     }
 
     private static Component episodeValidationComponent(
@@ -187,9 +310,9 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         return anyKnown ? allValid : null;
     }
 
-    private static Component headerWithTooltip(String shortName, String description) {
+    private static Component headerWithTooltip(String shortName, String title, String description) {
         Span label = new Span(shortName);
-        Tooltip.forComponent(label).setText(description);
+        Tooltip.forComponent(label).setText(title + "\n\n" + description);
         return label;
     }
 

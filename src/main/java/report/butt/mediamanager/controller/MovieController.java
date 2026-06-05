@@ -34,6 +34,7 @@ import tools.jackson.databind.ObjectMapper;
 public class MovieController {
 
     private static final Logger log = LoggerFactory.getLogger(MovieController.class);
+    private static final String ANY_QUALITY_PROFILE = "Any";
 
     private final MovieRequestRepository movieRequestRepository;
     private final ValidationRepository validationRepository;
@@ -227,6 +228,32 @@ public class MovieController {
         Instant now = Instant.now();
         movieRequests.forEach(mr -> mr.setRadarrLastSearchTime(now));
         movieRequestRepository.saveAll(movieRequests);
+        return "redirect:/movies";
+    }
+
+    @PostMapping("/movies/{id}/quality-profile-any")
+    public String setQualityProfileToAny(@PathVariable Long id) {
+        log.info("Set quality profile to '{}' request for movie request {}", ANY_QUALITY_PROFILE, id);
+        MovieRequest movieRequest =
+                movieRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
+
+        Integer radarrRequestId = movieRequest.getRadarrRequestId();
+        if (radarrRequestId == null) {
+            log.warn(
+                    "MovieRequest {} ({}) has no radarrRequestId; cannot change quality profile",
+                    id,
+                    movieRequest.getTitle());
+            return "redirect:/movies";
+        }
+
+        Integer profileId = radarrClient.getQualityProfileIdByName(ANY_QUALITY_PROFILE);
+        if (profileId == null) {
+            log.warn("No Radarr quality profile named '{}'; cannot change quality profile", ANY_QUALITY_PROFILE);
+            return "redirect:/movies";
+        }
+
+        radarrClient.updateMovieQualityProfile(radarrRequestId, profileId);
+        movieRefreshService.refreshOne(id);
         return "redirect:/movies";
     }
 

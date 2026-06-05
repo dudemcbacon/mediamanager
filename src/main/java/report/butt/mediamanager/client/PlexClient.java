@@ -168,6 +168,32 @@ public class PlexClient {
         return plexTvSectionName;
     }
 
+    /** The per-item Plex query URL used to look up a movie, without the X-Plex-Token. */
+    public String movieQueryUrl(String title) {
+        return UriComponentsBuilder.fromUriString(this.plexUrl)
+                .path("/library/all")
+                .queryParam("type", 1)
+                .queryParam("includeGuids", 1)
+                .queryParam("title", title)
+                .encode()
+                .build()
+                .toUriString();
+    }
+
+    /** The per-item Plex query URL used to look up a show, without the X-Plex-Token. */
+    public String showQueryUrl(String title) {
+        if (tvSectionId == null) {
+            return null;
+        }
+        return UriComponentsBuilder.fromUriString(this.plexUrl)
+                .path("/library/sections/" + tvSectionId + "/all")
+                .queryParam("includeGuids", 1)
+                .queryParam("title", title)
+                .encode()
+                .build()
+                .toUriString();
+    }
+
     public MetadataResult getMovieByTmdbId(int tmdbId, String title, int year) {
         log.info("Retrieving media from Plex via tmdbId={}, title={}, year={}", tmdbId, title, year);
         String tmdbGuid = "tmdb://" + tmdbId;

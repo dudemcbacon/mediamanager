@@ -27,6 +27,11 @@ public class SonarrMonitored implements Validator<TvRequest> {
 
     @Override
     public String shortName() {
+        return "Monit";
+    }
+
+    @Override
+    public String title() {
         return "Monitored?";
     }
 

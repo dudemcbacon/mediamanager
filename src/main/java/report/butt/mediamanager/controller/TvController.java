@@ -45,6 +45,7 @@ import tools.jackson.databind.ObjectMapper;
 public class TvController {
 
     private static final Logger log = LoggerFactory.getLogger(TvController.class);
+    private static final String ANY_QUALITY_PROFILE = "Any";
 
     private final TvRequestRepository tvRequestRepository;
     private final TvChildRequestRepository tvChildRequestRepository;
@@ -159,6 +160,31 @@ public class TvController {
     @PostMapping("/tv/{id}/refresh")
     public String refresh(@PathVariable Long id) {
         log.info("Refresh request for tv request {}", id);
+        tvRefreshService.refreshOne(id);
+        return "redirect:/tv";
+    }
+
+    @PostMapping("/tv/{id}/quality-profile-any")
+    public String setQualityProfileToAny(@PathVariable Long id) {
+        log.info("Set quality profile to '{}' request for tv request {}", ANY_QUALITY_PROFILE, id);
+        TvRequest tvRequest = tvRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
+
+        Integer sonarrSeriesId = tvRequest.getSonarrSeriesId();
+        if (sonarrSeriesId == null) {
+            log.warn(
+                    "TvRequest {} ({}) has no sonarrSeriesId; cannot change quality profile",
+                    id,
+                    tvRequest.getTitle());
+            return "redirect:/tv";
+        }
+
+        Integer profileId = sonarrClient.getQualityProfileIdByName(ANY_QUALITY_PROFILE);
+        if (profileId == null) {
+            log.warn("No Sonarr quality profile named '{}'; cannot change quality profile", ANY_QUALITY_PROFILE);
+            return "redirect:/tv";
+        }
+
+        sonarrClient.updateSeriesQualityProfile(sonarrSeriesId, profileId);
         tvRefreshService.refreshOne(id);
         return "redirect:/tv";
     }

@@ -39,6 +39,7 @@ public class TvRequest extends Request {
     private Integer sonarrTotalEpisodeCount;
     private Instant sonarrLastSearched;
     private String sonarrOriginalLanguage;
+    private String sonarrQualityProfile;
 
     private Integer ombiTotalSeasons;
     private Integer ombiExternalProviderId;
@@ -158,6 +159,14 @@ public class TvRequest extends Request {
         this.sonarrOriginalLanguage = sonarrOriginalLanguage;
     }
 
+    public String getSonarrQualityProfile() {
+        return this.sonarrQualityProfile;
+    }
+
+    public void setSonarrQualityProfile(String sonarrQualityProfile) {
+        this.sonarrQualityProfile = sonarrQualityProfile;
+    }
+
     public Integer getOmbiTotalSeasons() {
         return this.ombiTotalSeasons;
     }
@@ -218,6 +227,7 @@ public class TvRequest extends Request {
                 getSonarrTotalEpisodeCount(),
                 getSonarrLastSearched(),
                 getSonarrOriginalLanguage(),
+                getSonarrQualityProfile(),
                 getOmbiTotalSeasons(),
                 getOmbiExternalProviderId());
     }

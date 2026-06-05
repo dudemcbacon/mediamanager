@@ -35,6 +35,11 @@ public class SearchedRecentlyTv implements Validator<TvRequest> {
 
     @Override
     public String shortName() {
+        return "Search";
+    }
+
+    @Override
+    public String title() {
         return "Recent Search?";
     }
 

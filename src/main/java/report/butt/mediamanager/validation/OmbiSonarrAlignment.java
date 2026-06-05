@@ -28,6 +28,11 @@ public class OmbiSonarrAlignment implements Validator<TvRequest> {
 
     @Override
     public String shortName() {
+        return "Align";
+    }
+
+    @Override
+    public String title() {
         return "Alignment?";
     }
 

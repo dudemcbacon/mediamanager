@@ -26,6 +26,11 @@ public class AvailableInPlexTv implements Validator<TvRequest> {
 
     @Override
     public String shortName() {
+        return "Plex";
+    }
+
+    @Override
+    public String title() {
         return "Plex?";
     }
 

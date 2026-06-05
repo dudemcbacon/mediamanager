@@ -1,13 +1,18 @@
 package report.butt.mediamanager.client;
 
+import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import report.butt.mediamanager.model.sonarr.Episode;
+import report.butt.mediamanager.model.sonarr.QualityProfile;
 import report.butt.mediamanager.model.sonarr.Series;
 import report.butt.mediamanager.model.sonarr.SeriesHistory;
 import report.butt.mediamanager.model.sonarr.SonarrCommand;
@@ -17,7 +22,10 @@ import report.butt.mediamanager.model.sonarr.SonarrQueue;
 @Service
 public class SonarrClient {
 
+    private static final Logger log = LoggerFactory.getLogger(SonarrClient.class);
+
     private final RestClient restClient;
+    private Map<Integer, String> qualityProfilesById = Map.of();
 
     public SonarrClient(
             RestClient.Builder builder,
@@ -26,6 +34,55 @@ public class SonarrClient {
         this.restClient = builder.baseUrl(sonarrUrl)
                 .defaultHeader("X-Api-Key", sonarrApiKey)
                 .build();
+    }
+
+    /**
+     * Quality profiles rarely change, so we fetch them once at startup and reuse the
+     * id-to-name map on every refresh instead of re-fetching. A failure here is non-fatal:
+     * profile names simply stay unavailable until the next restart.
+     */
+    @PostConstruct
+    void cacheQualityProfiles() {
+        try {
+            List<QualityProfile> profiles = restClient
+                    .get()
+                    .uri("/api/v3/qualityprofile")
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<QualityProfile>>() {});
+            if (profiles != null) {
+                this.qualityProfilesById = profiles.stream()
+                        .filter(p -> p.getId() != null)
+                        .collect(Collectors.toMap(QualityProfile::getId, QualityProfile::getName, (a, b) -> a));
+            }
+            log.info("Cached {} Sonarr quality profiles", qualityProfilesById.size());
+        } catch (Exception e) {
+            log.warn("Failed to cache Sonarr quality profiles; names will be unavailable", e);
+        }
+    }
+
+    public Map<Integer, String> getQualityProfilesById() {
+        return qualityProfilesById;
+    }
+
+    /** Resolves a cached quality profile id by its (exact) name, or null if none matches. */
+    public Integer getQualityProfileIdByName(String name) {
+        return qualityProfilesById.entrySet().stream()
+                .filter(e -> e.getValue() != null && e.getValue().equals(name))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
+    }
+
+    /** Changes a series' quality profile via Sonarr's bulk editor (avoids round-tripping the full series). */
+    public void updateSeriesQualityProfile(Integer seriesId, Integer qualityProfileId) {
+        restClient
+                .put()
+                .uri("/api/v3/series/editor")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("seriesIds", List.of(seriesId), "qualityProfileId", qualityProfileId))
+                .retrieve()
+                .toBodilessEntity();
     }
 
     public Series getSeriesById(Long id) {
@@ -104,8 +161,11 @@ public class SonarrClient {
     public SonarrQueue getQueue() {
         return restClient
                 .get()
-                .uri(uriBuilder ->
-                        uriBuilder.path("/api/v3/queue").queryParam("pageSize", 10000).build())
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/v3/queue")
+                        .queryParam("pageSize", 10000)
+                        .queryParam("includeEpisode", true)
+                        .build())
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .body(SonarrQueue.class);

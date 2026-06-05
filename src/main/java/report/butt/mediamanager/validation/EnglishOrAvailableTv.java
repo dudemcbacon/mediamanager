@@ -27,6 +27,11 @@ public class EnglishOrAvailableTv implements Validator<TvRequest> {
 
     @Override
     public String shortName() {
+        return "Lang";
+    }
+
+    @Override
+    public String title() {
         return "English?";
     }
 

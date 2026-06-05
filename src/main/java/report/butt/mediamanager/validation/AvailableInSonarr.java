@@ -23,6 +23,11 @@ public class AvailableInSonarr implements Validator<TvRequest> {
 
     @Override
     public String shortName() {
+        return "Sonarr";
+    }
+
+    @Override
+    public String title() {
         return "Sonarr?";
     }
 

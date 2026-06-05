@@ -9,3 +9,19 @@ vaadin-grid::part(stale) {
 vaadin-grid::part(has_notes) {
   background-color: #b3d4fc;
 }
+
+.status-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid var(--lumo-contrast-30pct, #ccc);
+  border-top-color: var(--lumo-primary-color, #1e6fce);
+  border-radius: 50%;
+  animation: status-spin 0.8s linear infinite;
+}
+
+@keyframes status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

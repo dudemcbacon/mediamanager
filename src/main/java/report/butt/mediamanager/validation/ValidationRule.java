@@ -9,5 +9,7 @@ public interface ValidationRule<T> {
 
     String shortName();
 
+    String title();
+
     String description();
 }

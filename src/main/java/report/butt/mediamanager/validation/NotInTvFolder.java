@@ -24,6 +24,11 @@ public class NotInTvFolder implements Validator<MovieRequest> {
 
     @Override
     public String shortName() {
+        return "NotTV";
+    }
+
+    @Override
+    public String title() {
         return "NotTV?";
     }
 

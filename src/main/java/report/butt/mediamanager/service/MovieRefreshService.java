@@ -56,6 +56,7 @@ public class MovieRefreshService {
         Map<Integer, Movie> radarrByTmdb = radarrMovies.stream()
                 .filter(m -> m.getTmdbId() != null)
                 .collect(Collectors.toMap(Movie::getTmdbId, Function.identity(), (a, b) -> a));
+        Map<Integer, String> qualityProfilesById = radarrClient.getQualityProfilesById();
         Map<Integer, PlexMetadata> plexByTmdb = plexClient.getAllMoviesIndexedByTmdb();
         Set<String> validCacheKeys = new HashSet<>();
 
@@ -83,7 +84,7 @@ public class MovieRefreshService {
                     ombiMovie.getTheMovieDbId() == null ? null : radarrByTmdb.get(ombiMovie.getTheMovieDbId());
 
             Integer beforeHash = existing == null ? null : movieRequest.hashCode();
-            applyUpdates(movieRequest, ombiMovie, radarrMovie, plexByTmdb);
+            applyUpdates(movieRequest, ombiMovie, radarrMovie, plexByTmdb, qualityProfilesById);
 
             if (radarrMovie != null && radarrMovie.getTmdbId() != null) {
                 validCacheKeys.add(PlexClient.movieCacheKey(radarrMovie.getTmdbId()));
@@ -125,7 +126,7 @@ public class MovieRefreshService {
             }
         }
 
-        applyUpdates(movieRequest, ombiMovie, radarrMovie, null);
+        applyUpdates(movieRequest, ombiMovie, radarrMovie, null, radarrClient.getQualityProfilesById());
         repository.save(movieRequest);
         log.info("Refreshed {} ({})", id, movieRequest.getTitle());
     }
@@ -134,7 +135,8 @@ public class MovieRefreshService {
             MovieRequest movieRequest,
             OmbiMovieRequest ombiMovie,
             Movie radarrMovie,
-            Map<Integer, PlexMetadata> plexByTmdb) {
+            Map<Integer, PlexMetadata> plexByTmdb,
+            Map<Integer, String> qualityProfilesById) {
         if (ombiMovie != null) {
             String ombiUserName = ombiMovie.getRequestedUser() == null
                     ? null
@@ -153,6 +155,8 @@ public class MovieRefreshService {
             movieRequest.setRadarrIsAvailable(radarrMovie.getIsAvailable());
             movieRequest.setRadarrPath(radarrMovie.getPath());
             movieRequest.setRadarrRootFolderPath(radarrMovie.getRootFolderPath());
+            movieRequest.setRadarrQualityProfile(
+                    qualityProfilesById == null ? null : qualityProfilesById.get(radarrMovie.getQualityProfileId()));
             movieRequest.setRadarrOriginalLanguage(
                     radarrMovie.getOriginalLanguage() == null
                             ? null

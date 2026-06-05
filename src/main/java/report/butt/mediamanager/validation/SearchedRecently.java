@@ -35,6 +35,11 @@ public class SearchedRecently implements Validator<MovieRequest> {
 
     @Override
     public String shortName() {
+        return "Search";
+    }
+
+    @Override
+    public String title() {
         return "Recent Search?";
     }
 

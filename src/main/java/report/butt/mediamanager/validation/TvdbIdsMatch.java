@@ -24,6 +24,11 @@ public class TvdbIdsMatch implements Validator<TvRequest> {
 
     @Override
     public String shortName() {
+        return "TVDB";
+    }
+
+    @Override
+    public String title() {
         return "TVDB IDs?";
     }
 

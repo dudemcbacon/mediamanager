@@ -27,6 +27,11 @@ public class EnglishOrAvailable implements Validator<MovieRequest> {
 
     @Override
     public String shortName() {
+        return "Lang";
+    }
+
+    @Override
+    public String title() {
         return "English?";
     }
 

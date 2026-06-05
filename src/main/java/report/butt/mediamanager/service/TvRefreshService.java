@@ -86,6 +86,7 @@ public class TvRefreshService {
         Map<Integer, Series> sonarrByTvdb = sonarrSeries.stream()
                 .filter(s -> s.getTvdbId() != null)
                 .collect(Collectors.toMap(Series::getTvdbId, Function.identity(), (a, b) -> a));
+        Map<Integer, String> qualityProfilesById = sonarrClient.getQualityProfilesById();
 
         List<Integer> parentOmbiIds = ombiTvRequests.stream()
                 .map(OmbiTvRequest::getId)
@@ -162,7 +163,7 @@ public class TvRefreshService {
             Series series = ombiTv.getTvDbId() == null ? null : sonarrByTvdb.get(ombiTv.getTvDbId());
 
             Integer beforeHash = existing == null ? null : tvRequest.hashCode();
-            applyUpdates(tvRequest, ombiTv, series, showsByTvdb);
+            applyUpdates(tvRequest, ombiTv, series, showsByTvdb, qualityProfilesById);
             if (series != null && series.getTvdbId() != null) {
                 validCacheKeys.add(PlexClient.tvCacheKey(series.getTvdbId()));
             }
@@ -416,7 +417,7 @@ public class TvRefreshService {
             }
         }
 
-        applyUpdates(tvRequest, ombiTv, series, null);
+        applyUpdates(tvRequest, ombiTv, series, null, sonarrClient.getQualityProfilesById());
         tvRequest = repository.save(tvRequest);
         if (ombiTv != null) {
             refreshChildren(tvRequest, ombiTv, series);
@@ -425,7 +426,11 @@ public class TvRefreshService {
     }
 
     private void applyUpdates(
-            TvRequest tvRequest, OmbiTvRequest ombiTv, Series series, Map<Integer, PlexMetadata> showsByTvdb) {
+            TvRequest tvRequest,
+            OmbiTvRequest ombiTv,
+            Series series,
+            Map<Integer, PlexMetadata> showsByTvdb,
+            Map<Integer, String> qualityProfilesById) {
         if (ombiTv != null) {
             backfillTotalSeasons(ombiTv);
             OmbiTvChildRequest firstChild = firstChild(ombiTv);
@@ -452,6 +457,8 @@ public class TvRefreshService {
                     series.getOriginalLanguage() == null
                             ? null
                             : series.getOriginalLanguage().getName());
+            tvRequest.setSonarrQualityProfile(
+                    qualityProfilesById == null ? null : qualityProfilesById.get(series.getQualityProfileId()));
             if (series.getStatistics() != null) {
                 tvRequest.setSonarrEpisodeFileCount(series.getStatistics().getEpisodeFileCount());
                 tvRequest.setSonarrEpisodeCount(series.getStatistics().getEpisodeCount());

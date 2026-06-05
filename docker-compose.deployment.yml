@@ -3,6 +3,8 @@ services:
     image: ${MEDIAMANAGER_IMAGE:-ghcr.io/bburnett/mediamanager:latest}
     container_name: mediamanager-app
     restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
     depends_on:
       db:
         condition: service_healthy
@@ -31,3 +33,14 @@ services:
       MEDIAMANAGER_BOOTSTRAP_PASSWORD: ${MEDIAMANAGER_BOOTSTRAP_PASSWORD:?MEDIAMANAGER_BOOTSTRAP_PASSWORD is required}
 
       JAVA_OPTS: ${JAVA_OPTS:-}
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Only needed if the GHCR package is private — supplies pull credentials.
+      # Run `docker login ghcr.io` on the host first, then uncomment:
+      # - ${HOME}/.docker/config.json:/config.json:ro
+    command: --interval 300 --cleanup --label-enable

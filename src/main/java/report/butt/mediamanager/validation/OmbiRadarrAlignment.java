@@ -24,6 +24,11 @@ public class OmbiRadarrAlignment implements Validator<MovieRequest> {
 
     @Override
     public String shortName() {
+        return "Align";
+    }
+
+    @Override
+    public String title() {
         return "Alignment?";
     }
 

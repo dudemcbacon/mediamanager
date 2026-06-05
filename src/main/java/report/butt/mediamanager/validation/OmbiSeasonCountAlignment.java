@@ -36,6 +36,11 @@ public class OmbiSeasonCountAlignment implements Validator<TvRequest> {
 
     @Override
     public String shortName() {
+        return "Season";
+    }
+
+    @Override
+    public String title() {
         return "Seasons?";
     }
 

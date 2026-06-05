@@ -29,6 +29,11 @@ public class EpisodeSearchedRecently implements EpisodeValidator {
 
     @Override
     public String shortName() {
+        return "Search";
+    }
+
+    @Override
+    public String title() {
         return "Recent Search?";
     }
 

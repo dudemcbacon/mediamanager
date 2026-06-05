@@ -5,10 +5,10 @@ import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
 
 @Component
-public class AvailableInRadarr implements Validator<MovieRequest> {
+public class RadarrHasFile implements Validator<MovieRequest> {
     @Override
     public Boolean validate(MovieRequest request) {
-        return request.getRadarrRequestId() != null;
+        return Boolean.TRUE.equals(request.getRadarrHasFile());
     }
 
     @Override
@@ -18,21 +18,21 @@ public class AvailableInRadarr implements Validator<MovieRequest> {
 
     @Override
     public int sortOrder() {
-        return 200;
+        return 250;
     }
 
     @Override
     public String shortName() {
-        return "Radarr";
+        return "File";
     }
 
     @Override
     public String title() {
-        return "Radarr?";
+        return "Radarr File?";
     }
 
     @Override
     public String description() {
-        return "Movie has a Radarr request ID, meaning it is tracked in Radarr.";
+        return "Movie has a downloaded file in Radarr.";
     }
 }

@@ -24,6 +24,11 @@ public class TmdbIdsMatch implements Validator<MovieRequest> {
 
     @Override
     public String shortName() {
+        return "TMDB";
+    }
+
+    @Override
+    public String title() {
         return "TMDB IDs?";
     }
 

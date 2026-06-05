@@ -5,10 +5,13 @@ import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
 
 @Component
-public class AvailableInRadarr implements Validator<MovieRequest> {
+public class QualityProfileAnyOrAvailable implements Validator<MovieRequest> {
     @Override
     public Boolean validate(MovieRequest request) {
-        return request.getRadarrRequestId() != null;
+        if (request.isAvailable()) {
+            return true;
+        }
+        return "Any".equalsIgnoreCase(request.getRadarrQualityProfile());
     }
 
     @Override
@@ -18,21 +21,21 @@ public class AvailableInRadarr implements Validator<MovieRequest> {
 
     @Override
     public int sortOrder() {
-        return 200;
+        return 380;
     }
 
     @Override
     public String shortName() {
-        return "Radarr";
+        return "Qual";
     }
 
     @Override
     public String title() {
-        return "Radarr?";
+        return "Quality?";
     }
 
     @Override
     public String description() {
-        return "Movie has a Radarr request ID, meaning it is tracked in Radarr.";
+        return "Available movies pass; otherwise the Radarr quality profile must be set to 'Any'.";
     }
 }

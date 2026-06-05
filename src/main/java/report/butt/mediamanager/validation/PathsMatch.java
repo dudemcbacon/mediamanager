@@ -39,6 +39,11 @@ public class PathsMatch implements Validator<MovieRequest> {
 
     @Override
     public String shortName() {
+        return "Paths";
+    }
+
+    @Override
+    public String title() {
         return "Paths Match?";
     }
 

@@ -1,5 +1,9 @@
 package report.butt.mediamanager.route;
 
+import com.vaadin.flow.component.AttachEvent;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.badge.Badge;
+import com.vaadin.flow.component.badge.BadgeVariant;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.card.Card;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -10,11 +14,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridSortOrder;
 import com.vaadin.flow.component.grid.contextmenu.GridContextMenu;
 import com.vaadin.flow.component.grid.contextmenu.GridMenuItem;
-import com.vaadin.flow.component.html.Anchor;
-import com.vaadin.flow.component.html.AnchorTarget;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.Icon;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -23,6 +23,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.data.renderer.LitRenderer;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.UIScope;
 import com.vaadin.flow.theme.aura.Aura;
@@ -35,15 +36,25 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import report.butt.mediamanager.client.DelugeClient;
 import report.butt.mediamanager.client.PlexClient;
+import report.butt.mediamanager.client.SabnzbdClient;
 import report.butt.mediamanager.controller.TvController;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.TvChildRequest;
 import report.butt.mediamanager.model.TvRequest;
 import report.butt.mediamanager.model.Validation;
+import report.butt.mediamanager.model.deluge.DelugeTorrent;
+import report.butt.mediamanager.model.plex.EpisodeKey;
+import report.butt.mediamanager.model.sabnzbd.SabnzbdSlot;
 import report.butt.mediamanager.model.sonarr.SonarrHealthItem;
 import report.butt.mediamanager.model.sonarr.SonarrQueue;
 import report.butt.mediamanager.model.sonarr.SonarrQueueRecord;
@@ -59,6 +70,11 @@ import report.butt.mediamanager.validation.Validator;
 @StyleSheet(Aura.STYLESHEET)
 @StyleSheet("grid-available.css")
 public class TvRequestView extends VerticalLayout {
+
+    private static final Logger log = LoggerFactory.getLogger(TvRequestView.class);
+
+    /** Identifies an episode within the Sonarr queue across all shows. */
+    private record QueueKey(Integer seriesId, Integer seasonNumber, Integer episodeNumber) {}
 
     private final Grid<TvRequest> grid = new Grid<>(TvRequest.class, false);
     private final TvRequestRepository tvRequestRepository;
@@ -92,6 +108,15 @@ public class TvRequestView extends VerticalLayout {
     private final String sonarrUrl;
     private final String plexUrl;
     private final String plexMachineIdentifier;
+    private final PlexClient plexClient;
+    private final DelugeClient delugeClient;
+    private final SabnzbdClient sabnzbdClient;
+    private final Map<QueueKey, String> protocolByEpisode = new HashMap<>();
+    private final Map<QueueKey, String> downloadIdByEpisode = new HashMap<>();
+    private final Map<QueueKey, DelugeTorrent> torrentByEpisode = new HashMap<>();
+    private final Map<QueueKey, SabnzbdSlot> slotByEpisode = new HashMap<>();
+    private final Map<Integer, Set<String>> protocolsBySeriesId = new HashMap<>();
+    private final AtomicBoolean downloadLoadInFlight = new AtomicBoolean(false);
 
     public TvRequestView(
             TvRequestRepository tvRequestRepository,
@@ -101,6 +126,8 @@ public class TvRequestView extends VerticalLayout {
             List<Validator<TvRequest>> validators,
             List<EpisodeValidator> episodeValidators,
             PlexClient plexClient,
+            DelugeClient delugeClient,
+            SabnzbdClient sabnzbdClient,
             @Value("${ombi.url}") String ombiUrl,
             @Value("${sonarr.url}") String sonarrUrl,
             TvHierarchyService tvHierarchyService) {
@@ -113,6 +140,9 @@ public class TvRequestView extends VerticalLayout {
         this.sonarrUrl = sonarrUrl;
         this.plexUrl = plexClient.getPlexUrl();
         this.plexMachineIdentifier = plexClient.getMachineIdentifier();
+        this.plexClient = plexClient;
+        this.delugeClient = delugeClient;
+        this.sabnzbdClient = sabnzbdClient;
         this.knownValidatorNames =
                 validators.stream().map(v -> v.getClass().getSimpleName()).collect(Collectors.toUnmodifiableSet());
         this.episodeValidators = episodeValidators.stream()
@@ -131,11 +161,7 @@ public class TvRequestView extends VerticalLayout {
                 .setComparator(
                         Comparator.comparing(TvRequest::getTitle, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
 
-        grid.addComponentColumn(this::ombiLink).setHeader("Ombi").setAutoWidth(true);
-        grid.addComponentColumn(this::sonarrLink).setHeader("Sonarr").setAutoWidth(true);
-        grid.addComponentColumn(TvRequestView::plexLink).setHeader("Plex").setAutoWidth(true);
-        grid.addComponentColumn(this::plexAppLink).setHeader("Plex App").setAutoWidth(true);
-        grid.addComponentColumn(TvRequestView::tvdbLink).setHeader("TVDB").setAutoWidth(true);
+        grid.addColumn(linkRenderer(this::sonarrHref)).setHeader("Sonarr").setAutoWidth(true);
 
         grid.addColumn(TvRequestView::episodesAvailable)
                 .setHeader("Episodes")
@@ -147,8 +173,9 @@ public class TvRequestView extends VerticalLayout {
                 .sorted(Comparator.comparingInt(Validator<TvRequest>::sortOrder))
                 .forEach(validator -> {
                     String name = validator.getClass().getSimpleName();
-                    grid.addComponentColumn(mr -> latestResult(mr, name))
-                            .setHeader(headerWithTooltip(validator.shortName(), validator.description()))
+                    grid.addColumn(validatorResultRenderer(name))
+                            .setHeader(headerWithTooltip(
+                                    validator.shortName(), validator.title(), validator.description()))
                             .setAutoWidth(true)
                             .setSortable(true)
                             .setComparator(Comparator.comparing(
@@ -156,17 +183,29 @@ public class TvRequestView extends VerticalLayout {
                                     Comparator.nullsLast(Comparator.naturalOrder())));
                 });
 
-        grid.addComponentColumn(this::subValidationResult)
-                .setHeader("Sub-Validations")
+        grid.addColumn(subValidationRenderer())
+                .setHeader("Sub")
                 .setAutoWidth(true)
                 .setSortable(true)
                 .setComparator(Comparator.comparing(
                         mr -> subValidations.get(mr.getId()), Comparator.nullsLast(Comparator.naturalOrder())));
 
+        grid.addColumn(qualityBadgeRenderer())
+                .setHeader("Quality Profile")
+                .setAutoWidth(true)
+                .setSortable(true)
+                .setComparator(Comparator.comparing(
+                        TvRequest::getSonarrQualityProfile, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+
+        grid.addColumn(new ComponentRenderer<>(this::statusBadges))
+                .setHeader("Status")
+                .setAutoWidth(true);
+
         grid.setItemDetailsRenderer(new ComponentRenderer<>(this::createDetails));
         grid.setDetailsVisibleOnClick(true);
 
         GridContextMenu<TvRequest> contextMenu = grid.addContextMenu();
+        suppressGridContextMenuOnLinks();
         contextMenu.addItem("Refresh", e -> e.getItem().ifPresent(mr -> {
             tvController.refresh(mr.getId());
             tvController.validate(mr.getId());
@@ -189,9 +228,22 @@ public class TvRequestView extends VerticalLayout {
                     tvController.validate(mr.getId());
                     refreshGrid();
                 }));
+        contextMenu.addItem("Set Quality Profile to 'Any'", e -> e.getItem().ifPresent(mr -> {
+            tvController.setQualityProfileToAny(mr.getId());
+            refreshGrid();
+        }));
         contextMenu.addItem("Mark as Stale", e -> e.getItem().ifPresent(this::openMarkStaleDialog));
         contextMenu.addItem("Add Note", e -> e.getItem().ifPresent(this::openAddNoteDialog));
         contextMenu.addItem("View Notes", e -> e.getItem().ifPresent(this::openViewNotesDialog));
+        contextMenu.addItem("View Plex Query URL", e -> e.getItem().ifPresent(this::openPlexQueryUrlDialog));
+        GridMenuItem<TvRequest> viewOmbiItem =
+                contextMenu.addItem("View Ombi", e -> e.getItem().ifPresent(this::openOmbi));
+        GridMenuItem<TvRequest> viewPlexAppItem =
+                contextMenu.addItem("View Plex App", e -> e.getItem().ifPresent(this::openPlexApp));
+        GridMenuItem<TvRequest> viewPlexJsonItem =
+                contextMenu.addItem("View Plex JSON", e -> e.getItem().ifPresent(this::openPlexJson));
+        GridMenuItem<TvRequest> viewTvdbItem =
+                contextMenu.addItem("View TVDB", e -> e.getItem().ifPresent(this::openTvdb));
         contextMenu.addItem("Delete TV Request", e -> e.getItem().ifPresent(mr -> {
             tvController.delete(mr.getId());
             refreshGrid();
@@ -201,6 +253,10 @@ public class TvRequestView extends VerticalLayout {
                 return false;
             }
             markAvailableItem.setEnabled(mr.getOmbiRequestId() != null);
+            viewOmbiItem.setEnabled(ombiHref(mr) != null);
+            viewPlexAppItem.setEnabled(plexAppHref(mr) != null);
+            viewPlexJsonItem.setEnabled(plexHref(mr) != null);
+            viewTvdbItem.setEnabled(tvdbHref(mr) != null);
             return true;
         });
 
@@ -312,11 +368,118 @@ public class TvRequestView extends VerticalLayout {
         showStaleLabel.setText("Show stale rows (" + staleCount + ")");
         showWithNotesLabel.setText("Show rows with notes (" + withNotesCount + ")");
         totalLabel.setText("Total TV shows: " + all.size());
-        updateSonarrQueueCard(tvController.getSonarrQueue());
+        SonarrQueue sonarrQueue = tvController.getSonarrQueue();
+        updateSonarrQueueCard(sonarrQueue);
+        updateQueueMaps(sonarrQueue);
         updateSonarrHealthCard(tvController.getSonarrHealth());
 
         allRequests = all;
         applyFilters();
+        triggerDownloadLoad();
+    }
+
+    @Override
+    protected void onAttach(AttachEvent attachEvent) {
+        super.onAttach(attachEvent);
+        triggerDownloadLoad();
+    }
+
+    /** Kicks off the Deluge + SABnzbd fetch on the current UI, if the view is attached; a no-op otherwise. */
+    private void triggerDownloadLoad() {
+        getUI().ifPresent(this::loadDownloadStatusAsync);
+    }
+
+    /**
+     * Fetches Deluge torrent and SABnzbd queue status off the UI thread (both hit remote, VPN-fronted
+     * services and can be slow), then joins them to queued episodes. Results are pushed back via
+     * {@link UI#access} (requires server push). A guard skips the fetch when one is already in flight.
+     */
+    private void loadDownloadStatusAsync(UI ui) {
+        if (!downloadLoadInFlight.compareAndSet(false, true)) {
+            return;
+        }
+        CompletableFuture<Map<String, DelugeTorrent>> torrents =
+                CompletableFuture.supplyAsync(delugeClient::getTorrentsStatus);
+        CompletableFuture<Map<String, SabnzbdSlot>> slots =
+                CompletableFuture.supplyAsync(sabnzbdClient::getQueueSlots);
+        torrents.thenCombine(slots, DownloadStatus::new).whenComplete((status, throwable) -> ui.access(() -> {
+            try {
+                if (throwable != null) {
+                    log.warn("Failed to load download status", throwable);
+                } else {
+                    applyDownloadStatus(status.torrents(), status.slots());
+                }
+            } finally {
+                downloadLoadInFlight.set(false);
+                // Refresh the main grid so an expanded detail's tree picks up the joined progress/peers.
+                grid.getDataProvider().refreshAll();
+            }
+        }));
+    }
+
+    private record DownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {}
+
+    /**
+     * Joins Deluge torrents and SABnzbd slots to queued episodes through the Sonarr queue: a queue
+     * record's downloadId is the Deluge torrent hash (matched case-insensitively) for torrents or the
+     * SABnzbd {@code nzo_id} for usenet, and the record's protocol picks which client to look in.
+     */
+    private void applyDownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {
+        torrentByEpisode.clear();
+        slotByEpisode.clear();
+        Map<String, DelugeTorrent> byLowerHash = new HashMap<>();
+        if (torrents != null) {
+            torrents.forEach((hash, torrent) -> byLowerHash.put(hash.toLowerCase(), torrent));
+        }
+        Map<String, SabnzbdSlot> byNzoId = slots == null ? Map.of() : slots;
+        downloadIdByEpisode.forEach((key, downloadId) -> {
+            if (downloadId == null) {
+                return;
+            }
+            if (MovieRequestView.isTorrent(protocolByEpisode.get(key))) {
+                DelugeTorrent torrent = byLowerHash.get(downloadId.toLowerCase());
+                if (torrent != null) {
+                    torrentByEpisode.put(key, torrent);
+                }
+            } else {
+                SabnzbdSlot slot = byNzoId.get(downloadId);
+                if (slot != null) {
+                    slotByEpisode.put(key, slot);
+                }
+            }
+        });
+    }
+
+    /**
+     * Indexes the current Sonarr queue: per-episode protocol/downloadId (for the expanded tree's
+     * Type/Progress/Peers) and per-series protocols (for the main grid's Status badges). The queue is
+     * fetched with {@code includeEpisode=true}, so each record carries its episode number.
+     */
+    private void updateQueueMaps(SonarrQueue queue) {
+        protocolByEpisode.clear();
+        downloadIdByEpisode.clear();
+        protocolsBySeriesId.clear();
+        if (queue == null || queue.getRecords() == null) {
+            return;
+        }
+        for (SonarrQueueRecord record : queue.getRecords()) {
+            Integer seriesId = record.getSeriesId();
+            if (seriesId == null) {
+                continue;
+            }
+            if (record.getProtocol() != null) {
+                protocolsBySeriesId
+                        .computeIfAbsent(seriesId, k -> new HashSet<>())
+                        .add(record.getProtocol());
+            }
+            Integer episodeNumber = record.getEpisode() == null ? null : record.getEpisode().getEpisodeNumber();
+            if (record.getSeasonNumber() == null || episodeNumber == null) {
+                continue;
+            }
+            QueueKey key = new QueueKey(seriesId, record.getSeasonNumber(), episodeNumber);
+            protocolByEpisode.put(key, record.getProtocol());
+            downloadIdByEpisode.put(key, record.getDownloadId());
+        }
     }
 
     /**
@@ -439,20 +602,63 @@ public class TvRequestView extends VerticalLayout {
         dialog.open();
     }
 
-    private com.vaadin.flow.component.Component ombiLink(TvRequest mr) {
-        Integer externalProviderId = mr.getOmbiExternalProviderId();
-        if (externalProviderId == null) {
-            return new Span("—");
-        }
-        return externalLink(ombiUrl + "/details/tv/" + externalProviderId);
+    private void openPlexQueryUrlDialog(TvRequest mr) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Plex query URL for \"" + mr.getTitle() + "\"");
+        dialog.setWidth("600px");
+
+        String url = plexClient.showQueryUrl(mr.getTitle());
+        TextArea urlField = new TextArea();
+        urlField.setReadOnly(true);
+        urlField.setWidthFull();
+        urlField.setValue(url == null ? "Plex query URL unavailable" : url);
+
+        Button close = new Button("Close", e -> dialog.close());
+        dialog.add(urlField);
+        dialog.getFooter().add(close);
+        dialog.open();
     }
 
-    private com.vaadin.flow.component.Component sonarrLink(TvRequest mr) {
-        String titleSlug = mr.getSonarrTitleSlug();
-        if (titleSlug == null || titleSlug.isBlank()) {
-            return new Span("—");
+    /** Opens the row's Ombi details page in a new browser tab. */
+    private void openOmbi(TvRequest mr) {
+        String url = ombiHref(mr);
+        if (url != null) {
+            getUI().ifPresent(ui -> ui.getPage().open(url));
         }
-        return externalLink(sonarrUrl + "/series/" + titleSlug);
+    }
+
+    /** Opens the row's Plex app deep link in a new browser tab. */
+    private void openPlexApp(TvRequest mr) {
+        String url = plexAppHref(mr);
+        if (url != null) {
+            getUI().ifPresent(ui -> ui.getPage().open(url));
+        }
+    }
+
+    /** Opens the row's Plex metadata JSON URL in a new browser tab. */
+    private void openPlexJson(TvRequest mr) {
+        String url = plexHref(mr);
+        if (url != null) {
+            getUI().ifPresent(ui -> ui.getPage().open(url));
+        }
+    }
+
+    /** Opens the row's TVDB page in a new browser tab. */
+    private void openTvdb(TvRequest mr) {
+        String url = tvdbHref(mr);
+        if (url != null) {
+            getUI().ifPresent(ui -> ui.getPage().open(url));
+        }
+    }
+
+    private String ombiHref(TvRequest mr) {
+        Integer externalProviderId = mr.getOmbiExternalProviderId();
+        return externalProviderId == null ? null : ombiUrl + "/details/tv/" + externalProviderId;
+    }
+
+    private String sonarrHref(TvRequest mr) {
+        String titleSlug = mr.getSonarrTitleSlug();
+        return titleSlug == null || titleSlug.isBlank() ? null : sonarrUrl + "/series/" + titleSlug;
     }
 
     /** Available (downloaded) episodes over total episodes, per Sonarr — e.g. "52/236". */
@@ -472,35 +678,29 @@ public class TvRequestView extends VerticalLayout {
         return (double) available / total;
     }
 
-    private static com.vaadin.flow.component.Component plexLink(TvRequest mr) {
+    private static String plexHref(TvRequest mr) {
         String url = mr.getPlexMetadataUrl();
-        if (url == null || url.isBlank()) {
-            return new Span("—");
-        }
-        return externalLink(url);
+        return url == null || url.isBlank() ? null : url;
     }
 
-    private com.vaadin.flow.component.Component plexAppLink(TvRequest mr) {
+    private String plexAppHref(TvRequest mr) {
         String ratingKey = mr.getPlexMetadataId();
         if (ratingKey == null || ratingKey.isBlank() || plexMachineIdentifier == null) {
-            return new Span("—");
+            return null;
         }
-        String url = plexUrl + "/web/index.html#!/server/" + plexMachineIdentifier + "/details?key=/library/metadata/"
+        return plexUrl + "/web/index.html#!/server/" + plexMachineIdentifier + "/details?key=/library/metadata/"
                 + ratingKey;
-        return externalLink(url);
     }
 
-    private static com.vaadin.flow.component.Component tvdbLink(TvRequest mr) {
+    private static String tvdbHref(TvRequest mr) {
         Integer tvdbId = mr.getTvdbId();
-        if (tvdbId == null) {
-            return new Span("—");
-        }
-        return externalLink("https://www.thetvdb.com/?id=" + tvdbId + "&tab=series");
+        return tvdbId == null ? null : "https://www.thetvdb.com/?id=" + tvdbId + "&tab=series";
     }
 
-    private static com.vaadin.flow.component.Component headerWithTooltip(String shortName, String description) {
+    private static com.vaadin.flow.component.Component headerWithTooltip(
+            String shortName, String title, String description) {
         Span label = new Span(shortName);
-        Tooltip.forComponent(label).setText(description);
+        Tooltip.forComponent(label).setText(title + "\n\n" + description);
         return label;
     }
 
@@ -588,28 +788,86 @@ public class TvRequestView extends VerticalLayout {
         return span;
     }
 
-    private static Anchor externalLink(String href) {
-        Anchor link = new Anchor(href, new Icon(VaadinIcon.EXTERNAL_LINK));
-        link.setTarget(AnchorTarget.BLANK);
-        // Keep right-clicks on the link from bubbling to the grid's context menu, so the browser's
-        // own link menu (open in new tab, copy link) handles them instead.
-        link.getElement().executeJs("this.addEventListener('contextmenu', e => e.stopPropagation())");
-        return link;
+    private LitRenderer<TvRequest> qualityBadgeRenderer() {
+        return LitRenderer.<TvRequest>of("<span theme=\"badge\" ?hidden=\"${!item.label}\">${item.label}</span>"
+                        + "<span ?hidden=\"${item.label}\">—</span>")
+                .withProperty("label", mr -> {
+                    String profile = mr.getSonarrQualityProfile();
+                    return profile == null ? "" : profile;
+                });
     }
 
-    private com.vaadin.flow.component.Component latestResult(TvRequest mr, String validationName) {
-        Map<String, Validation> byName = latestValidations.get(mr.getId());
-        Validation v = byName == null ? null : byName.get(validationName);
-        if (v == null) {
+    /**
+     * Status cell: a torrent and/or usenet {@link Badge} when any episode of the series is in the Sonarr
+     * queue — solid blue (default) for torrent, solid green for usenet — or a dash when nothing is queued.
+     */
+    private com.vaadin.flow.component.Component statusBadges(TvRequest mr) {
+        Set<String> protocols = mr.getSonarrSeriesId() == null ? null : protocolsBySeriesId.get(mr.getSonarrSeriesId());
+        if (protocols == null || protocols.isEmpty()) {
             return new Span("—");
         }
-        return resultIcon(v.getResult());
+        HorizontalLayout badges = new HorizontalLayout();
+        badges.setSpacing(false);
+        badges.getStyle().set("gap", "var(--lumo-space-xs)");
+        if (protocols.stream().anyMatch(MovieRequestView::isTorrent)) {
+            Badge torrent = new Badge("torrent");
+            torrent.addThemeVariants(BadgeVariant.FILLED);
+            badges.add(torrent);
+        }
+        if (protocols.stream().anyMatch(p -> !MovieRequestView.isTorrent(p))) {
+            Badge usenet = new Badge("usenet");
+            usenet.addThemeVariants(BadgeVariant.SUCCESS, BadgeVariant.FILLED);
+            badges.add(usenet);
+        }
+        return badges;
     }
 
-    private com.vaadin.flow.component.Component subValidationResult(TvRequest mr) {
-        Boolean result = subValidations.get(mr.getId());
-        // null = no child episodes validated yet (unknown), not a failure.
-        return result == null ? new Span("—") : resultIcon(result);
+    /**
+     * Client-side renderer for an external-link cell: an anchor when a URL is present, otherwise a
+     * dash. Rendered by the browser (LitRenderer) so wide grids stay responsive while scrolling.
+     * Right-clicks on the anchor are handled by a single delegated grid listener (see
+     * suppressGridContextMenuOnLinks).
+     */
+    private LitRenderer<TvRequest> linkRenderer(Function<TvRequest, String> hrefFn) {
+        return LitRenderer.<TvRequest>of(
+                        "<a href=\"${item.href}\" target=\"_blank\" rel=\"noopener\" ?hidden=\"${!item.href}\">"
+                                + "<vaadin-icon icon=\"vaadin:external-link\"></vaadin-icon></a>"
+                                + "<span ?hidden=\"${item.href}\">—</span>")
+                .withProperty("href", mr -> {
+                    String href = hrefFn.apply(mr);
+                    return href == null ? "" : href;
+                });
+    }
+
+    /**
+     * Registers one capture-phase contextmenu listener on the grid so right-clicks landing on a
+     * link let the browser's native link menu show instead of the grid's context menu. Runs once on
+     * attach — far cheaper than attaching a listener to every link cell as rows render.
+     */
+    private void suppressGridContextMenuOnLinks() {
+        grid.getElement()
+                .executeJs("this.addEventListener('contextmenu', e => { if (e.target.closest('a'))"
+                        + " e.stopPropagation(); }, true);");
+    }
+
+    /**
+     * Client-side renderer for a validator result cell. Using {@link LitRenderer} instead of a
+     * server-side component column keeps the grid responsive while scrolling: the browser renders
+     * the icon from a tiny data payload rather than the server building a component per cell.
+     */
+    private LitRenderer<TvRequest> validatorResultRenderer(String validationName) {
+        return LitRenderer.<TvRequest>of(
+                        "<vaadin-icon icon=\"${item.icon}\" style=\"color: ${item.color}\"></vaadin-icon>")
+                .withProperty("icon", mr -> MovieRequestView.resultIconName(latestResultValue(mr, validationName)))
+                .withProperty("color", mr -> MovieRequestView.resultIconColor(latestResultValue(mr, validationName)));
+    }
+
+    /** Sub-validation cell; null means no child episodes validated yet (unknown), not a failure. */
+    private LitRenderer<TvRequest> subValidationRenderer() {
+        return LitRenderer.<TvRequest>of(
+                        "<vaadin-icon icon=\"${item.icon}\" style=\"color: ${item.color}\"></vaadin-icon>")
+                .withProperty("icon", mr -> MovieRequestView.resultIconName(subValidations.get(mr.getId())))
+                .withProperty("color", mr -> MovieRequestView.resultIconColor(subValidations.get(mr.getId())));
     }
 
     private Boolean latestResultValue(TvRequest mr, String validationName) {
@@ -618,26 +876,34 @@ public class TvRequestView extends VerticalLayout {
         return v == null ? null : v.getResult();
     }
 
-    private static com.vaadin.flow.component.Component resultIcon(Boolean result) {
-        if (Boolean.TRUE.equals(result)) {
-            Icon icon = VaadinIcon.CHECK.create();
-            icon.getStyle().set("color", "var(--lumo-success-color, green)");
-            return icon;
-        }
-        Icon icon = VaadinIcon.CLOSE.create();
-        icon.getStyle().set("color", "var(--lumo-error-color, red)");
-        return icon;
-    }
-
     private static final List<String> DETAIL_PRIORITY_FIELDS = List.of("id", "title", "tvdbId");
+
+    /** Builds the per-episode download lookup for one series, keyed by season+episode for the tree grid. */
+    private Map<EpisodeKey, TvHierarchyTreeGrid.EpisodeDownload> episodeDownloadsForSeries(Integer seriesId) {
+        Map<EpisodeKey, TvHierarchyTreeGrid.EpisodeDownload> downloads = new HashMap<>();
+        if (seriesId == null) {
+            return downloads;
+        }
+        protocolByEpisode.forEach((key, protocol) -> {
+            if (seriesId.equals(key.seriesId())) {
+                downloads.put(
+                        new EpisodeKey(key.seasonNumber(), key.episodeNumber()),
+                        new TvHierarchyTreeGrid.EpisodeDownload(
+                                protocol, torrentByEpisode.get(key), slotByEpisode.get(key)));
+            }
+        });
+        return downloads;
+    }
 
     private com.vaadin.flow.component.Component createDetails(TvRequest mr) {
         FormLayout fields = buildFieldDump(mr);
 
         List<TvChildRequest> children = tvHierarchyService.loadHierarchy(mr);
+        Map<EpisodeKey, TvHierarchyTreeGrid.EpisodeDownload> downloads =
+                episodeDownloadsForSeries(mr.getSonarrSeriesId());
         com.vaadin.flow.component.Component hierarchy = children.isEmpty()
                 ? TvHierarchyTreeGrid.placeholderWhenEmpty()
-                : new TvHierarchyTreeGrid(children, episodeValidators, latestEpisodeValidations, tvController);
+                : new TvHierarchyTreeGrid(children, episodeValidators, latestEpisodeValidations, downloads, tvController);
 
         VerticalLayout layout = new VerticalLayout(fields, hierarchy);
         layout.setWidthFull();

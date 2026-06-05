@@ -36,6 +36,7 @@ public class MovieRequest extends Request {
     private String radarrMovieFilePath;
 
     private String radarrOriginalLanguage;
+    private String radarrQualityProfile;
 
     MovieRequest() {}
 
@@ -136,6 +137,14 @@ public class MovieRequest extends Request {
         this.radarrOriginalLanguage = radarrOriginalLanguage;
     }
 
+    public String getRadarrQualityProfile() {
+        return this.radarrQualityProfile;
+    }
+
+    public void setRadarrQualityProfile(String radarrQualityProfile) {
+        this.radarrQualityProfile = radarrQualityProfile;
+    }
+
     @Override
     public boolean isAvailable() {
         return Boolean.TRUE.equals(this.radarrHasFile) && OMBI_AVAILABLE_STATUS.equals(getOmbiRequestStatus());
@@ -173,7 +182,8 @@ public class MovieRequest extends Request {
                 getRadarrPath(),
                 getRadarrRootFolderPath(),
                 getRadarrMovieFilePath(),
-                getRadarrOriginalLanguage());
+                getRadarrOriginalLanguage(),
+                getRadarrQualityProfile());
     }
 
     @Override

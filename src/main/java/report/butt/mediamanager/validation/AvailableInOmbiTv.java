@@ -23,6 +23,11 @@ public class AvailableInOmbiTv implements Validator<TvRequest> {
 
     @Override
     public String shortName() {
+        return "Ombi";
+    }
+
+    @Override
+    public String title() {
         return "Ombi?";
     }
 

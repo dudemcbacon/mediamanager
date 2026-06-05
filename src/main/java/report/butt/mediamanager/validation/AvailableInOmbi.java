@@ -23,6 +23,11 @@ public class AvailableInOmbi implements Validator<MovieRequest> {
 
     @Override
     public String shortName() {
+        return "Ombi";
+    }
+
+    @Override
+    public String title() {
         return "Ombi?";
     }
 

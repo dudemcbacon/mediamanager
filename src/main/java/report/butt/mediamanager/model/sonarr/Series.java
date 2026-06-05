@@ -21,6 +21,9 @@ public class Series {
     @JsonProperty("year")
     private Integer year;
 
+    @JsonProperty("qualityProfileId")
+    private Integer qualityProfileId;
+
     @JsonProperty("monitored")
     private Boolean monitored;
 
@@ -77,6 +80,14 @@ public class Series {
 
     public void setYear(Integer year) {
         this.year = year;
+    }
+
+    public Integer getQualityProfileId() {
+        return qualityProfileId;
+    }
+
+    public void setQualityProfileId(Integer qualityProfileId) {
+        this.qualityProfileId = qualityProfileId;
     }
 
     public Boolean getMonitored() {

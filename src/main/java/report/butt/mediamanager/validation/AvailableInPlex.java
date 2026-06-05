@@ -23,6 +23,11 @@ public class AvailableInPlex implements Validator<MovieRequest> {
 
     @Override
     public String shortName() {
+        return "Plex";
+    }
+
+    @Override
+    public String title() {
         return "Plex?";
     }
 

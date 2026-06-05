@@ -1,5 +1,9 @@
 package report.butt.mediamanager.route;
 
+import com.vaadin.flow.component.AttachEvent;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.badge.Badge;
+import com.vaadin.flow.component.badge.BadgeVariant;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.card.Card;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -10,11 +14,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridSortOrder;
 import com.vaadin.flow.component.grid.contextmenu.GridContextMenu;
 import com.vaadin.flow.component.grid.contextmenu.GridMenuItem;
-import com.vaadin.flow.component.html.Anchor;
-import com.vaadin.flow.component.html.AnchorTarget;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.Icon;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -23,6 +23,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.data.renderer.LitRenderer;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.UIScope;
 import com.vaadin.flow.theme.aura.Aura;
@@ -35,17 +36,26 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import report.butt.mediamanager.client.DelugeClient;
 import report.butt.mediamanager.client.PlexClient;
+import report.butt.mediamanager.client.SabnzbdClient;
 import report.butt.mediamanager.controller.MovieController;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.Validation;
+import report.butt.mediamanager.model.deluge.DelugeTorrent;
 import report.butt.mediamanager.model.radarr.RadarrHealthItem;
 import report.butt.mediamanager.model.radarr.RadarrQueue;
 import report.butt.mediamanager.model.radarr.RadarrQueueRecord;
+import report.butt.mediamanager.model.sabnzbd.SabnzbdSlot;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.ValidationRepository;
@@ -57,6 +67,8 @@ import report.butt.mediamanager.validation.Validator;
 @StyleSheet("grid-available.css")
 public class MovieRequestView extends VerticalLayout {
 
+    private static final Logger log = LoggerFactory.getLogger(MovieRequestView.class);
+
     private final Grid<MovieRequest> grid = new Grid<>(MovieRequest.class, false);
     private final MovieRequestRepository movieRequestRepository;
     private final MovieController movieController;
@@ -64,6 +76,12 @@ public class MovieRequestView extends VerticalLayout {
     private final NoteRepository noteRepository;
     private final Set<String> knownValidatorNames;
     private final Map<Long, Map<String, Validation>> latestValidations = new HashMap<>();
+    private final Map<Integer, String> queueStateByMovieId = new HashMap<>();
+    private final Map<Integer, String> downloadIdByMovieId = new HashMap<>();
+    private final Map<Integer, String> protocolByMovieId = new HashMap<>();
+    private final Map<Integer, DelugeTorrent> torrentByMovieId = new HashMap<>();
+    private final Map<Integer, SabnzbdSlot> slotByMovieId = new HashMap<>();
+    private final AtomicBoolean downloadLoadInFlight = new AtomicBoolean(false);
     private final Set<Long> movieRequestsWithNotes = new HashSet<>();
     private final Checkbox showValidCheckbox = new Checkbox(true);
     private final Checkbox showStaleCheckbox = new Checkbox(false);
@@ -84,6 +102,9 @@ public class MovieRequestView extends VerticalLayout {
     private final String radarrUrl;
     private final String plexUrl;
     private final String plexMachineIdentifier;
+    private final PlexClient plexClient;
+    private final DelugeClient delugeClient;
+    private final SabnzbdClient sabnzbdClient;
 
     public MovieRequestView(
             MovieRequestRepository movieRequestRepository,
@@ -92,6 +113,8 @@ public class MovieRequestView extends VerticalLayout {
             NoteRepository noteRepository,
             List<Validator<MovieRequest>> validators,
             PlexClient plexClient,
+            DelugeClient delugeClient,
+            SabnzbdClient sabnzbdClient,
             @Value("${ombi.url}") String ombiUrl,
             @Value("${radarr.url}") String radarrUrl) {
         this.movieRequestRepository = movieRequestRepository;
@@ -102,6 +125,9 @@ public class MovieRequestView extends VerticalLayout {
         this.radarrUrl = radarrUrl;
         this.plexUrl = plexClient.getPlexUrl();
         this.plexMachineIdentifier = plexClient.getMachineIdentifier();
+        this.plexClient = plexClient;
+        this.delugeClient = delugeClient;
+        this.sabnzbdClient = sabnzbdClient;
         this.knownValidatorNames =
                 validators.stream().map(v -> v.getClass().getSimpleName()).collect(Collectors.toUnmodifiableSet());
         setSizeFull();
@@ -114,18 +140,15 @@ public class MovieRequestView extends VerticalLayout {
                 .setComparator(Comparator.comparing(
                         MovieRequest::getTitle, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
 
-        grid.addComponentColumn(this::ombiLink).setHeader("Ombi").setAutoWidth(true);
-        grid.addComponentColumn(this::radarrLink).setHeader("Radarr").setAutoWidth(true);
-        grid.addComponentColumn(MovieRequestView::plexLink).setHeader("Plex").setAutoWidth(true);
-        grid.addComponentColumn(this::plexAppLink).setHeader("Plex App").setAutoWidth(true);
-        grid.addComponentColumn(MovieRequestView::tmdbLink).setHeader("TMDB").setAutoWidth(true);
+        grid.addColumn(linkRenderer(this::radarrHref)).setHeader("Radarr").setAutoWidth(true);
 
         validators.stream()
                 .sorted(Comparator.comparingInt(Validator<MovieRequest>::sortOrder))
                 .forEach(validator -> {
                     String name = validator.getClass().getSimpleName();
-                    grid.addComponentColumn(mr -> latestResult(mr, name))
-                            .setHeader(headerWithTooltip(validator.shortName(), validator.description()))
+                    grid.addColumn(validatorResultRenderer(name))
+                            .setHeader(headerWithTooltip(
+                                    validator.shortName(), validator.title(), validator.description()))
                             .setAutoWidth(true)
                             .setSortable(true)
                             .setComparator(Comparator.comparing(
@@ -133,10 +156,15 @@ public class MovieRequestView extends VerticalLayout {
                                     Comparator.nullsLast(Comparator.naturalOrder())));
                 });
 
+        grid.addColumn(new ComponentRenderer<>(this::typeBadge)).setHeader("Type").setAutoWidth(true);
+        grid.addColumn(progressRenderer()).setHeader("Progress").setAutoWidth(true);
+        grid.addColumn(peersRenderer()).setHeader("Peers").setAutoWidth(true);
+
         grid.setItemDetailsRenderer(new ComponentRenderer<>(MovieRequestView::createDetails));
         grid.setDetailsVisibleOnClick(true);
 
         GridContextMenu<MovieRequest> contextMenu = grid.addContextMenu();
+        suppressGridContextMenuOnLinks();
         contextMenu.addItem("Refresh", e -> e.getItem().ifPresent(mr -> {
             movieController.refresh(mr.getId());
             movieController.validate(mr.getId());
@@ -153,9 +181,22 @@ public class MovieRequestView extends VerticalLayout {
                     movieController.validate(mr.getId());
                     refreshGrid();
                 }));
+        contextMenu.addItem("Set Quality Profile to 'Any'", e -> e.getItem().ifPresent(mr -> {
+            movieController.setQualityProfileToAny(mr.getId());
+            refreshGrid();
+        }));
         contextMenu.addItem("Mark as Stale", e -> e.getItem().ifPresent(this::openMarkStaleDialog));
         contextMenu.addItem("Add Note", e -> e.getItem().ifPresent(this::openAddNoteDialog));
         contextMenu.addItem("View Notes", e -> e.getItem().ifPresent(this::openViewNotesDialog));
+        contextMenu.addItem("View Plex Query URL", e -> e.getItem().ifPresent(this::openPlexQueryUrlDialog));
+        GridMenuItem<MovieRequest> viewOmbiItem =
+                contextMenu.addItem("View Ombi", e -> e.getItem().ifPresent(this::openOmbi));
+        GridMenuItem<MovieRequest> viewPlexAppItem =
+                contextMenu.addItem("View Plex App", e -> e.getItem().ifPresent(this::openPlexApp));
+        GridMenuItem<MovieRequest> viewPlexJsonItem =
+                contextMenu.addItem("View Plex Json", e -> e.getItem().ifPresent(this::openPlexJson));
+        GridMenuItem<MovieRequest> viewTmdbItem =
+                contextMenu.addItem("View TMDB", e -> e.getItem().ifPresent(this::openTmdb));
         contextMenu.addItem("Delete Movie Request", e -> e.getItem().ifPresent(mr -> {
             movieController.delete(mr.getId());
             refreshGrid();
@@ -165,6 +206,10 @@ public class MovieRequestView extends VerticalLayout {
                 return false;
             }
             markAvailableItem.setEnabled(mr.getOmbiRequestId() != null);
+            viewOmbiItem.setEnabled(ombiHref(mr) != null);
+            viewPlexAppItem.setEnabled(plexAppHref(mr) != null);
+            viewPlexJsonItem.setEnabled(plexHref(mr) != null);
+            viewTmdbItem.setEnabled(tmdbHref(mr) != null);
             return true;
         });
 
@@ -208,6 +253,7 @@ public class MovieRequestView extends VerticalLayout {
         searchField.setValueChangeMode(ValueChangeMode.LAZY);
         searchField.addValueChangeListener(e -> applyFilters());
         HorizontalLayout statsRow = new HorizontalLayout(radarrQueueCard, radarrHealthCard);
+        statsRow.setAlignItems(FlexComponent.Alignment.CENTER);
         HorizontalLayout toolbar = new HorizontalLayout(
                 searchField,
                 refreshAll,
@@ -251,11 +297,92 @@ public class MovieRequestView extends VerticalLayout {
         showStaleLabel.setText("Show stale rows (" + staleCount + ")");
         showWithNotesLabel.setText("Show rows with notes (" + withNotesCount + ")");
         totalLabel.setText("Total movies: " + all.size());
-        updateRadarrQueueCard(movieController.getRadarrQueue());
+        RadarrQueue radarrQueue = movieController.getRadarrQueue();
+        updateRadarrQueueCard(radarrQueue);
+        updateQueueMaps(radarrQueue);
         updateRadarrHealthCard(movieController.getRadarrHealth());
 
         allRequests = all;
         applyFilters();
+        triggerDownloadLoad();
+    }
+
+    @Override
+    protected void onAttach(AttachEvent attachEvent) {
+        super.onAttach(attachEvent);
+        triggerDownloadLoad();
+    }
+
+    /** Kicks off the Deluge + SABnzbd fetch on the current UI, if the view is attached; a no-op otherwise. */
+    private void triggerDownloadLoad() {
+        getUI().ifPresent(this::loadDownloadStatusAsync);
+    }
+
+    /**
+     * Fetches Deluge torrent and SABnzbd queue status off the UI thread (both hit remote,
+     * VPN-fronted services and can be slow). While the fetch is in flight the Status column shows a
+     * per-row spinner for queued movies; results are pushed back via {@link UI#access}. Requires
+     * server push (see {@code @Push}). A guard skips the fetch when one is already in flight.
+     */
+    private void loadDownloadStatusAsync(UI ui) {
+        if (!downloadLoadInFlight.compareAndSet(false, true)) {
+            return;
+        }
+        // Render the per-row spinners now that the in-flight guard is set.
+        grid.getDataProvider().refreshAll();
+        CompletableFuture<Map<String, DelugeTorrent>> torrents =
+                CompletableFuture.supplyAsync(delugeClient::getTorrentsStatus);
+        CompletableFuture<Map<String, SabnzbdSlot>> slots =
+                CompletableFuture.supplyAsync(sabnzbdClient::getQueueSlots);
+        torrents.thenCombine(slots, DownloadStatus::new).whenComplete((status, throwable) -> ui.access(() -> {
+            try {
+                if (throwable != null) {
+                    log.warn("Failed to load download status", throwable);
+                } else {
+                    applyDownloadStatus(status.torrents(), status.slots());
+                }
+            } finally {
+                downloadLoadInFlight.set(false);
+                grid.getDataProvider().refreshAll();
+                // The Status column is auto-width, but its detail text only arrives now (async), after
+                // the initial width was measured from the shorter spinner content — recompute so it fits.
+                grid.recalculateColumnWidths();
+            }
+        }));
+    }
+
+    private record DownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {}
+
+    /**
+     * Joins Deluge torrents and SABnzbd slots to movies through the Radarr queue: a queue record's
+     * downloadId is the Deluge torrent hash (matched case-insensitively) for torrents or the SABnzbd
+     * {@code nzo_id} for usenet, and the record's protocol picks which client to look in. Rebuilds the
+     * movie-to-download indexes from scratch; the caller re-renders so the Status column updates.
+     */
+    private void applyDownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {
+        torrentByMovieId.clear();
+        slotByMovieId.clear();
+        Map<String, DelugeTorrent> byLowerHash = new HashMap<>();
+        if (torrents != null) {
+            torrents.forEach((hash, torrent) -> byLowerHash.put(hash.toLowerCase(), torrent));
+        }
+        Map<String, SabnzbdSlot> byNzoId = slots == null ? Map.of() : slots;
+        downloadIdByMovieId.forEach((movieId, downloadId) -> {
+            if (downloadId == null) {
+                return;
+            }
+            if (isTorrent(protocolByMovieId.get(movieId))) {
+                DelugeTorrent torrent = byLowerHash.get(downloadId.toLowerCase());
+                if (torrent != null) {
+                    torrentByMovieId.put(movieId, torrent);
+                }
+            } else {
+                SabnzbdSlot slot = byNzoId.get(downloadId);
+                if (slot != null) {
+                    slotByMovieId.put(movieId, slot);
+                }
+            }
+        });
     }
 
     /**
@@ -378,51 +505,88 @@ public class MovieRequestView extends VerticalLayout {
         dialog.open();
     }
 
-    private com.vaadin.flow.component.Component ombiLink(MovieRequest mr) {
-        Integer tmdbid = mr.getTmdbid();
-        if (tmdbid == null) {
-            return new Span("—");
-        }
-        return externalLink(ombiUrl + "/details/movie/" + tmdbid);
+    private void openPlexQueryUrlDialog(MovieRequest mr) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Plex query URL for \"" + mr.getTitle() + "\"");
+        dialog.setWidth("600px");
+
+        String url = plexClient.movieQueryUrl(mr.getTitle());
+        TextArea urlField = new TextArea();
+        urlField.setReadOnly(true);
+        urlField.setWidthFull();
+        urlField.setValue(url == null ? "Plex query URL unavailable" : url);
+
+        Button close = new Button("Close", e -> dialog.close());
+        dialog.add(urlField);
+        dialog.getFooter().add(close);
+        dialog.open();
     }
 
-    private com.vaadin.flow.component.Component radarrLink(MovieRequest mr) {
-        Integer tmdbid = mr.getTmdbid();
-        if (tmdbid == null) {
-            return new Span("—");
+    /** Opens the row's Ombi details page in a new browser tab. */
+    private void openOmbi(MovieRequest mr) {
+        String url = ombiHref(mr);
+        if (url != null) {
+            getUI().ifPresent(ui -> ui.getPage().open(url));
         }
-        return externalLink(radarrUrl + "/movie/" + tmdbid);
     }
 
-    private static com.vaadin.flow.component.Component plexLink(MovieRequest mr) {
+    /** Opens the row's Plex app deep link in a new browser tab. */
+    private void openPlexApp(MovieRequest mr) {
+        String url = plexAppHref(mr);
+        if (url != null) {
+            getUI().ifPresent(ui -> ui.getPage().open(url));
+        }
+    }
+
+    /** Opens the row's Plex metadata JSON URL in a new browser tab. */
+    private void openPlexJson(MovieRequest mr) {
+        String url = plexHref(mr);
+        if (url != null) {
+            getUI().ifPresent(ui -> ui.getPage().open(url));
+        }
+    }
+
+    /** Opens the row's TMDB page in a new browser tab. */
+    private void openTmdb(MovieRequest mr) {
+        String url = tmdbHref(mr);
+        if (url != null) {
+            getUI().ifPresent(ui -> ui.getPage().open(url));
+        }
+    }
+
+    private String ombiHref(MovieRequest mr) {
+        Integer tmdbid = mr.getTmdbid();
+        return tmdbid == null ? null : ombiUrl + "/details/movie/" + tmdbid;
+    }
+
+    private String radarrHref(MovieRequest mr) {
+        Integer tmdbid = mr.getTmdbid();
+        return tmdbid == null ? null : radarrUrl + "/movie/" + tmdbid;
+    }
+
+    private static String plexHref(MovieRequest mr) {
         String url = mr.getPlexMetadataUrl();
-        if (url == null || url.isBlank()) {
-            return new Span("—");
-        }
-        return externalLink(url);
+        return url == null || url.isBlank() ? null : url;
     }
 
-    private com.vaadin.flow.component.Component plexAppLink(MovieRequest mr) {
+    private String plexAppHref(MovieRequest mr) {
         String ratingKey = mr.getPlexMetadataId();
         if (ratingKey == null || ratingKey.isBlank() || plexMachineIdentifier == null) {
-            return new Span("—");
+            return null;
         }
-        String url = plexUrl + "/web/index.html#!/server/" + plexMachineIdentifier + "/details?key=/library/metadata/"
+        return plexUrl + "/web/index.html#!/server/" + plexMachineIdentifier + "/details?key=/library/metadata/"
                 + ratingKey;
-        return externalLink(url);
     }
 
-    private static com.vaadin.flow.component.Component tmdbLink(MovieRequest mr) {
+    private static String tmdbHref(MovieRequest mr) {
         Integer tmdbid = mr.getTmdbid();
-        if (tmdbid == null) {
-            return new Span("—");
-        }
-        return externalLink("https://www.themoviedb.org/movie/" + tmdbid);
+        return tmdbid == null ? null : "https://www.themoviedb.org/movie/" + tmdbid;
     }
 
-    private static com.vaadin.flow.component.Component headerWithTooltip(String shortName, String description) {
+    private static com.vaadin.flow.component.Component headerWithTooltip(
+            String shortName, String title, String description) {
         Span label = new Span(shortName);
-        Tooltip.forComponent(label).setText(description);
+        Tooltip.forComponent(label).setText(title + "\n\n" + description);
         return label;
     }
 
@@ -465,6 +629,26 @@ public class MovieRequestView extends VerticalLayout {
             radarrQueueCard.getStyle().set("background-color", IMPORT_PENDING_COLOR);
         } else {
             radarrQueueCard.getStyle().remove("background-color");
+        }
+    }
+
+    /**
+     * Indexes the current queue by Radarr movie id: the download state drives the Status icon, and the
+     * download id links a movie to its Deluge torrent (downloadId == Deluge torrent hash).
+     */
+    private void updateQueueMaps(RadarrQueue queue) {
+        queueStateByMovieId.clear();
+        downloadIdByMovieId.clear();
+        protocolByMovieId.clear();
+        if (queue == null || queue.getRecords() == null) {
+            return;
+        }
+        for (RadarrQueueRecord record : queue.getRecords()) {
+            if (record.getMovieId() != null) {
+                queueStateByMovieId.put(record.getMovieId(), record.getTrackedDownloadState());
+                downloadIdByMovieId.put(record.getMovieId(), record.getDownloadId());
+                protocolByMovieId.put(record.getMovieId(), record.getProtocol());
+            }
         }
     }
 
@@ -511,22 +695,144 @@ public class MovieRequestView extends VerticalLayout {
         return span;
     }
 
-    private static Anchor externalLink(String href) {
-        Anchor link = new Anchor(href, new Icon(VaadinIcon.EXTERNAL_LINK));
-        link.setTarget(AnchorTarget.BLANK);
-        // Keep right-clicks on the link from bubbling to the grid's context menu, so the browser's
-        // own link menu (open in new tab, copy link) handles them instead.
-        link.getElement().executeJs("this.addEventListener('contextmenu', e => e.stopPropagation())");
-        return link;
-    }
-
-    private com.vaadin.flow.component.Component latestResult(MovieRequest mr, String validationName) {
-        Map<String, Validation> byName = latestValidations.get(mr.getId());
-        Validation v = byName == null ? null : byName.get(validationName);
-        if (v == null) {
+    /**
+     * Type cell: a Vaadin {@link Badge} showing the raw Radarr protocol text — solid blue (the badge's
+     * default accent, {@code FILLED}) for torrent, solid green ({@code SUCCESS FILLED}) for usenet — or
+     * a dash when the movie isn't in the Radarr queue. The protocol comes straight from the queue, so
+     * this needs no loading state.
+     */
+    private com.vaadin.flow.component.Component typeBadge(MovieRequest mr) {
+        String protocol = protocolByMovieId.get(mr.getRadarrRequestId());
+        if (protocol == null) {
             return new Span("—");
         }
-        return resultIcon(v.getResult());
+        Badge badge = new Badge(protocol);
+        if (isTorrent(protocol)) {
+            badge.addThemeVariants(BadgeVariant.FILLED);
+        } else {
+            badge.addThemeVariants(BadgeVariant.SUCCESS, BadgeVariant.FILLED);
+        }
+        return badge;
+    }
+
+    /**
+     * Client-side renderer for the Progress cell: a spinner while the download fetch is in flight for
+     * a queued movie, then the progress (torrent progress or SABnzbd percentage), or a dash.
+     */
+    private LitRenderer<MovieRequest> progressRenderer() {
+        return LitRenderer.<MovieRequest>of("<span class=\"status-spinner\" ?hidden=\"${!item.loading}\"></span>"
+                        + "<span ?hidden=\"${item.loading}\">${item.progress}</span>")
+                .withProperty("loading", this::isStatusLoading)
+                .withProperty("progress", this::progressText);
+    }
+
+    /**
+     * Client-side renderer for the Peers cell: a spinner while a torrent's status loads, then the
+     * peer/seed counts. Non-torrent (usenet) downloads have no peers, so they show a dash.
+     */
+    private LitRenderer<MovieRequest> peersRenderer() {
+        return LitRenderer.<MovieRequest>of("<span class=\"status-spinner\" ?hidden=\"${!item.loading}\"></span>"
+                        + "<span ?hidden=\"${item.loading}\">${item.peers}</span>")
+                .withProperty("loading", this::isPeersLoading)
+                .withProperty("peers", this::peersText);
+    }
+
+    /** Loading for the Progress cell: any queued movie whose download status is still in flight. */
+    private boolean isStatusLoading(MovieRequest mr) {
+        return downloadLoadInFlight.get() && protocolByMovieId.get(mr.getRadarrRequestId()) != null;
+    }
+
+    /** Loading for the Peers cell: only torrents, the one protocol with peer counts. */
+    private boolean isPeersLoading(MovieRequest mr) {
+        return downloadLoadInFlight.get() && isTorrent(protocolByMovieId.get(mr.getRadarrRequestId()));
+    }
+
+    static boolean isTorrent(String protocol) {
+        return "torrent".equalsIgnoreCase(protocol);
+    }
+
+    /** Download progress for a queued movie: torrent progress or SABnzbd percentage, else a dash. */
+    private String progressText(MovieRequest mr) {
+        Integer movieId = mr.getRadarrRequestId();
+        String protocol = protocolByMovieId.get(movieId);
+        if (protocol == null) {
+            return "—";
+        }
+        if (isTorrent(protocol)) {
+            DelugeTorrent torrent = torrentByMovieId.get(movieId);
+            return torrent == null ? "—" : formatProgress(torrent.getProgress());
+        }
+        SabnzbdSlot slot = slotByMovieId.get(movieId);
+        return slot == null ? "—" : formatPercentage(slot.getPercentage());
+    }
+
+    /** Peer/seed counts for a torrent, or a dash for usenet or movies not in the queue. */
+    private String peersText(MovieRequest mr) {
+        Integer movieId = mr.getRadarrRequestId();
+        if (!isTorrent(protocolByMovieId.get(movieId))) {
+            return "—";
+        }
+        DelugeTorrent torrent = torrentByMovieId.get(movieId);
+        return torrent == null ? "—" : formatPeers(torrent);
+    }
+
+    static String formatProgress(Double progress) {
+        return progress == null ? "—" : String.format("%.1f%%", progress);
+    }
+
+    /** SABnzbd reports percentage as a whole-number string, e.g. "42"; render it as "42%". */
+    static String formatPercentage(String percentage) {
+        return percentage == null || percentage.isBlank() ? "—" : percentage + "%";
+    }
+
+    /** Formats a torrent's peers as "num_peers (total_peers)/num_seeds (total_seeds)". */
+    static String formatPeers(DelugeTorrent t) {
+        return nz(t.getNumPeers()) + " (" + nz(t.getTotalPeers()) + ")/" + nz(t.getNumSeeds()) + " ("
+                + nz(t.getTotalSeeds()) + ")";
+    }
+
+    private static int nz(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    /**
+     * Client-side renderer for an external-link cell: an anchor when a URL is present, otherwise a
+     * dash. Rendered by the browser (LitRenderer) so wide grids stay responsive while scrolling.
+     * Right-clicks on the anchor are handled by a single delegated grid listener (see
+     * suppressGridContextMenuOnLinks).
+     */
+    private LitRenderer<MovieRequest> linkRenderer(Function<MovieRequest, String> hrefFn) {
+        return LitRenderer.<MovieRequest>of(
+                        "<a href=\"${item.href}\" target=\"_blank\" rel=\"noopener\" ?hidden=\"${!item.href}\">"
+                                + "<vaadin-icon icon=\"vaadin:external-link\"></vaadin-icon></a>"
+                                + "<span ?hidden=\"${item.href}\">—</span>")
+                .withProperty("href", mr -> {
+                    String href = hrefFn.apply(mr);
+                    return href == null ? "" : href;
+                });
+    }
+
+    /**
+     * Registers one capture-phase contextmenu listener on the grid so right-clicks landing on a
+     * link let the browser's native link menu show instead of the grid's context menu. Runs once on
+     * attach — far cheaper than attaching a listener to every link cell as rows render.
+     */
+    private void suppressGridContextMenuOnLinks() {
+        grid.getElement()
+                .executeJs("this.addEventListener('contextmenu', e => { if (e.target.closest('a'))"
+                        + " e.stopPropagation(); }, true);");
+    }
+
+    /**
+     * Client-side renderer for a validator result cell. Using {@link LitRenderer} instead of a
+     * server-side component column keeps the grid responsive while scrolling: the browser renders
+     * the icon from a tiny data payload rather than the server building a component per cell.
+     */
+    private LitRenderer<MovieRequest> validatorResultRenderer(String validationName) {
+        return LitRenderer.<MovieRequest>of(
+                        "<vaadin-icon icon=\"${item.icon}\" style=\"color: ${item.color}\"></vaadin-icon>")
+                .withProperty("icon", mr -> resultIconName(latestResultValue(mr, validationName)))
+                .withProperty("color", mr -> resultIconColor(latestResultValue(mr, validationName)));
     }
 
     private Boolean latestResultValue(MovieRequest mr, String validationName) {
@@ -535,15 +841,18 @@ public class MovieRequestView extends VerticalLayout {
         return v == null ? null : v.getResult();
     }
 
-    private static com.vaadin.flow.component.Component resultIcon(Boolean result) {
-        if (Boolean.TRUE.equals(result)) {
-            Icon icon = VaadinIcon.CHECK.create();
-            icon.getStyle().set("color", "var(--lumo-success-color, green)");
-            return icon;
+    static String resultIconName(Boolean result) {
+        if (result == null) {
+            return "vaadin:minus";
         }
-        Icon icon = VaadinIcon.CLOSE.create();
-        icon.getStyle().set("color", "var(--lumo-error-color, red)");
-        return icon;
+        return result ? "vaadin:check" : "vaadin:close";
+    }
+
+    static String resultIconColor(Boolean result) {
+        if (result == null) {
+            return "var(--lumo-tertiary-text-color)";
+        }
+        return result ? "var(--lumo-success-color, green)" : "var(--lumo-error-color, red)";
     }
 
     private static final List<String> DETAIL_PRIORITY_FIELDS = List.of("id", "title", "tmdbid");
