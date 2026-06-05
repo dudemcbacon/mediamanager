@@ -12,9 +12,9 @@ import report.butt.mediamanager.model.sabnzbd.SabnzbdResponse;
 import report.butt.mediamanager.model.sabnzbd.SabnzbdSlot;
 
 /**
- * Talks to SABnzbd's HTTP API ({@code GET /api?mode=queue}). The queue's slots are the active
- * usenet downloads; Radarr's queue record downloadId is the slot's {@code nzo_id}, which is how a
- * movie is matched to its SABnzbd progress (mirrors {@link DelugeClient} for torrents).
+ * Talks to SABnzbd's HTTP API ({@code GET /api?mode=queue}). The queue's slots are the active usenet downloads;
+ * Radarr's queue record downloadId is the slot's {@code nzo_id}, which is how a movie is matched to its SABnzbd
+ * progress (mirrors {@link DelugeClient} for torrents).
  */
 @Service
 public class SabnzbdClient {
@@ -46,7 +46,9 @@ public class SabnzbdClient {
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(SabnzbdResponse.class);
-            if (response == null || response.getQueue() == null || response.getQueue().getSlots() == null) {
+            if (response == null
+                    || response.getQueue() == null
+                    || response.getQueue().getSlots() == null) {
                 return Map.of();
             }
             Map<String, SabnzbdSlot> byNzoId = new HashMap<>();

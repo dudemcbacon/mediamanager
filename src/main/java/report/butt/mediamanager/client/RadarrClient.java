@@ -3,7 +3,6 @@ package report.butt.mediamanager.client;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,9 +34,9 @@ public class RadarrClient {
     }
 
     /**
-     * Quality profiles rarely change, so we fetch them once at startup and reuse the
-     * id-to-name map on every refresh instead of re-fetching. A failure here is non-fatal:
-     * profile names simply stay unavailable until the next restart.
+     * Quality profiles rarely change, so we fetch them once at startup and reuse the id-to-name map on every refresh
+     * instead of re-fetching. A failure here is non-fatal: profile names simply stay unavailable until the next
+     * restart.
      */
     @PostConstruct
     void cacheQualityProfiles() {
@@ -48,12 +47,8 @@ public class RadarrClient {
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(new ParameterizedTypeReference<List<QualityProfile>>() {});
-            if (profiles != null) {
-                this.qualityProfilesById = profiles.stream()
-                        .filter(p -> p.getId() != null)
-                        .collect(Collectors.toMap(QualityProfile::getId, QualityProfile::getName, (a, b) -> a));
-            }
-            log.info("Cached {} Radarr quality profiles", qualityProfilesById.size());
+            this.qualityProfilesById =
+                    QualityProfiles.index(profiles, QualityProfile::getId, QualityProfile::getName, "Radarr");
         } catch (Exception e) {
             log.warn("Failed to cache Radarr quality profiles; names will be unavailable", e);
         }
@@ -63,13 +58,8 @@ public class RadarrClient {
         return qualityProfilesById;
     }
 
-    /** Resolves a cached quality profile id by its (exact) name, or null if none matches. */
     public Integer getQualityProfileIdByName(String name) {
-        return qualityProfilesById.entrySet().stream()
-                .filter(e -> e.getValue() != null && e.getValue().equals(name))
-                .map(Map.Entry::getKey)
-                .findFirst()
-                .orElse(null);
+        return QualityProfiles.idByName(qualityProfilesById, name);
     }
 
     /** Changes a movie's quality profile via Radarr's bulk editor (avoids round-tripping the full movie). */
@@ -110,8 +100,10 @@ public class RadarrClient {
     public RadarrQueue getQueue() {
         return restClient
                 .get()
-                .uri(uriBuilder ->
-                        uriBuilder.path("/api/v3/queue").queryParam("pageSize", 10000).build())
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/v3/queue")
+                        .queryParam("pageSize", 10000)
+                        .build())
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .body(RadarrQueue.class);

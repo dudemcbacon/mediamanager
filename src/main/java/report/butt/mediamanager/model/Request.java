@@ -1,12 +1,5 @@
 package report.butt.mediamanager.model;
 
-import java.time.Instant;
-import java.util.Collection;
-import java.util.Map;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.Entity;
@@ -16,10 +9,19 @@ import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.Map;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "request", uniqueConstraints = @UniqueConstraint(name = "uk_request_ombi_id_type", columnNames = {
-        "ombi_request_id", "request_type" }))
+@Table(
+        name = "request",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_request_ombi_id_type",
+                        columnNames = {"ombi_request_id", "request_type"}))
 @Inheritance(strategy = InheritanceType.JOINED)
 @DiscriminatorColumn(name = "request_type")
 public abstract class Request {

@@ -27,9 +27,6 @@ import com.vaadin.flow.data.renderer.LitRenderer;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.UIScope;
 import com.vaadin.flow.theme.aura.Aura;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,7 +35,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,15 +82,15 @@ public class MovieRequestView extends VerticalLayout {
     private final Checkbox showValidCheckbox = new Checkbox(true);
     private final Checkbox showStaleCheckbox = new Checkbox(false);
     private final Checkbox showWithNotesCheckbox = new Checkbox(true);
-    private final Span showValidLabel = coloredLabel("Show valid rows", "#2e8b57");
-    private final Span showStaleLabel = coloredLabel("Show stale rows", "#b8860b");
-    private final Span showWithNotesLabel = coloredLabel("Show rows with notes", "#1e6fce");
-    private final Span totalLabel = coloredLabel("Total movies", "#333");
+    private final Span showValidLabel = RequestViewSupport.coloredLabel("Show valid rows", "#2e8b57");
+    private final Span showStaleLabel = RequestViewSupport.coloredLabel("Show stale rows", "#b8860b");
+    private final Span showWithNotesLabel = RequestViewSupport.coloredLabel("Show rows with notes", "#1e6fce");
+    private final Span totalLabel = RequestViewSupport.coloredLabel("Total movies", "#333");
     private final Span radarrQueueValue = new Span("—");
-    private final Card radarrQueueCard = statCard("Radarr Queue", radarrQueueValue);
+    private final Card radarrQueueCard = RequestViewSupport.statCard("Radarr Queue", radarrQueueValue);
     private final Tooltip radarrQueueTooltip = Tooltip.forComponent(radarrQueueCard);
     private final Span radarrHealthValue = new Span("—");
-    private final Card radarrHealthCard = statCard("Health Issues", radarrHealthValue);
+    private final Card radarrHealthCard = RequestViewSupport.statCard("Health Issues", radarrHealthValue);
     private final Tooltip radarrHealthTooltip = Tooltip.forComponent(radarrHealthCard);
     private final TextField searchField = new TextField();
     private List<MovieRequest> allRequests = List.of();
@@ -140,14 +136,16 @@ public class MovieRequestView extends VerticalLayout {
                 .setComparator(Comparator.comparing(
                         MovieRequest::getTitle, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
 
-        grid.addColumn(linkRenderer(this::radarrHref)).setHeader("Radarr").setAutoWidth(true);
+        grid.addColumn(RequestViewSupport.linkRenderer(this::radarrHref))
+                .setHeader("Radarr")
+                .setAutoWidth(true);
 
         validators.stream()
                 .sorted(Comparator.comparingInt(Validator<MovieRequest>::sortOrder))
                 .forEach(validator -> {
                     String name = validator.getClass().getSimpleName();
                     grid.addColumn(validatorResultRenderer(name))
-                            .setHeader(headerWithTooltip(
+                            .setHeader(RequestViewSupport.headerWithTooltip(
                                     validator.shortName(), validator.title(), validator.description()))
                             .setAutoWidth(true)
                             .setSortable(true)
@@ -156,7 +154,9 @@ public class MovieRequestView extends VerticalLayout {
                                     Comparator.nullsLast(Comparator.naturalOrder())));
                 });
 
-        grid.addColumn(new ComponentRenderer<>(this::typeBadge)).setHeader("Type").setAutoWidth(true);
+        grid.addColumn(new ComponentRenderer<>(this::typeBadge))
+                .setHeader("Type")
+                .setAutoWidth(true);
         grid.addColumn(progressRenderer()).setHeader("Progress").setAutoWidth(true);
         grid.addColumn(peersRenderer()).setHeader("Peers").setAutoWidth(true);
 
@@ -164,7 +164,7 @@ public class MovieRequestView extends VerticalLayout {
         grid.setDetailsVisibleOnClick(true);
 
         GridContextMenu<MovieRequest> contextMenu = grid.addContextMenu();
-        suppressGridContextMenuOnLinks();
+        RequestViewSupport.suppressGridContextMenuOnLinks(grid);
         contextMenu.addItem("Refresh", e -> e.getItem().ifPresent(mr -> {
             movieController.refresh(mr.getId());
             movieController.validate(mr.getId());
@@ -319,10 +319,10 @@ public class MovieRequestView extends VerticalLayout {
     }
 
     /**
-     * Fetches Deluge torrent and SABnzbd queue status off the UI thread (both hit remote,
-     * VPN-fronted services and can be slow). While the fetch is in flight the Status column shows a
-     * per-row spinner for queued movies; results are pushed back via {@link UI#access}. Requires
-     * server push (see {@code @Push}). A guard skips the fetch when one is already in flight.
+     * Fetches Deluge torrent and SABnzbd queue status off the UI thread (both hit remote, VPN-fronted services and can
+     * be slow). While the fetch is in flight the Status column shows a per-row spinner for queued movies; results are
+     * pushed back via {@link UI#access}. Requires server push (see {@code @Push}). A guard skips the fetch when one is
+     * already in flight.
      */
     private void loadDownloadStatusAsync(UI ui) {
         if (!downloadLoadInFlight.compareAndSet(false, true)) {
@@ -332,32 +332,32 @@ public class MovieRequestView extends VerticalLayout {
         grid.getDataProvider().refreshAll();
         CompletableFuture<Map<String, DelugeTorrent>> torrents =
                 CompletableFuture.supplyAsync(delugeClient::getTorrentsStatus);
-        CompletableFuture<Map<String, SabnzbdSlot>> slots =
-                CompletableFuture.supplyAsync(sabnzbdClient::getQueueSlots);
-        torrents.thenCombine(slots, DownloadStatus::new).whenComplete((status, throwable) -> ui.access(() -> {
-            try {
-                if (throwable != null) {
-                    log.warn("Failed to load download status", throwable);
-                } else {
-                    applyDownloadStatus(status.torrents(), status.slots());
-                }
-            } finally {
-                downloadLoadInFlight.set(false);
-                grid.getDataProvider().refreshAll();
-                // The Status column is auto-width, but its detail text only arrives now (async), after
-                // the initial width was measured from the shorter spinner content — recompute so it fits.
-                grid.recalculateColumnWidths();
-            }
-        }));
+        CompletableFuture<Map<String, SabnzbdSlot>> slots = CompletableFuture.supplyAsync(sabnzbdClient::getQueueSlots);
+        torrents.thenCombine(slots, DownloadStatus::new)
+                .whenComplete((status, throwable) -> ui.access(() -> {
+                    try {
+                        if (throwable != null) {
+                            log.warn("Failed to load download status", throwable);
+                        } else {
+                            applyDownloadStatus(status.torrents(), status.slots());
+                        }
+                    } finally {
+                        downloadLoadInFlight.set(false);
+                        grid.getDataProvider().refreshAll();
+                        // The Status column is auto-width, but its detail text only arrives now (async), after
+                        // the initial width was measured from the shorter spinner content — recompute so it fits.
+                        grid.recalculateColumnWidths();
+                    }
+                }));
     }
 
     private record DownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {}
 
     /**
-     * Joins Deluge torrents and SABnzbd slots to movies through the Radarr queue: a queue record's
-     * downloadId is the Deluge torrent hash (matched case-insensitively) for torrents or the SABnzbd
-     * {@code nzo_id} for usenet, and the record's protocol picks which client to look in. Rebuilds the
-     * movie-to-download indexes from scratch; the caller re-renders so the Status column updates.
+     * Joins Deluge torrents and SABnzbd slots to movies through the Radarr queue: a queue record's downloadId is the
+     * Deluge torrent hash (matched case-insensitively) for torrents or the SABnzbd {@code nzo_id} for usenet, and the
+     * record's protocol picks which client to look in. Rebuilds the movie-to-download indexes from scratch; the caller
+     * re-renders so the Status column updates.
      */
     private void applyDownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {
         torrentByMovieId.clear();
@@ -371,7 +371,7 @@ public class MovieRequestView extends VerticalLayout {
             if (downloadId == null) {
                 return;
             }
-            if (isTorrent(protocolByMovieId.get(movieId))) {
+            if (RequestViewSupport.isTorrent(protocolByMovieId.get(movieId))) {
                 DelugeTorrent torrent = byLowerHash.get(downloadId.toLowerCase());
                 if (torrent != null) {
                     torrentByMovieId.put(movieId, torrent);
@@ -386,17 +386,18 @@ public class MovieRequestView extends VerticalLayout {
     }
 
     /**
-     * Applies the toolbar filters to the already-loaded {@link #allRequests} without re-querying.
-     * A non-blank search matches rows by title and ignores the show/stale/notes toggles, so
-     * matching rows surface even when those filters would otherwise hide them.
+     * Applies the toolbar filters to the already-loaded {@link #allRequests} without re-querying. A non-blank search
+     * matches rows by title and ignores the show/stale/notes toggles, so matching rows surface even when those filters
+     * would otherwise hide them.
      */
     private void applyFilters() {
-        String term = searchField.getValue() == null ? "" : searchField.getValue().trim();
+        String term =
+                searchField.getValue() == null ? "" : searchField.getValue().trim();
         if (!term.isBlank()) {
             String lower = term.toLowerCase();
             grid.setItems(allRequests.stream()
-                    .filter(mr -> mr.getTitle() != null
-                            && mr.getTitle().toLowerCase().contains(lower))
+                    .filter(mr ->
+                            mr.getTitle() != null && mr.getTitle().toLowerCase().contains(lower))
                     .toList());
             return;
         }
@@ -583,20 +584,13 @@ public class MovieRequestView extends VerticalLayout {
         return tmdbid == null ? null : "https://www.themoviedb.org/movie/" + tmdbid;
     }
 
-    private static com.vaadin.flow.component.Component headerWithTooltip(
-            String shortName, String title, String description) {
-        Span label = new Span(shortName);
-        Tooltip.forComponent(label).setText(title + "\n\n" + description);
-        return label;
-    }
-
     private static final String IMPORT_BLOCKED_COLOR = "#f44336";
     private static final String IMPORT_PENDING_COLOR = "#ffeb3b";
     private static final String HEALTH_WARNING_COLOR = "#ffeb3b";
 
     /**
-     * Updates the queue card's number, a per-state breakdown tooltip, and a severity background:
-     * red when any item is importBlocked (highest priority), yellow when any is importPending.
+     * Updates the queue card's number, a per-state breakdown tooltip, and a severity background: red when any item is
+     * importBlocked (highest priority), yellow when any is importPending.
      */
     private void updateRadarrQueueCard(RadarrQueue queue) {
         if (queue == null) {
@@ -633,8 +627,8 @@ public class MovieRequestView extends VerticalLayout {
     }
 
     /**
-     * Indexes the current queue by Radarr movie id: the download state drives the Status icon, and the
-     * download id links a movie to its Deluge torrent (downloadId == Deluge torrent hash).
+     * Indexes the current queue by Radarr movie id: the download state drives the Status icon, and the download id
+     * links a movie to its Deluge torrent (downloadId == Deluge torrent hash).
      */
     private void updateQueueMaps(RadarrQueue queue) {
         queueStateByMovieId.clear();
@@ -666,8 +660,9 @@ public class MovieRequestView extends VerticalLayout {
             radarrHealthCard.getStyle().remove("background-color");
             return;
         }
-        radarrHealthTooltip.setText(
-                health.stream().map(MovieRequestView::healthIssueLine).collect(Collectors.joining("\n")));
+        radarrHealthTooltip.setText(health.stream()
+                .map(h -> RequestViewSupport.healthIssueLine(h.getType(), h.getMessage()))
+                .collect(Collectors.joining("\n")));
         if (health.stream().anyMatch(h -> "warning".equalsIgnoreCase(h.getType()))) {
             radarrHealthCard.getStyle().set("background-color", HEALTH_WARNING_COLOR);
         } else {
@@ -675,31 +670,10 @@ public class MovieRequestView extends VerticalLayout {
         }
     }
 
-    private static String healthIssueLine(RadarrHealthItem item) {
-        String type = item.getType() == null ? "" : "[" + item.getType() + "] ";
-        String message = item.getMessage() == null ? "" : item.getMessage();
-        return "• " + type + message;
-    }
-
-    private static Card statCard(String title, Span value) {
-        value.getStyle().set("font-size", "var(--lumo-font-size-xxl)").set("font-weight", "bold");
-        Card card = new Card();
-        card.setTitle(title);
-        card.add(value);
-        return card;
-    }
-
-    private static Span coloredLabel(String text, String color) {
-        Span span = new Span(text);
-        span.getStyle().set("color", color);
-        return span;
-    }
-
     /**
-     * Type cell: a Vaadin {@link Badge} showing the raw Radarr protocol text — solid blue (the badge's
-     * default accent, {@code FILLED}) for torrent, solid green ({@code SUCCESS FILLED}) for usenet — or
-     * a dash when the movie isn't in the Radarr queue. The protocol comes straight from the queue, so
-     * this needs no loading state.
+     * Type cell: a Vaadin {@link Badge} showing the raw Radarr protocol text — solid blue (the badge's default accent,
+     * {@code FILLED}) for torrent, solid green ({@code SUCCESS FILLED}) for usenet — or a dash when the movie isn't in
+     * the Radarr queue. The protocol comes straight from the queue, so this needs no loading state.
      */
     private com.vaadin.flow.component.Component typeBadge(MovieRequest mr) {
         String protocol = protocolByMovieId.get(mr.getRadarrRequestId());
@@ -707,7 +681,7 @@ public class MovieRequestView extends VerticalLayout {
             return new Span("—");
         }
         Badge badge = new Badge(protocol);
-        if (isTorrent(protocol)) {
+        if (RequestViewSupport.isTorrent(protocol)) {
             badge.addThemeVariants(BadgeVariant.FILLED);
         } else {
             badge.addThemeVariants(BadgeVariant.SUCCESS, BadgeVariant.FILLED);
@@ -716,8 +690,8 @@ public class MovieRequestView extends VerticalLayout {
     }
 
     /**
-     * Client-side renderer for the Progress cell: a spinner while the download fetch is in flight for
-     * a queued movie, then the progress (torrent progress or SABnzbd percentage), or a dash.
+     * Client-side renderer for the Progress cell: a spinner while the download fetch is in flight for a queued movie,
+     * then the progress (torrent progress or SABnzbd percentage), or a dash.
      */
     private LitRenderer<MovieRequest> progressRenderer() {
         return LitRenderer.<MovieRequest>of("<span class=\"status-spinner\" ?hidden=\"${!item.loading}\"></span>"
@@ -727,8 +701,8 @@ public class MovieRequestView extends VerticalLayout {
     }
 
     /**
-     * Client-side renderer for the Peers cell: a spinner while a torrent's status loads, then the
-     * peer/seed counts. Non-torrent (usenet) downloads have no peers, so they show a dash.
+     * Client-side renderer for the Peers cell: a spinner while a torrent's status loads, then the peer/seed counts.
+     * Non-torrent (usenet) downloads have no peers, so they show a dash.
      */
     private LitRenderer<MovieRequest> peersRenderer() {
         return LitRenderer.<MovieRequest>of("<span class=\"status-spinner\" ?hidden=\"${!item.loading}\"></span>"
@@ -744,11 +718,8 @@ public class MovieRequestView extends VerticalLayout {
 
     /** Loading for the Peers cell: only torrents, the one protocol with peer counts. */
     private boolean isPeersLoading(MovieRequest mr) {
-        return downloadLoadInFlight.get() && isTorrent(protocolByMovieId.get(mr.getRadarrRequestId()));
-    }
-
-    static boolean isTorrent(String protocol) {
-        return "torrent".equalsIgnoreCase(protocol);
+        return downloadLoadInFlight.get()
+                && RequestViewSupport.isTorrent(protocolByMovieId.get(mr.getRadarrRequestId()));
     }
 
     /** Download progress for a queued movie: torrent progress or SABnzbd percentage, else a dash. */
@@ -758,157 +729,43 @@ public class MovieRequestView extends VerticalLayout {
         if (protocol == null) {
             return "—";
         }
-        if (isTorrent(protocol)) {
+        if (RequestViewSupport.isTorrent(protocol)) {
             DelugeTorrent torrent = torrentByMovieId.get(movieId);
-            return torrent == null ? "—" : formatProgress(torrent.getProgress());
+            return torrent == null ? "—" : RequestViewSupport.formatProgress(torrent.getProgress());
         }
         SabnzbdSlot slot = slotByMovieId.get(movieId);
-        return slot == null ? "—" : formatPercentage(slot.getPercentage());
+        return slot == null ? "—" : RequestViewSupport.formatPercentage(slot.getPercentage());
     }
 
     /** Peer/seed counts for a torrent, or a dash for usenet or movies not in the queue. */
     private String peersText(MovieRequest mr) {
         Integer movieId = mr.getRadarrRequestId();
-        if (!isTorrent(protocolByMovieId.get(movieId))) {
+        if (!RequestViewSupport.isTorrent(protocolByMovieId.get(movieId))) {
             return "—";
         }
         DelugeTorrent torrent = torrentByMovieId.get(movieId);
-        return torrent == null ? "—" : formatPeers(torrent);
-    }
-
-    static String formatProgress(Double progress) {
-        return progress == null ? "—" : String.format("%.1f%%", progress);
-    }
-
-    /** SABnzbd reports percentage as a whole-number string, e.g. "42"; render it as "42%". */
-    static String formatPercentage(String percentage) {
-        return percentage == null || percentage.isBlank() ? "—" : percentage + "%";
-    }
-
-    /** Formats a torrent's peers as "num_peers (total_peers)/num_seeds (total_seeds)". */
-    static String formatPeers(DelugeTorrent t) {
-        return nz(t.getNumPeers()) + " (" + nz(t.getTotalPeers()) + ")/" + nz(t.getNumSeeds()) + " ("
-                + nz(t.getTotalSeeds()) + ")";
-    }
-
-    private static int nz(Integer value) {
-        return value == null ? 0 : value;
+        return torrent == null ? "—" : RequestViewSupport.formatPeers(torrent);
     }
 
     /**
-     * Client-side renderer for an external-link cell: an anchor when a URL is present, otherwise a
-     * dash. Rendered by the browser (LitRenderer) so wide grids stay responsive while scrolling.
-     * Right-clicks on the anchor are handled by a single delegated grid listener (see
-     * suppressGridContextMenuOnLinks).
-     */
-    private LitRenderer<MovieRequest> linkRenderer(Function<MovieRequest, String> hrefFn) {
-        return LitRenderer.<MovieRequest>of(
-                        "<a href=\"${item.href}\" target=\"_blank\" rel=\"noopener\" ?hidden=\"${!item.href}\">"
-                                + "<vaadin-icon icon=\"vaadin:external-link\"></vaadin-icon></a>"
-                                + "<span ?hidden=\"${item.href}\">—</span>")
-                .withProperty("href", mr -> {
-                    String href = hrefFn.apply(mr);
-                    return href == null ? "" : href;
-                });
-    }
-
-    /**
-     * Registers one capture-phase contextmenu listener on the grid so right-clicks landing on a
-     * link let the browser's native link menu show instead of the grid's context menu. Runs once on
-     * attach — far cheaper than attaching a listener to every link cell as rows render.
-     */
-    private void suppressGridContextMenuOnLinks() {
-        grid.getElement()
-                .executeJs("this.addEventListener('contextmenu', e => { if (e.target.closest('a'))"
-                        + " e.stopPropagation(); }, true);");
-    }
-
-    /**
-     * Client-side renderer for a validator result cell. Using {@link LitRenderer} instead of a
-     * server-side component column keeps the grid responsive while scrolling: the browser renders
-     * the icon from a tiny data payload rather than the server building a component per cell.
+     * Client-side renderer for a validator result cell. Using {@link LitRenderer} instead of a server-side component
+     * column keeps the grid responsive while scrolling: the browser renders the icon from a tiny data payload rather
+     * than the server building a component per cell.
      */
     private LitRenderer<MovieRequest> validatorResultRenderer(String validationName) {
         return LitRenderer.<MovieRequest>of(
                         "<vaadin-icon icon=\"${item.icon}\" style=\"color: ${item.color}\"></vaadin-icon>")
-                .withProperty("icon", mr -> resultIconName(latestResultValue(mr, validationName)))
-                .withProperty("color", mr -> resultIconColor(latestResultValue(mr, validationName)));
+                .withProperty("icon", mr -> RequestViewSupport.resultIconName(latestResultValue(mr, validationName)))
+                .withProperty("color", mr -> RequestViewSupport.resultIconColor(latestResultValue(mr, validationName)));
     }
 
     private Boolean latestResultValue(MovieRequest mr, String validationName) {
-        Map<String, Validation> byName = latestValidations.get(mr.getId());
-        Validation v = byName == null ? null : byName.get(validationName);
-        return v == null ? null : v.getResult();
-    }
-
-    static String resultIconName(Boolean result) {
-        if (result == null) {
-            return "vaadin:minus";
-        }
-        return result ? "vaadin:check" : "vaadin:close";
-    }
-
-    static String resultIconColor(Boolean result) {
-        if (result == null) {
-            return "var(--lumo-tertiary-text-color)";
-        }
-        return result ? "var(--lumo-success-color, green)" : "var(--lumo-error-color, red)";
+        return RequestViewSupport.latestResultValue(latestValidations, mr.getId(), validationName);
     }
 
     private static final List<String> DETAIL_PRIORITY_FIELDS = List.of("id", "title", "tmdbid");
 
     private static FormLayout createDetails(MovieRequest mr) {
-        FormLayout layout = new FormLayout();
-        layout.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 2),
-                new FormLayout.ResponsiveStep("900px", 3));
-
-        List<Field> fields = collectFields(MovieRequest.class).stream()
-                .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
-                .sorted(Comparator.<Field>comparingInt(f -> {
-                            int idx = DETAIL_PRIORITY_FIELDS.indexOf(f.getName());
-                            return idx == -1 ? Integer.MAX_VALUE : idx;
-                        })
-                        .thenComparing(Field::getName, String.CASE_INSENSITIVE_ORDER))
-                .toList();
-
-        for (Field field : fields) {
-            field.setAccessible(true);
-            Object value;
-            try {
-                value = field.get(mr);
-            } catch (IllegalAccessException e) {
-                value = "<inaccessible>";
-            }
-            addField(layout, humanizeFieldName(field.getName()), value);
-        }
-
-        return layout;
-    }
-
-    private static List<Field> collectFields(Class<?> type) {
-        List<Field> fields = new java.util.ArrayList<>();
-        for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
-            fields.addAll(Arrays.asList(c.getDeclaredFields()));
-        }
-        return fields;
-    }
-
-    private static String humanizeFieldName(String name) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < name.length(); i++) {
-            char c = name.charAt(i);
-            if (i > 0 && Character.isUpperCase(c) && !Character.isUpperCase(name.charAt(i - 1))) {
-                sb.append(' ');
-            }
-            sb.append(i == 0 ? Character.toUpperCase(c) : c);
-        }
-        return sb.toString();
-    }
-
-    private static void addField(FormLayout layout, String label, Object value) {
-        Span valueSpan = new Span(value == null ? "—" : String.valueOf(value));
-        layout.addFormItem(valueSpan, label);
+        return RequestViewSupport.fieldDump(MovieRequest.class, mr, DETAIL_PRIORITY_FIELDS);
     }
 }

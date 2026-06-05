@@ -2,8 +2,6 @@ package report.butt.mediamanager.route;
 
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.badge.Badge;
-import com.vaadin.flow.component.badge.BadgeVariant;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.card.Card;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -27,9 +25,6 @@ import com.vaadin.flow.data.renderer.LitRenderer;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.UIScope;
 import com.vaadin.flow.theme.aura.Aura;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,7 +33,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,15 +86,15 @@ public class TvRequestView extends VerticalLayout {
     private final Checkbox showValidCheckbox = new Checkbox(true);
     private final Checkbox showStaleCheckbox = new Checkbox(false);
     private final Checkbox showWithNotesCheckbox = new Checkbox(true);
-    private final Span showValidLabel = coloredLabel("Show valid rows", "#2e8b57");
-    private final Span showStaleLabel = coloredLabel("Show stale rows", "#b8860b");
-    private final Span showWithNotesLabel = coloredLabel("Show rows with notes", "#1e6fce");
-    private final Span totalLabel = coloredLabel("Total TV shows", "#333");
+    private final Span showValidLabel = RequestViewSupport.coloredLabel("Show valid rows", "#2e8b57");
+    private final Span showStaleLabel = RequestViewSupport.coloredLabel("Show stale rows", "#b8860b");
+    private final Span showWithNotesLabel = RequestViewSupport.coloredLabel("Show rows with notes", "#1e6fce");
+    private final Span totalLabel = RequestViewSupport.coloredLabel("Total TV shows", "#333");
     private final Span sonarrQueueValue = new Span("—");
-    private final Card sonarrQueueCard = statCard("Sonarr Queue", sonarrQueueValue);
+    private final Card sonarrQueueCard = RequestViewSupport.statCard("Sonarr Queue", sonarrQueueValue);
     private final Tooltip sonarrQueueTooltip = Tooltip.forComponent(sonarrQueueCard);
     private final Span sonarrHealthValue = new Span("—");
-    private final Card sonarrHealthCard = statCard("Health Issues", sonarrHealthValue);
+    private final Card sonarrHealthCard = RequestViewSupport.statCard("Health Issues", sonarrHealthValue);
     private final Tooltip sonarrHealthTooltip = Tooltip.forComponent(sonarrHealthCard);
     private final TextField searchField = new TextField();
     private List<TvRequest> allRequests = List.of();
@@ -161,7 +155,9 @@ public class TvRequestView extends VerticalLayout {
                 .setComparator(
                         Comparator.comparing(TvRequest::getTitle, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
 
-        grid.addColumn(linkRenderer(this::sonarrHref)).setHeader("Sonarr").setAutoWidth(true);
+        grid.addColumn(RequestViewSupport.linkRenderer(this::sonarrHref))
+                .setHeader("Sonarr")
+                .setAutoWidth(true);
 
         grid.addColumn(TvRequestView::episodesAvailable)
                 .setHeader("Episodes")
@@ -174,7 +170,7 @@ public class TvRequestView extends VerticalLayout {
                 .forEach(validator -> {
                     String name = validator.getClass().getSimpleName();
                     grid.addColumn(validatorResultRenderer(name))
-                            .setHeader(headerWithTooltip(
+                            .setHeader(RequestViewSupport.headerWithTooltip(
                                     validator.shortName(), validator.title(), validator.description()))
                             .setAutoWidth(true)
                             .setSortable(true)
@@ -205,7 +201,7 @@ public class TvRequestView extends VerticalLayout {
         grid.setDetailsVisibleOnClick(true);
 
         GridContextMenu<TvRequest> contextMenu = grid.addContextMenu();
-        suppressGridContextMenuOnLinks();
+        RequestViewSupport.suppressGridContextMenuOnLinks(grid);
         contextMenu.addItem("Refresh", e -> e.getItem().ifPresent(mr -> {
             tvController.refresh(mr.getId());
             tvController.validate(mr.getId());
@@ -215,12 +211,10 @@ public class TvRequestView extends VerticalLayout {
             tvController.searchOne(mr.getId());
             refreshGrid();
         }));
-        contextMenu.addItem(
-                "Search All Seasons",
-                e -> e.getItem().ifPresent(mr -> tvController.searchAllSeasonsForRequest(mr.getId())));
-        contextMenu.addItem(
-                "Search All Episodes",
-                e -> e.getItem().ifPresent(mr -> tvController.searchAllEpisodesForRequest(mr.getId())));
+        contextMenu.addItem("Search All Seasons", e -> e.getItem()
+                .ifPresent(mr -> tvController.searchAllSeasonsForRequest(mr.getId())));
+        contextMenu.addItem("Search All Episodes", e -> e.getItem()
+                .ifPresent(mr -> tvController.searchAllEpisodesForRequest(mr.getId())));
         GridMenuItem<TvRequest> markAvailableItem =
                 contextMenu.addItem("Mark Available", e -> e.getItem().ifPresent(mr -> {
                     tvController.markAvailable(mr.getId());
@@ -349,7 +343,8 @@ public class TvRequestView extends VerticalLayout {
                 .loadAllHierarchies()
                 .forEach((tvRequestId, children) -> subValidations.put(
                         tvRequestId,
-                        TvHierarchyTreeGrid.allChildrenValidation(children, episodeValidators, latestEpisodeValidations)));
+                        TvHierarchyTreeGrid.allChildrenValidation(
+                                children, episodeValidators, latestEpisodeValidations)));
 
         tvRequestsWithNotes.clear();
         noteRepository
@@ -390,9 +385,9 @@ public class TvRequestView extends VerticalLayout {
     }
 
     /**
-     * Fetches Deluge torrent and SABnzbd queue status off the UI thread (both hit remote, VPN-fronted
-     * services and can be slow), then joins them to queued episodes. Results are pushed back via
-     * {@link UI#access} (requires server push). A guard skips the fetch when one is already in flight.
+     * Fetches Deluge torrent and SABnzbd queue status off the UI thread (both hit remote, VPN-fronted services and can
+     * be slow), then joins them to queued episodes. Results are pushed back via {@link UI#access} (requires server
+     * push). A guard skips the fetch when one is already in flight.
      */
     private void loadDownloadStatusAsync(UI ui) {
         if (!downloadLoadInFlight.compareAndSet(false, true)) {
@@ -400,29 +395,29 @@ public class TvRequestView extends VerticalLayout {
         }
         CompletableFuture<Map<String, DelugeTorrent>> torrents =
                 CompletableFuture.supplyAsync(delugeClient::getTorrentsStatus);
-        CompletableFuture<Map<String, SabnzbdSlot>> slots =
-                CompletableFuture.supplyAsync(sabnzbdClient::getQueueSlots);
-        torrents.thenCombine(slots, DownloadStatus::new).whenComplete((status, throwable) -> ui.access(() -> {
-            try {
-                if (throwable != null) {
-                    log.warn("Failed to load download status", throwable);
-                } else {
-                    applyDownloadStatus(status.torrents(), status.slots());
-                }
-            } finally {
-                downloadLoadInFlight.set(false);
-                // Refresh the main grid so an expanded detail's tree picks up the joined progress/peers.
-                grid.getDataProvider().refreshAll();
-            }
-        }));
+        CompletableFuture<Map<String, SabnzbdSlot>> slots = CompletableFuture.supplyAsync(sabnzbdClient::getQueueSlots);
+        torrents.thenCombine(slots, DownloadStatus::new)
+                .whenComplete((status, throwable) -> ui.access(() -> {
+                    try {
+                        if (throwable != null) {
+                            log.warn("Failed to load download status", throwable);
+                        } else {
+                            applyDownloadStatus(status.torrents(), status.slots());
+                        }
+                    } finally {
+                        downloadLoadInFlight.set(false);
+                        // Refresh the main grid so an expanded detail's tree picks up the joined progress/peers.
+                        grid.getDataProvider().refreshAll();
+                    }
+                }));
     }
 
     private record DownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {}
 
     /**
-     * Joins Deluge torrents and SABnzbd slots to queued episodes through the Sonarr queue: a queue
-     * record's downloadId is the Deluge torrent hash (matched case-insensitively) for torrents or the
-     * SABnzbd {@code nzo_id} for usenet, and the record's protocol picks which client to look in.
+     * Joins Deluge torrents and SABnzbd slots to queued episodes through the Sonarr queue: a queue record's downloadId
+     * is the Deluge torrent hash (matched case-insensitively) for torrents or the SABnzbd {@code nzo_id} for usenet,
+     * and the record's protocol picks which client to look in.
      */
     private void applyDownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {
         torrentByEpisode.clear();
@@ -436,7 +431,7 @@ public class TvRequestView extends VerticalLayout {
             if (downloadId == null) {
                 return;
             }
-            if (MovieRequestView.isTorrent(protocolByEpisode.get(key))) {
+            if (RequestViewSupport.isTorrent(protocolByEpisode.get(key))) {
                 DelugeTorrent torrent = byLowerHash.get(downloadId.toLowerCase());
                 if (torrent != null) {
                     torrentByEpisode.put(key, torrent);
@@ -451,9 +446,9 @@ public class TvRequestView extends VerticalLayout {
     }
 
     /**
-     * Indexes the current Sonarr queue: per-episode protocol/downloadId (for the expanded tree's
-     * Type/Progress/Peers) and per-series protocols (for the main grid's Status badges). The queue is
-     * fetched with {@code includeEpisode=true}, so each record carries its episode number.
+     * Indexes the current Sonarr queue: per-episode protocol/downloadId (for the expanded tree's Type/Progress/Peers)
+     * and per-series protocols (for the main grid's Status badges). The queue is fetched with
+     * {@code includeEpisode=true}, so each record carries its episode number.
      */
     private void updateQueueMaps(SonarrQueue queue) {
         protocolByEpisode.clear();
@@ -472,7 +467,8 @@ public class TvRequestView extends VerticalLayout {
                         .computeIfAbsent(seriesId, k -> new HashSet<>())
                         .add(record.getProtocol());
             }
-            Integer episodeNumber = record.getEpisode() == null ? null : record.getEpisode().getEpisodeNumber();
+            Integer episodeNumber =
+                    record.getEpisode() == null ? null : record.getEpisode().getEpisodeNumber();
             if (record.getSeasonNumber() == null || episodeNumber == null) {
                 continue;
             }
@@ -483,17 +479,18 @@ public class TvRequestView extends VerticalLayout {
     }
 
     /**
-     * Applies the toolbar filters to the already-loaded {@link #allRequests} without re-querying.
-     * A non-blank search matches rows by title and ignores the show/stale/notes toggles, so
-     * matching rows surface even when those filters would otherwise hide them.
+     * Applies the toolbar filters to the already-loaded {@link #allRequests} without re-querying. A non-blank search
+     * matches rows by title and ignores the show/stale/notes toggles, so matching rows surface even when those filters
+     * would otherwise hide them.
      */
     private void applyFilters() {
-        String term = searchField.getValue() == null ? "" : searchField.getValue().trim();
+        String term =
+                searchField.getValue() == null ? "" : searchField.getValue().trim();
         if (!term.isBlank()) {
             String lower = term.toLowerCase();
             grid.setItems(allRequests.stream()
-                    .filter(mr -> mr.getTitle() != null
-                            && mr.getTitle().toLowerCase().contains(lower))
+                    .filter(mr ->
+                            mr.getTitle() != null && mr.getTitle().toLowerCase().contains(lower))
                     .toList());
             return;
         }
@@ -697,20 +694,13 @@ public class TvRequestView extends VerticalLayout {
         return tvdbId == null ? null : "https://www.thetvdb.com/?id=" + tvdbId + "&tab=series";
     }
 
-    private static com.vaadin.flow.component.Component headerWithTooltip(
-            String shortName, String title, String description) {
-        Span label = new Span(shortName);
-        Tooltip.forComponent(label).setText(title + "\n\n" + description);
-        return label;
-    }
-
     private static final String IMPORT_BLOCKED_COLOR = "#f44336";
     private static final String IMPORT_PENDING_COLOR = "#ffeb3b";
     private static final String HEALTH_WARNING_COLOR = "#ffeb3b";
 
     /**
-     * Updates the queue card's number, a per-state breakdown tooltip, and a severity background:
-     * red when any item is importBlocked (highest priority), yellow when any is importPending.
+     * Updates the queue card's number, a per-state breakdown tooltip, and a severity background: red when any item is
+     * importBlocked (highest priority), yellow when any is importPending.
      */
     private void updateSonarrQueueCard(SonarrQueue queue) {
         if (queue == null) {
@@ -760,32 +750,14 @@ public class TvRequestView extends VerticalLayout {
             sonarrHealthCard.getStyle().remove("background-color");
             return;
         }
-        sonarrHealthTooltip.setText(health.stream().map(TvRequestView::healthIssueLine).collect(Collectors.joining("\n")));
+        sonarrHealthTooltip.setText(health.stream()
+                .map(h -> RequestViewSupport.healthIssueLine(h.getType(), h.getMessage()))
+                .collect(Collectors.joining("\n")));
         if (health.stream().anyMatch(h -> "warning".equalsIgnoreCase(h.getType()))) {
             sonarrHealthCard.getStyle().set("background-color", HEALTH_WARNING_COLOR);
         } else {
             sonarrHealthCard.getStyle().remove("background-color");
         }
-    }
-
-    private static String healthIssueLine(SonarrHealthItem item) {
-        String type = item.getType() == null ? "" : "[" + item.getType() + "] ";
-        String message = item.getMessage() == null ? "" : item.getMessage();
-        return "• " + type + message;
-    }
-
-    private static Card statCard(String title, Span value) {
-        value.getStyle().set("font-size", "var(--lumo-font-size-xxl)").set("font-weight", "bold");
-        Card card = new Card();
-        card.setTitle(title);
-        card.add(value);
-        return card;
-    }
-
-    private static Span coloredLabel(String text, String color) {
-        Span span = new Span(text);
-        span.getStyle().set("color", color);
-        return span;
     }
 
     private LitRenderer<TvRequest> qualityBadgeRenderer() {
@@ -798,82 +770,36 @@ public class TvRequestView extends VerticalLayout {
     }
 
     /**
-     * Status cell: a torrent and/or usenet {@link Badge} when any episode of the series is in the Sonarr
-     * queue — solid blue (default) for torrent, solid green for usenet — or a dash when nothing is queued.
+     * Status cell: a torrent and/or usenet {@link Badge} when any episode of the series is in the Sonarr queue — solid
+     * blue (default) for torrent, solid green for usenet — or a dash when nothing is queued.
      */
     private com.vaadin.flow.component.Component statusBadges(TvRequest mr) {
         Set<String> protocols = mr.getSonarrSeriesId() == null ? null : protocolsBySeriesId.get(mr.getSonarrSeriesId());
-        if (protocols == null || protocols.isEmpty()) {
-            return new Span("—");
-        }
-        HorizontalLayout badges = new HorizontalLayout();
-        badges.setSpacing(false);
-        badges.getStyle().set("gap", "var(--lumo-space-xs)");
-        if (protocols.stream().anyMatch(MovieRequestView::isTorrent)) {
-            Badge torrent = new Badge("torrent");
-            torrent.addThemeVariants(BadgeVariant.FILLED);
-            badges.add(torrent);
-        }
-        if (protocols.stream().anyMatch(p -> !MovieRequestView.isTorrent(p))) {
-            Badge usenet = new Badge("usenet");
-            usenet.addThemeVariants(BadgeVariant.SUCCESS, BadgeVariant.FILLED);
-            badges.add(usenet);
-        }
-        return badges;
+        return RequestViewSupport.protocolBadges(protocols == null ? Set.of() : protocols);
     }
 
     /**
-     * Client-side renderer for an external-link cell: an anchor when a URL is present, otherwise a
-     * dash. Rendered by the browser (LitRenderer) so wide grids stay responsive while scrolling.
-     * Right-clicks on the anchor are handled by a single delegated grid listener (see
-     * suppressGridContextMenuOnLinks).
-     */
-    private LitRenderer<TvRequest> linkRenderer(Function<TvRequest, String> hrefFn) {
-        return LitRenderer.<TvRequest>of(
-                        "<a href=\"${item.href}\" target=\"_blank\" rel=\"noopener\" ?hidden=\"${!item.href}\">"
-                                + "<vaadin-icon icon=\"vaadin:external-link\"></vaadin-icon></a>"
-                                + "<span ?hidden=\"${item.href}\">—</span>")
-                .withProperty("href", mr -> {
-                    String href = hrefFn.apply(mr);
-                    return href == null ? "" : href;
-                });
-    }
-
-    /**
-     * Registers one capture-phase contextmenu listener on the grid so right-clicks landing on a
-     * link let the browser's native link menu show instead of the grid's context menu. Runs once on
-     * attach — far cheaper than attaching a listener to every link cell as rows render.
-     */
-    private void suppressGridContextMenuOnLinks() {
-        grid.getElement()
-                .executeJs("this.addEventListener('contextmenu', e => { if (e.target.closest('a'))"
-                        + " e.stopPropagation(); }, true);");
-    }
-
-    /**
-     * Client-side renderer for a validator result cell. Using {@link LitRenderer} instead of a
-     * server-side component column keeps the grid responsive while scrolling: the browser renders
-     * the icon from a tiny data payload rather than the server building a component per cell.
+     * Client-side renderer for a validator result cell. Using {@link LitRenderer} instead of a server-side component
+     * column keeps the grid responsive while scrolling: the browser renders the icon from a tiny data payload rather
+     * than the server building a component per cell.
      */
     private LitRenderer<TvRequest> validatorResultRenderer(String validationName) {
         return LitRenderer.<TvRequest>of(
                         "<vaadin-icon icon=\"${item.icon}\" style=\"color: ${item.color}\"></vaadin-icon>")
-                .withProperty("icon", mr -> MovieRequestView.resultIconName(latestResultValue(mr, validationName)))
-                .withProperty("color", mr -> MovieRequestView.resultIconColor(latestResultValue(mr, validationName)));
+                .withProperty("icon", mr -> RequestViewSupport.resultIconName(latestResultValue(mr, validationName)))
+                .withProperty("color", mr -> RequestViewSupport.resultIconColor(latestResultValue(mr, validationName)));
     }
 
     /** Sub-validation cell; null means no child episodes validated yet (unknown), not a failure. */
     private LitRenderer<TvRequest> subValidationRenderer() {
         return LitRenderer.<TvRequest>of(
                         "<vaadin-icon icon=\"${item.icon}\" style=\"color: ${item.color}\"></vaadin-icon>")
-                .withProperty("icon", mr -> MovieRequestView.resultIconName(subValidations.get(mr.getId())))
-                .withProperty("color", mr -> MovieRequestView.resultIconColor(subValidations.get(mr.getId())));
+                .withProperty("icon", mr -> RequestViewSupport.resultIconName(subValidations.get(mr.getId())))
+                .withProperty("color", mr -> RequestViewSupport.resultIconColor(subValidations.get(mr.getId())));
     }
 
     private Boolean latestResultValue(TvRequest mr, String validationName) {
-        Map<String, Validation> byName = latestValidations.get(mr.getId());
-        Validation v = byName == null ? null : byName.get(validationName);
-        return v == null ? null : v.getResult();
+        return RequestViewSupport.latestResultValue(latestValidations, mr.getId(), validationName);
     }
 
     private static final List<String> DETAIL_PRIORITY_FIELDS = List.of("id", "title", "tvdbId");
@@ -903,7 +829,8 @@ public class TvRequestView extends VerticalLayout {
                 episodeDownloadsForSeries(mr.getSonarrSeriesId());
         com.vaadin.flow.component.Component hierarchy = children.isEmpty()
                 ? TvHierarchyTreeGrid.placeholderWhenEmpty()
-                : new TvHierarchyTreeGrid(children, episodeValidators, latestEpisodeValidations, downloads, tvController);
+                : new TvHierarchyTreeGrid(
+                        children, episodeValidators, latestEpisodeValidations, downloads, tvController);
 
         VerticalLayout layout = new VerticalLayout(fields, hierarchy);
         layout.setWidthFull();
@@ -912,57 +839,6 @@ public class TvRequestView extends VerticalLayout {
     }
 
     private static FormLayout buildFieldDump(TvRequest mr) {
-        FormLayout layout = new FormLayout();
-        layout.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 2),
-                new FormLayout.ResponsiveStep("900px", 3));
-
-        List<Field> fields = collectFields(TvRequest.class).stream()
-                .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
-                .sorted(Comparator.<Field>comparingInt(f -> {
-                            int idx = DETAIL_PRIORITY_FIELDS.indexOf(f.getName());
-                            return idx == -1 ? Integer.MAX_VALUE : idx;
-                        })
-                        .thenComparing(Field::getName, String.CASE_INSENSITIVE_ORDER))
-                .toList();
-
-        for (Field field : fields) {
-            field.setAccessible(true);
-            Object value;
-            try {
-                value = field.get(mr);
-            } catch (IllegalAccessException e) {
-                value = "<inaccessible>";
-            }
-            addField(layout, humanizeFieldName(field.getName()), value);
-        }
-
-        return layout;
-    }
-
-    private static List<Field> collectFields(Class<?> type) {
-        List<Field> fields = new java.util.ArrayList<>();
-        for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
-            fields.addAll(Arrays.asList(c.getDeclaredFields()));
-        }
-        return fields;
-    }
-
-    private static String humanizeFieldName(String name) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < name.length(); i++) {
-            char c = name.charAt(i);
-            if (i > 0 && Character.isUpperCase(c) && !Character.isUpperCase(name.charAt(i - 1))) {
-                sb.append(' ');
-            }
-            sb.append(i == 0 ? Character.toUpperCase(c) : c);
-        }
-        return sb.toString();
-    }
-
-    private static void addField(FormLayout layout, String label, Object value) {
-        Span valueSpan = new Span(value == null ? "—" : String.valueOf(value));
-        layout.addFormItem(valueSpan, label);
+        return RequestViewSupport.fieldDump(TvRequest.class, mr, DETAIL_PRIORITY_FIELDS);
     }
 }

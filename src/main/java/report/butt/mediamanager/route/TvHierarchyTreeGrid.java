@@ -1,15 +1,11 @@
 package report.butt.mediamanager.route;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.badge.Badge;
-import com.vaadin.flow.component.badge.BadgeVariant;
 import com.vaadin.flow.component.grid.contextmenu.GridContextMenu;
 import com.vaadin.flow.component.grid.contextmenu.GridMenuItem;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.shared.Tooltip;
 import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.data.provider.hierarchy.TreeData;
 import com.vaadin.flow.data.provider.hierarchy.TreeDataProvider;
@@ -83,7 +79,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         for (EpisodeValidator validator : episodeValidators) {
             String name = validator.getClass().getSimpleName();
             addComponentColumn(row -> episodeValidationComponent(row, name, latestEpisodeValidations))
-                    .setHeader(headerWithTooltip(
+                    .setHeader(RequestViewSupport.headerWithTooltip(
                             validator.shortName(), validator.title(), validator.description()))
                     .setAutoWidth(true);
         }
@@ -92,22 +88,23 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     }
 
     /**
-     * Per-row search actions. Items are added once and shown/hidden by row type via the dynamic
-     * content handler, since {@link GridContextMenu} reuses one menu across all rows.
+     * Per-row search actions. Items are added once and shown/hidden by row type via the dynamic content handler, since
+     * {@link GridContextMenu} reuses one menu across all rows.
      */
     private void addSearchContextMenu(TvController tvController) {
         GridContextMenu<TvHierarchyRow> contextMenu = addContextMenu();
-        GridMenuItem<TvHierarchyRow> searchAllSeasons = contextMenu.addItem(
-                "Search All Seasons", e -> e.getItem().ifPresent(row -> {
+        GridMenuItem<TvHierarchyRow> searchAllSeasons =
+                contextMenu.addItem("Search All Seasons", e -> e.getItem().ifPresent(row -> {
                     if (row instanceof ChildRow(TvChildRequest child)) {
                         tvController.searchAllSeasonsForChild(child.getId());
                     }
                 }));
-        GridMenuItem<TvHierarchyRow> searchAllEpisodes = contextMenu.addItem(
-                "Search All Episodes", e -> e.getItem().ifPresent(row -> {
+        GridMenuItem<TvHierarchyRow> searchAllEpisodes =
+                contextMenu.addItem("Search All Episodes", e -> e.getItem().ifPresent(row -> {
                     switch (row) {
                         case ChildRow(TvChildRequest child) -> tvController.searchAllEpisodesForChild(child.getId());
-                        case SeasonRow(TvSeasonRequest season) -> tvController.searchAllEpisodesForSeason(season.getId());
+                        case SeasonRow(TvSeasonRequest season) ->
+                            tvController.searchAllEpisodesForSeason(season.getId());
                         case EpisodeRow ignored -> {}
                     }
                 }));
@@ -137,9 +134,9 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     }
 
     /**
-     * Records an episode's queued-download info (keyed by its persistent id) and rolls its protocol up
-     * to the owning season and child, so the Type badge can be shown at every level. Skipped unless the
-     * episode is in the Sonarr queue and both numbers are known.
+     * Records an episode's queued-download info (keyed by its persistent id) and rolls its protocol up to the owning
+     * season and child, so the Type badge can be shown at every level. Skipped unless the episode is in the Sonarr
+     * queue and both numbers are known.
      */
     private void indexDownload(
             TvChildRequest child,
@@ -159,50 +156,36 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
             return;
         }
         if (season.getId() != null) {
-            protocolsBySeasonId.computeIfAbsent(season.getId(), k -> new HashSet<>()).add(download.protocol());
+            protocolsBySeasonId
+                    .computeIfAbsent(season.getId(), k -> new HashSet<>())
+                    .add(download.protocol());
         }
         if (child.getId() != null) {
-            protocolsByChildId.computeIfAbsent(child.getId(), k -> new HashSet<>()).add(download.protocol());
+            protocolsByChildId
+                    .computeIfAbsent(child.getId(), k -> new HashSet<>())
+                    .add(download.protocol());
         }
     }
 
     /**
-     * Type cell: a {@link Badge} per Sonarr protocol — solid blue (default) for torrent, solid green for
-     * usenet — or a dash when nothing under the row is in the Sonarr queue. Episodes carry their own
-     * protocol; seasons and children carry the rolled-up protocols of their downloading descendants.
+     * Type cell: a {@link Badge} per Sonarr protocol — solid blue (default) for torrent, solid green for usenet — or a
+     * dash when nothing under the row is in the Sonarr queue. Episodes carry their own protocol; seasons and children
+     * carry the rolled-up protocols of their downloading descendants.
      */
     private Component typeComponent(TvHierarchyRow row) {
-        Set<String> protocols = switch (row) {
-            case EpisodeRow(TvEpisodeRequest episode) -> {
-                EpisodeDownload download = episode.getId() == null ? null : downloadByEpisodeId.get(episode.getId());
-                yield download == null || download.protocol() == null ? Set.of() : Set.of(download.protocol());
-            }
-            case SeasonRow(TvSeasonRequest season) ->
-                season.getId() == null ? Set.of() : protocolsBySeasonId.getOrDefault(season.getId(), Set.of());
-            case ChildRow(TvChildRequest child) ->
-                child.getId() == null ? Set.of() : protocolsByChildId.getOrDefault(child.getId(), Set.of());
-        };
-        return protocolBadges(protocols);
-    }
-
-    private static Component protocolBadges(Set<String> protocols) {
-        if (protocols.isEmpty()) {
-            return new Span("—");
-        }
-        HorizontalLayout badges = new HorizontalLayout();
-        badges.setSpacing(false);
-        badges.getStyle().set("gap", "var(--lumo-space-xs)");
-        if (protocols.stream().anyMatch(MovieRequestView::isTorrent)) {
-            Badge torrent = new Badge("torrent");
-            torrent.addThemeVariants(BadgeVariant.FILLED);
-            badges.add(torrent);
-        }
-        if (protocols.stream().anyMatch(p -> !MovieRequestView.isTorrent(p))) {
-            Badge usenet = new Badge("usenet");
-            usenet.addThemeVariants(BadgeVariant.SUCCESS, BadgeVariant.FILLED);
-            badges.add(usenet);
-        }
-        return badges;
+        Set<String> protocols =
+                switch (row) {
+                    case EpisodeRow(TvEpisodeRequest episode) -> {
+                        EpisodeDownload download =
+                                episode.getId() == null ? null : downloadByEpisodeId.get(episode.getId());
+                        yield download == null || download.protocol() == null ? Set.of() : Set.of(download.protocol());
+                    }
+                    case SeasonRow(TvSeasonRequest season) ->
+                        season.getId() == null ? Set.of() : protocolsBySeasonId.getOrDefault(season.getId(), Set.of());
+                    case ChildRow(TvChildRequest child) ->
+                        child.getId() == null ? Set.of() : protocolsByChildId.getOrDefault(child.getId(), Set.of());
+                };
+        return RequestViewSupport.protocolBadges(protocols);
     }
 
     /** Download progress for a queued episode: torrent progress or SABnzbd percentage, else a dash. */
@@ -211,19 +194,23 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         if (download == null || download.protocol() == null) {
             return "—";
         }
-        if (MovieRequestView.isTorrent(download.protocol())) {
-            return download.torrent() == null ? "—" : MovieRequestView.formatProgress(download.torrent().getProgress());
+        if (RequestViewSupport.isTorrent(download.protocol())) {
+            return download.torrent() == null
+                    ? "—"
+                    : RequestViewSupport.formatProgress(download.torrent().getProgress());
         }
-        return download.slot() == null ? "—" : MovieRequestView.formatPercentage(download.slot().getPercentage());
+        return download.slot() == null
+                ? "—"
+                : RequestViewSupport.formatPercentage(download.slot().getPercentage());
     }
 
     /** Peer/seed counts for a queued torrent episode, or a dash for usenet or episodes not in the queue. */
     private String peersText(TvHierarchyRow row) {
         EpisodeDownload download = downloadFor(row);
-        if (download == null || !MovieRequestView.isTorrent(download.protocol())) {
+        if (download == null || !RequestViewSupport.isTorrent(download.protocol())) {
             return "—";
         }
-        return download.torrent() == null ? "—" : MovieRequestView.formatPeers(download.torrent());
+        return download.torrent() == null ? "—" : RequestViewSupport.formatPeers(download.torrent());
     }
 
     private EpisodeDownload downloadFor(TvHierarchyRow row) {
@@ -234,22 +221,25 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
 
     private static Component episodeValidationComponent(
             TvHierarchyRow row, String validationName, Map<Long, Map<String, Validation>> latestEpisodeValidations) {
-        Boolean result = switch (row) {
-            case EpisodeRow(TvEpisodeRequest episode) -> episodeResult(episode, validationName, latestEpisodeValidations);
-            // A season rolls up its episodes; a child rolls up its seasons. Each is valid only
-            // when everything beneath it is validated and valid.
-            case SeasonRow(TvSeasonRequest season) -> seasonResult(season, validationName, latestEpisodeValidations);
-            case ChildRow(TvChildRequest child) -> childResult(child, validationName, latestEpisodeValidations);
-        };
+        Boolean result =
+                switch (row) {
+                    case EpisodeRow(TvEpisodeRequest episode) ->
+                        episodeResult(episode, validationName, latestEpisodeValidations);
+                    // A season rolls up its episodes; a child rolls up its seasons. Each is valid only
+                    // when everything beneath it is validated and valid.
+                    case SeasonRow(TvSeasonRequest season) ->
+                        seasonResult(season, validationName, latestEpisodeValidations);
+                    case ChildRow(TvChildRequest child) -> childResult(child, validationName, latestEpisodeValidations);
+                };
         // null = nothing validated yet (unknown), not a failure.
         return result == null ? new Span("—") : resultIcon(result);
     }
 
     /**
-     * Row-level roll-up for the parent grid's Sub-Validations column: TRUE only when every child
-     * (and thus every season and episode beneath it) is validated and valid across all episode
-     * validators, null when nothing is validated yet, FALSE otherwise. Uses the same per-child
-     * {@link #childResult} the tree displays, so the column and the expanded rows agree.
+     * Row-level roll-up for the parent grid's Sub-Validations column: TRUE only when every child (and thus every season
+     * and episode beneath it) is validated and valid across all episode validators, null when nothing is validated yet,
+     * FALSE otherwise. Uses the same per-child {@link #childResult} the tree displays, so the column and the expanded
+     * rows agree.
      */
     static Boolean allChildrenValidation(
             List<TvChildRequest> children,
@@ -258,8 +248,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         List<Boolean> childResults = new ArrayList<>();
         for (TvChildRequest child : children) {
             for (EpisodeValidator validator : validators) {
-                childResults.add(
-                        childResult(child, validator.getClass().getSimpleName(), latestEpisodeValidations));
+                childResults.add(childResult(child, validator.getClass().getSimpleName(), latestEpisodeValidations));
             }
         }
         return rollUp(childResults);
@@ -284,17 +273,15 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     }
 
     private static Boolean childResult(
-            TvChildRequest child,
-            String validationName,
-            Map<Long, Map<String, Validation>> latestEpisodeValidations) {
+            TvChildRequest child, String validationName, Map<Long, Map<String, Validation>> latestEpisodeValidations) {
         return rollUp(child.getSeasonRequests().stream()
                 .map(season -> seasonResult(season, validationName, latestEpisodeValidations))
                 .toList());
     }
 
     /**
-     * Aggregates tri-state results: null if none are known (unknown), TRUE only if every entry is
-     * known and valid, FALSE otherwise (any failing or not-yet-validated entry).
+     * Aggregates tri-state results: null if none are known (unknown), TRUE only if every entry is known and valid,
+     * FALSE otherwise (any failing or not-yet-validated entry).
      */
     private static Boolean rollUp(List<Boolean> results) {
         boolean anyKnown = false;
@@ -310,18 +297,13 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         return anyKnown ? allValid : null;
     }
 
-    private static Component headerWithTooltip(String shortName, String title, String description) {
-        Span label = new Span(shortName);
-        Tooltip.forComponent(label).setText(title + "\n\n" + description);
-        return label;
-    }
-
     private static String idText(TvHierarchyRow row) {
-        Long id = switch (row) {
-            case ChildRow(TvChildRequest c) -> c.getId();
-            case SeasonRow(TvSeasonRequest s) -> s.getId();
-            case EpisodeRow(TvEpisodeRequest e) -> e.getId();
-        };
+        Long id =
+                switch (row) {
+                    case ChildRow(TvChildRequest c) -> c.getId();
+                    case SeasonRow(TvSeasonRequest s) -> s.getId();
+                    case EpisodeRow(TvEpisodeRequest e) -> e.getId();
+                };
         return id == null ? "—" : id.toString();
     }
 

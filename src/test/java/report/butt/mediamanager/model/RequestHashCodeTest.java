@@ -5,12 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Guards hash-based change detection in the refresh services: every field mutated by the refresh
- * {@code applyUpdates} helpers must be reflected in {@code hashCode()}, otherwise a changed row
- * hashes equal to its preloaded state and the update is silently dropped from {@code saveAll}.
+ * Guards hash-based change detection in the refresh services: every field mutated by the refresh {@code applyUpdates}
+ * helpers must be reflected in {@code hashCode()}, otherwise a changed row hashes equal to its preloaded state and the
+ * update is silently dropped from {@code saveAll}.
  *
- * <p>Each case starts from a populated entity, mutates one field to a distinct value, and asserts
- * the hash changed.
+ * <p>Each case starts from a populated entity, mutates one field to a distinct value, and asserts the hash changed.
  */
 class RequestHashCodeTest {
 
@@ -100,7 +99,8 @@ class RequestHashCodeTest {
         h = assertChanged(h, episode, () -> episode.setOmbiRequestStatus("Common.Available"));
         h = assertChanged(h, episode, () -> episode.setSonarrPath("/tv/show/s01e01.mkv"));
         h = assertChanged(h, episode, () -> episode.setPlexPath("/plex/show/s01e01.mkv"));
-        assertChanged(h, episode, () -> episode.setSonarrLastSearchTime(java.time.Instant.parse("2026-06-01T00:00:00Z")));
+        assertChanged(
+                h, episode, () -> episode.setSonarrLastSearchTime(java.time.Instant.parse("2026-06-01T00:00:00Z")));
     }
 
     private static int assertChanged(int previousHash, Object entity, Runnable mutation) {

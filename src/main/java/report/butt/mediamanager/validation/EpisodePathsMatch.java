@@ -1,29 +1,16 @@
 package report.butt.mediamanager.validation;
 
 import java.util.Objects;
-
 import org.springframework.stereotype.Component;
-
 import report.butt.mediamanager.model.TvEpisodeRequest;
 
 @Component
 public class EpisodePathsMatch implements EpisodeValidator {
 
-    private static final String MNT_PREFIX = "/mnt";
-
     @Override
     public Boolean validate(TvEpisodeRequest episode) {
-        return Objects.equals(stripMnt(episode.getPlexPath()), stripMnt(episode.getSonarrPath()));
-    }
-
-    private static String stripMnt(String path) {
-        if (path == null) {
-            return null;
-        }
-        if (path.startsWith(MNT_PREFIX)) {
-            return path.substring(MNT_PREFIX.length());
-        }
-        return path;
+        return Objects.equals(
+                ValidationSupport.stripMnt(episode.getPlexPath()), ValidationSupport.stripMnt(episode.getSonarrPath()));
     }
 
     @Override

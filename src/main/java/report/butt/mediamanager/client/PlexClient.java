@@ -18,7 +18,6 @@ import report.butt.mediamanager.model.plex.PlexGuid;
 import report.butt.mediamanager.model.plex.PlexMedia;
 import report.butt.mediamanager.model.plex.PlexMediaContainer;
 import report.butt.mediamanager.model.plex.PlexMetadata;
-import report.butt.mediamanager.model.plex.PlexPart;
 import report.butt.mediamanager.model.plex.PlexSearchResponse;
 import report.butt.mediamanager.service.PlexCacheService;
 import tools.jackson.databind.ObjectMapper;
@@ -139,9 +138,7 @@ public class PlexClient {
             if (plexMoviesSectionName.equals(dir.getTitle())) {
                 this.moviesSectionId = dir.getKey();
                 log.info(
-                        "Cached Plex moviesSectionId={} for section '{}'",
-                        this.moviesSectionId,
-                        plexMoviesSectionName);
+                        "Cached Plex moviesSectionId={} for section '{}'", this.moviesSectionId, plexMoviesSectionName);
                 return;
             }
         }

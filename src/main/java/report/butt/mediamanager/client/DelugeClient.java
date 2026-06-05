@@ -15,10 +15,10 @@ import report.butt.mediamanager.model.deluge.DelugeResponse;
 import report.butt.mediamanager.model.deluge.DelugeTorrent;
 
 /**
- * Talks to Deluge's JSON-RPC endpoint ({@code POST /json}). Deluge authenticates with a
- * {@code _session_id} cookie handed back by {@code auth.login}; RestClient doesn't persist cookies,
- * so we capture it on login and replay it on each call. A missing or expired session comes back as
- * an RPC {@code error} in a 200 body (not an HTTP error), so calls re-authenticate and retry once.
+ * Talks to Deluge's JSON-RPC endpoint ({@code POST /json}). Deluge authenticates with a {@code _session_id} cookie
+ * handed back by {@code auth.login}; RestClient doesn't persist cookies, so we capture it on login and replay it on
+ * each call. A missing or expired session comes back as an RPC {@code error} in a 200 body (not an HTTP error), so
+ * calls re-authenticate and retry once.
  */
 @Service
 public class DelugeClient {

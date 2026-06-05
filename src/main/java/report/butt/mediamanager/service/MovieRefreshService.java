@@ -1,7 +1,5 @@
 package report.butt.mediamanager.service;
 
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -25,6 +23,7 @@ import report.butt.mediamanager.model.plex.PlexMetadata;
 import report.butt.mediamanager.model.plex.PlexPart;
 import report.butt.mediamanager.model.radarr.Movie;
 import report.butt.mediamanager.repository.MovieRequestRepository;
+import report.butt.mediamanager.util.DateTimeUtils;
 
 @Service
 public class MovieRefreshService {
@@ -161,27 +160,16 @@ public class MovieRefreshService {
                     radarrMovie.getOriginalLanguage() == null
                             ? null
                             : radarrMovie.getOriginalLanguage().getName());
-            movieRequest.setRadarrLastSearchTime(parseInstant(radarrMovie.getLastSearchTime()));
+            movieRequest.setRadarrLastSearchTime(DateTimeUtils.parseInstant(radarrMovie.getLastSearchTime(), "Radarr"));
             movieRequest.setRadarrMovieFilePath(
-                    radarrMovie.getMovieFile() == null ? null : radarrMovie.getMovieFile().getPath());
+                    radarrMovie.getMovieFile() == null
+                            ? null
+                            : radarrMovie.getMovieFile().getPath());
             applyPlexUpdates(movieRequest, radarrMovie, plexByTmdb);
         }
     }
 
-    private static Instant parseInstant(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return Instant.parse(value);
-        } catch (DateTimeParseException e) {
-            log.warn("Could not parse Radarr timestamp '{}'", value);
-            return null;
-        }
-    }
-
-    private void applyPlexUpdates(
-            MovieRequest movieRequest, Movie radarrMovie, Map<Integer, PlexMetadata> plexByTmdb) {
+    private void applyPlexUpdates(MovieRequest movieRequest, Movie radarrMovie, Map<Integer, PlexMetadata> plexByTmdb) {
         try {
             MetadataResult plexResult;
             if (plexByTmdb != null) {
@@ -196,10 +184,7 @@ public class MovieRefreshService {
             movieRequest.setPlexMetadataUrl(plexResult.url());
             PlexMetadata plexMetadata = plexResult.metadata();
             if (plexMetadata != null) {
-                log.info(
-                        "Plex match found for tmdbId {}: {}",
-                        radarrMovie.getTmdbId(),
-                        plexMetadata.getTitle());
+                log.info("Plex match found for tmdbId {}: {}", radarrMovie.getTmdbId(), plexMetadata.getTitle());
                 movieRequest.setPlexMetadataId(plexMetadata.getRatingKey());
                 movieRequest.setPlexAddedAt(plexMetadata.getAddedAt());
                 movieRequest.setPlexUpdatedAt(plexMetadata.getUpdatedAt());

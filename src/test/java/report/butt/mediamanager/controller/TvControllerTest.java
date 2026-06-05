@@ -17,12 +17,11 @@ import report.butt.mediamanager.model.TvRequest;
 import report.butt.mediamanager.model.TvSeasonRequest;
 import report.butt.mediamanager.model.sonarr.Episode;
 import report.butt.mediamanager.model.sonarr.SonarrCommand;
-import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.TvChildRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
-import report.butt.mediamanager.repository.ValidationRepository;
+import report.butt.mediamanager.service.RequestAdminService;
 import report.butt.mediamanager.service.TvRefreshService;
 import report.butt.mediamanager.service.ValidatorService;
 import tools.jackson.databind.ObjectMapper;
@@ -42,13 +41,12 @@ class TvControllerTest {
             tvChildRequestRepository,
             tvSeasonRequestRepository,
             tvEpisodeRequestRepository,
-            mock(ValidationRepository.class),
-            mock(NoteRepository.class),
             ombiClient,
             sonarrClient,
             objectMapper,
             mock(TvRefreshService.class),
-            mock(ValidatorService.class));
+            mock(ValidatorService.class),
+            mock(RequestAdminService.class));
 
     @Test
     void markAvailable_callsOmbiOncePerChildRequestId() {
@@ -92,7 +90,8 @@ class TvControllerTest {
         parent.setSonarrSeriesId(55);
         TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
         child.setId(10L);
-        child.setSeasonRequests(List.of(new TvSeasonRequest(child, 1, 1, false), new TvSeasonRequest(child, 2, 2, false)));
+        child.setSeasonRequests(
+                List.of(new TvSeasonRequest(child, 1, 1, false), new TvSeasonRequest(child, 2, 2, false)));
 
         when(tvChildRequestRepository.findById(10L)).thenReturn(Optional.of(child));
         when(sonarrClient.searchSeason(55, 1)).thenReturn(new SonarrCommand());

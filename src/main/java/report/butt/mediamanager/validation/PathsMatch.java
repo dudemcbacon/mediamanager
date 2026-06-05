@@ -1,30 +1,18 @@
 package report.butt.mediamanager.validation;
 
 import java.util.Objects;
-
 import org.springframework.stereotype.Component;
-
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
 
 @Component
 public class PathsMatch implements Validator<MovieRequest> {
 
-    private static final String MNT_PREFIX = "/mnt";
-
     @Override
     public Boolean validate(MovieRequest request) {
-        return Objects.equals(stripMnt(request.getPlexMediaFilename()), stripMnt(request.getRadarrMovieFilePath()));
-    }
-
-    private static String stripMnt(String path) {
-        if (path == null) {
-            return null;
-        }
-        if (path.startsWith(MNT_PREFIX)) {
-            return path.substring(MNT_PREFIX.length());
-        }
-        return path;
+        return Objects.equals(
+                ValidationSupport.stripMnt(request.getPlexMediaFilename()),
+                ValidationSupport.stripMnt(request.getRadarrMovieFilePath()));
     }
 
     @Override

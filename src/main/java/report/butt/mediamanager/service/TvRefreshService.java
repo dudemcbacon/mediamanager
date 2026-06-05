@@ -1,7 +1,6 @@
 package report.butt.mediamanager.service;
 
 import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,6 +39,7 @@ import report.butt.mediamanager.repository.TvChildRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
+import report.butt.mediamanager.util.DateTimeUtils;
 
 @Service
 public class TvRefreshService {
@@ -116,7 +116,9 @@ public class TvRefreshService {
         List<TvSeasonRequest> preloadedSeasons =
                 childIds.isEmpty() ? List.of() : seasonRepository.findByTvChildRequestIdIn(childIds);
         for (TvSeasonRequest season : preloadedSeasons) {
-            Long childId = season.getTvChildRequest() == null ? null : season.getTvChildRequest().getId();
+            Long childId = season.getTvChildRequest() == null
+                    ? null
+                    : season.getTvChildRequest().getId();
             if (childId == null || season.getOmbiSeasonNumber() == null) {
                 continue;
             }
@@ -131,7 +133,9 @@ public class TvRefreshService {
         List<TvEpisodeRequest> preloadedEpisodes =
                 seasonIds.isEmpty() ? List.of() : episodeRepository.findByTvSeasonRequestIdIn(seasonIds);
         for (TvEpisodeRequest episode : preloadedEpisodes) {
-            Long seasonId = episode.getTvSeasonRequest() == null ? null : episode.getTvSeasonRequest().getId();
+            Long seasonId = episode.getTvSeasonRequest() == null
+                    ? null
+                    : episode.getTvSeasonRequest().getId();
             if (seasonId == null || episode.getOmbiEpisodeNumber() == null) {
                 continue;
             }
@@ -224,9 +228,9 @@ public class TvRefreshService {
     private record SonarrEpisodeData(String path, Instant lastSearchTime) {}
 
     /**
-     * Fetches per-episode media file paths and last-search times from Sonarr for one series, keyed
-     * by season/episode number. Sonarr has no bulk episode-file endpoint, so this is one call per
-     * matched series. Degrades to an empty map when the series is unmatched or the lookup fails.
+     * Fetches per-episode media file paths and last-search times from Sonarr for one series, keyed by season/episode
+     * number. Sonarr has no bulk episode-file endpoint, so this is one call per matched series. Degrades to an empty
+     * map when the series is unmatched or the lookup fails.
      */
     private Map<EpisodeKey, SonarrEpisodeData> resolveSonarrEpisodes(Series series) {
         if (series == null || series.getId() == null) {
@@ -241,7 +245,7 @@ public class TvRefreshService {
                 }
                 EpisodeFile file = episode.getEpisodeFile();
                 String path = file == null ? null : file.getPath();
-                Instant lastSearchTime = parseInstant(episode.getLastSearchTime());
+                Instant lastSearchTime = DateTimeUtils.parseInstant(episode.getLastSearchTime(), "Sonarr");
                 if (path == null && lastSearchTime == null) {
                     continue;
                 }
@@ -256,22 +260,9 @@ public class TvRefreshService {
         }
     }
 
-    private static Instant parseInstant(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return Instant.parse(value);
-        } catch (DateTimeParseException e) {
-            log.warn("Could not parse Sonarr timestamp '{}'", value);
-            return null;
-        }
-    }
-
     /**
-     * Applies and change-detects the child/season/episode hierarchy for one show using preloaded
-     * rows, appending changed entities to the supplied save lists. Returns the number of unchanged
-     * entities skipped.
+     * Applies and change-detects the child/season/episode hierarchy for one show using preloaded rows, appending
+     * changed entities to the supplied save lists. Returns the number of unchanged entities skipped.
      */
     private int applyChildren(
             TvRequest tvRequest,
@@ -360,8 +351,8 @@ public class TvRefreshService {
             Map<Integer, TvEpisodeRequest> existingEpisodes = existingSeason == null || existingSeason.getId() == null
                     ? Map.of()
                     : episodesBySeason.getOrDefault(existingSeason.getId(), Map.of());
-            unchanged += refreshEpisodes(
-                    season, ombiSeason, existingEpisodes, episodePaths, sonarrEpisodes, toSaveEpisodes);
+            unchanged +=
+                    refreshEpisodes(season, ombiSeason, existingEpisodes, episodePaths, sonarrEpisodes, toSaveEpisodes);
         }
         return unchanged;
     }
@@ -666,10 +657,7 @@ public class TvRefreshService {
             tvRequest.setPlexMetadataUrl(plexResult.url());
             PlexMetadata plexMetadata = plexResult.metadata();
             if (plexMetadata != null) {
-                log.info(
-                        "Plex match found for tvdbId {}: {}",
-                        series.getTvdbId(),
-                        plexMetadata.getTitle());
+                log.info("Plex match found for tvdbId {}: {}", series.getTvdbId(), plexMetadata.getTitle());
                 tvRequest.setPlexMetadataId(plexMetadata.getRatingKey());
                 tvRequest.setPlexAddedAt(plexMetadata.getAddedAt());
                 tvRequest.setPlexUpdatedAt(plexMetadata.getUpdatedAt());

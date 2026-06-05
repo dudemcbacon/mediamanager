@@ -11,8 +11,7 @@ public class SonarrMonitored implements Validator<TvRequest> {
 
     @Override
     public Boolean validate(TvRequest request) {
-        return Boolean.TRUE.equals(request.getSonarrMonitored())
-                && MONITOR_ALL.equals(request.getSonarrMonitoredAll());
+        return Boolean.TRUE.equals(request.getSonarrMonitored()) && MONITOR_ALL.equals(request.getSonarrMonitoredAll());
     }
 
     @Override

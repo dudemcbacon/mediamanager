@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,9 +22,8 @@ import report.butt.mediamanager.model.radarr.RadarrCommand;
 import report.butt.mediamanager.model.radarr.RadarrHealthItem;
 import report.butt.mediamanager.model.radarr.RadarrQueue;
 import report.butt.mediamanager.repository.MovieRequestRepository;
-import report.butt.mediamanager.repository.NoteRepository;
-import report.butt.mediamanager.repository.ValidationRepository;
 import report.butt.mediamanager.service.MovieRefreshService;
+import report.butt.mediamanager.service.RequestAdminService;
 import report.butt.mediamanager.service.ValidatorService;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -37,32 +35,29 @@ public class MovieController {
     private static final String ANY_QUALITY_PROFILE = "Any";
 
     private final MovieRequestRepository movieRequestRepository;
-    private final ValidationRepository validationRepository;
-    private final NoteRepository noteRepository;
     private final OmbiClient ombiClient;
     private final RadarrClient radarrClient;
     private final ObjectMapper objectMapper;
     private final MovieRefreshService movieRefreshService;
     private final ValidatorService validatorService;
+    private final RequestAdminService requestAdminService;
 
     @Autowired
     public MovieController(
             MovieRequestRepository movieRequestRepository,
-            ValidationRepository validationRepository,
-            NoteRepository noteRepository,
             OmbiClient ombiClient,
             RadarrClient radarrClient,
             ObjectMapper objectMapper,
             MovieRefreshService movieRefreshService,
-            ValidatorService validatorService) {
+            ValidatorService validatorService,
+            RequestAdminService requestAdminService) {
         this.movieRequestRepository = movieRequestRepository;
-        this.validationRepository = validationRepository;
-        this.noteRepository = noteRepository;
         this.ombiClient = ombiClient;
         this.radarrClient = radarrClient;
         this.objectMapper = objectMapper;
         this.movieRefreshService = movieRefreshService;
         this.validatorService = validatorService;
+        this.requestAdminService = requestAdminService;
     }
 
     /** Radarr's current download queue, or null if Radarr can't be reached. */
@@ -284,36 +279,22 @@ public class MovieController {
     }
 
     @PostMapping("/movies/{id}/delete")
-    @Transactional
     public String delete(@PathVariable Long id) {
         log.info("Delete request for movie request {}", id);
-        MovieRequest movieRequest =
-                movieRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
-        validationRepository.deleteByRequest(movieRequest);
-        noteRepository.deleteByRequest(movieRequest);
-        movieRequestRepository.delete(movieRequest);
+        requestAdminService.delete(movieRequestRepository, id);
         return "redirect:/movies";
     }
 
     @PostMapping("/movies/{id}/notes")
     public Note addNote(@PathVariable Long id, @RequestParam("notes") String notes) {
         log.info("Add note request for movie request {}", id);
-        MovieRequest movieRequest =
-                movieRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
-        return noteRepository.save(new Note(notes, movieRequest));
+        return requestAdminService.addNote(movieRequestRepository, id, notes);
     }
 
     @PostMapping("/movies/{id}/mark-stale")
     public String markStale(@PathVariable Long id, @RequestParam("reason") String reason) {
         log.info("Mark stale request for movie request {} with reason: {}", id, reason);
-        MovieRequest movieRequest =
-                movieRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
-
-        movieRequest.setStale(true);
-        movieRequest.setStaleReason(reason);
-        movieRequest.setMarkedStaleAt(Instant.now());
-        movieRequestRepository.save(movieRequest);
-
+        requestAdminService.markStale(movieRequestRepository, id, reason);
         return "redirect:/movies";
     }
 

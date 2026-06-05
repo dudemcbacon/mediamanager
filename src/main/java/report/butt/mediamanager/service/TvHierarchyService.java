@@ -50,10 +50,10 @@ public class TvHierarchyService {
     }
 
     /**
-     * Loads every show's child hierarchy in three bulk queries (one per level) instead of one
-     * lazy load per show, wiring each child's seasons and each season's episodes so callers can
-     * roll up over the object graph without N+1. Read-only, so the collections we attach are never
-     * flushed back. Keyed by parent {@link TvRequest} id; shows with no children are absent.
+     * Loads every show's child hierarchy in three bulk queries (one per level) instead of one lazy load per show,
+     * wiring each child's seasons and each season's episodes so callers can roll up over the object graph without N+1.
+     * Read-only, so the collections we attach are never flushed back. Keyed by parent {@link TvRequest} id; shows with
+     * no children are absent.
      */
     @Transactional(readOnly = true)
     public Map<Long, List<TvChildRequest>> loadAllHierarchies() {
@@ -63,9 +63,10 @@ public class TvHierarchyService {
         }
 
         List<Long> childIds = children.stream().map(TvChildRequest::getId).toList();
-        Map<Long, List<TvSeasonRequest>> seasonsByChild = tvSeasonRequestRepository.findByTvChildRequestIdIn(childIds)
-                .stream()
-                .collect(Collectors.groupingBy(s -> s.getTvChildRequest().getId()));
+        Map<Long, List<TvSeasonRequest>> seasonsByChild =
+                tvSeasonRequestRepository.findByTvChildRequestIdIn(childIds).stream()
+                        .collect(
+                                Collectors.groupingBy(s -> s.getTvChildRequest().getId()));
 
         List<Long> seasonIds = seasonsByChild.values().stream()
                 .flatMap(List::stream)
@@ -74,7 +75,8 @@ public class TvHierarchyService {
         Map<Long, List<TvEpisodeRequest>> episodesBySeason = seasonIds.isEmpty()
                 ? Map.of()
                 : tvEpisodeRequestRepository.findByTvSeasonRequestIdIn(seasonIds).stream()
-                        .collect(Collectors.groupingBy(e -> e.getTvSeasonRequest().getId()));
+                        .collect(Collectors.groupingBy(
+                                e -> e.getTvSeasonRequest().getId()));
 
         for (TvChildRequest child : children) {
             List<TvSeasonRequest> seasons = seasonsByChild.getOrDefault(child.getId(), List.of());
@@ -84,7 +86,8 @@ public class TvHierarchyService {
             }
         }
 
-        return children.stream().collect(Collectors.groupingBy(c -> c.getParent().getId()));
+        return children.stream()
+                .collect(Collectors.groupingBy(c -> c.getParent().getId()));
     }
 
     /** Flattens a show's hierarchy to its episodes, fully initialized within the transaction. */

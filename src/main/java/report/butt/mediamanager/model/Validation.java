@@ -28,9 +28,7 @@ import org.hibernate.annotations.UpdateTimestamp;
         })
 // Exactly one of (request_id, tv_episode_id) is set: a validation belongs to either a
 // request or a TV episode, never both and never neither. Also enforced in db/migrations.
-@Check(
-        name = "chk_validation_request_xor_episode",
-        constraints = "(request_id IS NULL) <> (tv_episode_id IS NULL)")
+@Check(name = "chk_validation_request_xor_episode", constraints = "(request_id IS NULL) <> (tv_episode_id IS NULL)")
 public class Validation {
     private @Id @GeneratedValue Long id;
     private String validationName;

@@ -30,12 +30,11 @@ import report.butt.mediamanager.model.sonarr.Episode;
 import report.butt.mediamanager.model.sonarr.SonarrCommand;
 import report.butt.mediamanager.model.sonarr.SonarrHealthItem;
 import report.butt.mediamanager.model.sonarr.SonarrQueue;
-import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.TvChildRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
-import report.butt.mediamanager.repository.ValidationRepository;
+import report.butt.mediamanager.service.RequestAdminService;
 import report.butt.mediamanager.service.TvRefreshService;
 import report.butt.mediamanager.service.ValidatorService;
 import tools.jackson.core.JacksonException;
@@ -51,13 +50,12 @@ public class TvController {
     private final TvChildRequestRepository tvChildRequestRepository;
     private final TvSeasonRequestRepository tvSeasonRequestRepository;
     private final TvEpisodeRequestRepository tvEpisodeRequestRepository;
-    private final ValidationRepository validationRepository;
-    private final NoteRepository noteRepository;
     private final OmbiClient ombiClient;
     private final SonarrClient sonarrClient;
     private final ObjectMapper objectMapper;
     private final TvRefreshService tvRefreshService;
     private final ValidatorService validatorService;
+    private final RequestAdminService requestAdminService;
 
     @Autowired
     public TvController(
@@ -65,24 +63,22 @@ public class TvController {
             TvChildRequestRepository tvChildRequestRepository,
             TvSeasonRequestRepository tvSeasonRequestRepository,
             TvEpisodeRequestRepository tvEpisodeRequestRepository,
-            ValidationRepository validationRepository,
-            NoteRepository noteRepository,
             OmbiClient ombiClient,
             SonarrClient sonarrClient,
             ObjectMapper objectMapper,
             TvRefreshService tvRefreshService,
-            ValidatorService validatorService) {
+            ValidatorService validatorService,
+            RequestAdminService requestAdminService) {
         this.tvRequestRepository = tvRequestRepository;
         this.tvChildRequestRepository = tvChildRequestRepository;
         this.tvSeasonRequestRepository = tvSeasonRequestRepository;
         this.tvEpisodeRequestRepository = tvEpisodeRequestRepository;
-        this.validationRepository = validationRepository;
-        this.noteRepository = noteRepository;
         this.ombiClient = ombiClient;
         this.sonarrClient = sonarrClient;
         this.objectMapper = objectMapper;
         this.tvRefreshService = tvRefreshService;
         this.validatorService = validatorService;
+        this.requestAdminService = requestAdminService;
     }
 
     @PostMapping("/tv/refresh-all")
@@ -172,9 +168,7 @@ public class TvController {
         Integer sonarrSeriesId = tvRequest.getSonarrSeriesId();
         if (sonarrSeriesId == null) {
             log.warn(
-                    "TvRequest {} ({}) has no sonarrSeriesId; cannot change quality profile",
-                    id,
-                    tvRequest.getTitle());
+                    "TvRequest {} ({}) has no sonarrSeriesId; cannot change quality profile", id, tvRequest.getTitle());
             return "redirect:/tv";
         }
 
@@ -301,39 +295,37 @@ public class TvController {
     public void searchAllEpisodesForRequest(Long tvRequestId) {
         TvRequest tvRequest =
                 tvRequestRepository.findById(tvRequestId).orElseThrow(() -> new RequestNotFoundException(tvRequestId));
-        searchEpisodes(tvRequest.getSonarrSeriesId(), "tv request " + tvRequestId, episodeKeysOfSeasons(seasonsOf(tvRequest)));
+        searchEpisodes(
+                tvRequest.getSonarrSeriesId(), "tv request " + tvRequestId, episodeKeysOfSeasons(seasonsOf(tvRequest)));
     }
 
     @Transactional
     public void searchAllSeasonsForChild(Long childId) {
-        TvChildRequest child = tvChildRequestRepository
-                .findById(childId)
-                .orElseThrow(() -> new RequestNotFoundException(childId));
+        TvChildRequest child =
+                tvChildRequestRepository.findById(childId).orElseThrow(() -> new RequestNotFoundException(childId));
         searchSeasons(seriesId(child), "tv child request " + childId, child.getSeasonRequests());
     }
 
     @Transactional
     public void searchAllEpisodesForChild(Long childId) {
-        TvChildRequest child = tvChildRequestRepository
-                .findById(childId)
-                .orElseThrow(() -> new RequestNotFoundException(childId));
+        TvChildRequest child =
+                tvChildRequestRepository.findById(childId).orElseThrow(() -> new RequestNotFoundException(childId));
         searchEpisodes(seriesId(child), "tv child request " + childId, episodeKeysOfSeasons(child.getSeasonRequests()));
     }
 
     @Transactional
     public void searchSeason(Long seasonId) {
-        TvSeasonRequest season = tvSeasonRequestRepository
-                .findById(seasonId)
-                .orElseThrow(() -> new RequestNotFoundException(seasonId));
+        TvSeasonRequest season =
+                tvSeasonRequestRepository.findById(seasonId).orElseThrow(() -> new RequestNotFoundException(seasonId));
         searchSeasons(seriesId(season), "tv season request " + seasonId, List.of(season));
     }
 
     @Transactional
     public void searchAllEpisodesForSeason(Long seasonId) {
-        TvSeasonRequest season = tvSeasonRequestRepository
-                .findById(seasonId)
-                .orElseThrow(() -> new RequestNotFoundException(seasonId));
-        searchEpisodes(seriesId(season), "tv season request " + seasonId, episodeKeysOfEpisodes(season.getEpisodeRequests()));
+        TvSeasonRequest season =
+                tvSeasonRequestRepository.findById(seasonId).orElseThrow(() -> new RequestNotFoundException(seasonId));
+        searchEpisodes(
+                seriesId(season), "tv season request " + seasonId, episodeKeysOfEpisodes(season.getEpisodeRequests()));
     }
 
     @Transactional
@@ -372,9 +364,9 @@ public class TvController {
     }
 
     /**
-     * Resolves the requested episodes to Sonarr episode ids by matching season/episode number, then
-     * triggers a single Sonarr EpisodeSearch. Sonarr's EpisodeSearch keys off its own episode ids,
-     * which we don't persist, so we look them up from Sonarr at search time.
+     * Resolves the requested episodes to Sonarr episode ids by matching season/episode number, then triggers a single
+     * Sonarr EpisodeSearch. Sonarr's EpisodeSearch keys off its own episode ids, which we don't persist, so we look
+     * them up from Sonarr at search time.
      */
     private void searchEpisodes(Integer sonarrSeriesId, String label, Set<EpisodeKey> keys) {
         if (sonarrSeriesId == null) {
@@ -394,7 +386,11 @@ public class TvController {
             log.warn("{} matched no Sonarr episodes for series {}; nothing to search", label, sonarrSeriesId);
             return;
         }
-        log.info("Triggering Sonarr EpisodeSearch for {} ({} episodes of series {})", label, episodeIds.size(), sonarrSeriesId);
+        log.info(
+                "Triggering Sonarr EpisodeSearch for {} ({} episodes of series {})",
+                label,
+                episodeIds.size(),
+                sonarrSeriesId);
         SonarrCommand command = sonarrClient.searchEpisodes(episodeIds);
         log.info(
                 "Sonarr command {} ({}) status={} result={}",
@@ -523,33 +519,22 @@ public class TvController {
     }
 
     @PostMapping("/tv/{id}/delete")
-    @Transactional
     public String delete(@PathVariable Long id) {
         log.info("Delete request for tv request {}", id);
-        TvRequest tvRequest = tvRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
-        validationRepository.deleteByRequest(tvRequest);
-        noteRepository.deleteByRequest(tvRequest);
-        tvRequestRepository.delete(tvRequest);
+        requestAdminService.delete(tvRequestRepository, id);
         return "redirect:/tv";
     }
 
     @PostMapping("/tv/{id}/notes")
     public Note addNote(@PathVariable Long id, @RequestParam("notes") String notes) {
         log.info("Add note request for tv request {}", id);
-        TvRequest tvRequest = tvRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
-        return noteRepository.save(new Note(notes, tvRequest));
+        return requestAdminService.addNote(tvRequestRepository, id, notes);
     }
 
     @PostMapping("/tv/{id}/mark-stale")
     public String markStale(@PathVariable Long id, @RequestParam("reason") String reason) {
         log.info("Mark stale request for tv request {} with reason: {}", id, reason);
-        TvRequest tvRequest = tvRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
-
-        tvRequest.setStale(true);
-        tvRequest.setStaleReason(reason);
-        tvRequest.setMarkedStaleAt(Instant.now());
-        tvRequestRepository.save(tvRequest);
-
+        requestAdminService.markStale(tvRequestRepository, id, reason);
         return "redirect:/tv";
     }
 }
