@@ -194,7 +194,7 @@ public class TvController {
     @PostMapping("/tv/validate-all")
     public String validateAll() {
         log.info("Validate-all request");
-        tvRequestRepository.findAll().forEach(validatorService::validateWithEpisodes);
+        validatorService.validateAllTv();
         return "redirect:/tv";
     }
 

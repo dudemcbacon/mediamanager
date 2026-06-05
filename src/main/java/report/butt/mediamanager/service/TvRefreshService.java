@@ -2,12 +2,16 @@ package report.butt.mediamanager.service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -45,6 +49,9 @@ import report.butt.mediamanager.util.DateTimeUtils;
 public class TvRefreshService {
 
     private static final Logger log = LoggerFactory.getLogger(TvRefreshService.class);
+
+    /** Upper bound on concurrent Sonarr episode lookups during a full refresh; one HTTP call is made per matched show. */
+    private static final int SONARR_FETCH_CONCURRENCY = 8;
 
     private final TvRequestRepository repository;
     private final TvChildRequestRepository childRepository;
@@ -87,6 +94,18 @@ public class TvRefreshService {
                 .filter(s -> s.getTvdbId() != null)
                 .collect(Collectors.toMap(Series::getTvdbId, Function.identity(), (a, b) -> a));
         Map<Integer, String> qualityProfilesById = sonarrClient.getQualityProfilesById();
+
+        // Sonarr has no bulk episode-file endpoint, so each matched show needs its own call. Fetch them all up front
+        // with bounded parallelism instead of serially inside the per-show loop, keyed by Sonarr series id.
+        Map<Integer, Series> matchedSeriesById = new HashMap<>();
+        for (OmbiTvRequest ombiTv : ombiTvRequests) {
+            Series series = ombiTv.getTvDbId() == null ? null : sonarrByTvdb.get(ombiTv.getTvDbId());
+            if (series != null && series.getId() != null) {
+                matchedSeriesById.putIfAbsent(series.getId(), series);
+            }
+        }
+        Map<Integer, Map<EpisodeKey, SonarrEpisodeData>> sonarrEpisodesBySeriesId =
+                prefetchSonarrEpisodes(matchedSeriesById.values());
 
         List<Integer> parentOmbiIds = ombiTvRequests.stream()
                 .map(OmbiTvRequest::getId)
@@ -178,6 +197,9 @@ public class TvRefreshService {
                 unchanged++;
             }
 
+            Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes = series == null || series.getId() == null
+                    ? Map.of()
+                    : sonarrEpisodesBySeriesId.getOrDefault(series.getId(), Map.of());
             unchanged += applyChildren(
                     tvRequest,
                     ombiTv,
@@ -185,7 +207,7 @@ public class TvRefreshService {
                     seasonsByChild,
                     episodesBySeason,
                     resolveEpisodePaths(tvRequest, episodesByShow),
-                    resolveSonarrEpisodes(series),
+                    sonarrEpisodes,
                     toSaveChildren,
                     toSaveSeasons,
                     toSaveEpisodes);
@@ -226,6 +248,33 @@ public class TvRefreshService {
 
     /** The Sonarr-sourced fields recorded per episode: the media file path and last search time. */
     private record SonarrEpisodeData(String path, Instant lastSearchTime) {}
+
+    /**
+     * Fetches per-episode Sonarr data for many series concurrently (bounded by {@link #SONARR_FETCH_CONCURRENCY}),
+     * keyed by Sonarr series id. Each series is one HTTP call; running them in parallel turns the per-show lookups from
+     * a serial chain into a single bounded burst. Individual failures degrade to an empty map via
+     * {@link #resolveSonarrEpisodes(Series)}.
+     */
+    private Map<Integer, Map<EpisodeKey, SonarrEpisodeData>> prefetchSonarrEpisodes(Collection<Series> series) {
+        List<Series> matched = series.stream()
+                .filter(s -> s != null && s.getId() != null)
+                .toList();
+        if (matched.isEmpty()) {
+            return Map.of();
+        }
+        ExecutorService pool = Executors.newFixedThreadPool(Math.min(matched.size(), SONARR_FETCH_CONCURRENCY));
+        try {
+            Map<Integer, CompletableFuture<Map<EpisodeKey, SonarrEpisodeData>>> futures = new HashMap<>(matched.size());
+            for (Series s : matched) {
+                futures.put(s.getId(), CompletableFuture.supplyAsync(() -> resolveSonarrEpisodes(s), pool));
+            }
+            Map<Integer, Map<EpisodeKey, SonarrEpisodeData>> result = new HashMap<>(futures.size());
+            futures.forEach((id, future) -> result.put(id, future.join()));
+            return result;
+        } finally {
+            pool.shutdown();
+        }
+    }
 
     /**
      * Fetches per-episode media file paths and last-search times from Sonarr for one series, keyed by season/episode

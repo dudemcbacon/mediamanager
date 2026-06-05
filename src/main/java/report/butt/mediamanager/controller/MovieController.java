@@ -168,7 +168,7 @@ public class MovieController {
     @PostMapping("/movies/validate-all")
     public String validateAll() {
         log.info("Validate-all request");
-        movieRequestRepository.findAll().forEach(validatorService::validate);
+        validatorService.validateAllMovies();
         return "redirect:/movies";
     }
 

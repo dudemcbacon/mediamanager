@@ -1,6 +1,8 @@
 package report.butt.mediamanager.service;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -88,6 +90,44 @@ public class TvHierarchyService {
 
         return children.stream()
                 .collect(Collectors.groupingBy(c -> c.getParent().getId()));
+    }
+
+    /**
+     * Loads every episode in the library grouped by its owning show's {@link TvRequest} id, using three bulk queries
+     * (one per level) instead of one lazy load per show. Unlike {@link #loadAllHierarchies()} this never mutates the
+     * entities' managed collections, so it is safe to call inside a read-write transaction (e.g. bulk validation)
+     * without risking an orphan-removal flush. Shows with no episodes are absent from the map.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, List<TvEpisodeRequest>> loadEpisodesByRequestId() {
+        List<TvChildRequest> children = tvChildRequestRepository.findAll();
+        if (children.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, Long> parentByChildId = children.stream()
+                .collect(Collectors.toMap(TvChildRequest::getId, c -> c.getParent().getId()));
+
+        List<Long> childIds = children.stream().map(TvChildRequest::getId).toList();
+        List<TvSeasonRequest> seasons = tvSeasonRequestRepository.findByTvChildRequestIdIn(childIds);
+        Map<Long, Long> childBySeasonId = seasons.stream()
+                .collect(Collectors.toMap(
+                        TvSeasonRequest::getId, s -> s.getTvChildRequest().getId()));
+
+        List<Long> seasonIds = seasons.stream().map(TvSeasonRequest::getId).toList();
+        List<TvEpisodeRequest> episodes =
+                seasonIds.isEmpty() ? List.of() : tvEpisodeRequestRepository.findByTvSeasonRequestIdIn(seasonIds);
+
+        Map<Long, List<TvEpisodeRequest>> episodesByRequestId = new HashMap<>();
+        for (TvEpisodeRequest episode : episodes) {
+            Long childId = childBySeasonId.get(episode.getTvSeasonRequest().getId());
+            Long parentId = childId == null ? null : parentByChildId.get(childId);
+            if (parentId == null) {
+                continue;
+            }
+            episodesByRequestId.computeIfAbsent(parentId, k -> new ArrayList<>()).add(episode);
+        }
+        return episodesByRequestId;
     }
 
     /** Flattens a show's hierarchy to its episodes, fully initialized within the transaction. */
