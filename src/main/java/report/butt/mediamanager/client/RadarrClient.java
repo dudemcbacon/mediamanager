@@ -109,6 +109,21 @@ public class RadarrClient {
                 .body(RadarrQueue.class);
     }
 
+    /**
+     * Removes a queue item, deleting it from the download client and blocklisting the release so it isn't re-grabbed.
+     */
+    public void deleteQueueItem(Integer queueId) {
+        restClient
+                .delete()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/v3/queue/{id}")
+                        .queryParam("removeFromClient", true)
+                        .queryParam("blocklist", true)
+                        .build(queueId))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
     public List<RadarrHealthItem> getHealth() {
         return restClient
                 .get()

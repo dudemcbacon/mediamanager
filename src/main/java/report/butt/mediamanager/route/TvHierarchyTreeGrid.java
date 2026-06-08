@@ -120,6 +120,12 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
                         tvController.searchEpisode(episode.getId());
                     }
                 }));
+        GridMenuItem<TvHierarchyRow> deleteDownload =
+                contextMenu.addItem("Delete Download", e -> e.getItem().ifPresent(row -> {
+                    if (row instanceof EpisodeRow(TvEpisodeRequest episode)) {
+                        tvController.deleteEpisodeDownloadAndSearch(episode.getId());
+                    }
+                }));
 
         contextMenu.setDynamicContentHandler(row -> {
             if (row == null) {
@@ -129,6 +135,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
             searchAllEpisodes.setVisible(row instanceof ChildRow || row instanceof SeasonRow);
             searchSeason.setVisible(row instanceof SeasonRow);
             searchEpisode.setVisible(row instanceof EpisodeRow);
+            deleteDownload.setVisible(row instanceof EpisodeRow);
             return true;
         });
     }

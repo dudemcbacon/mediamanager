@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.function.Function;
 import report.butt.mediamanager.model.Validation;
 import report.butt.mediamanager.model.deluge.DelugeTorrent;
+import report.butt.mediamanager.service.NotificationService;
 
 /**
  * Stateless rendering and formatting helpers shared by {@link MovieRequestView}, {@link TvRequestView}, and
@@ -120,6 +121,17 @@ final class RequestViewSupport {
         return card;
     }
 
+    /**
+     * Shows a loading spinner inside a stat card's value while its data is fetched async. The next {@code setText} on
+     * the value (when the data arrives) replaces the spinner. Uses the same {@code status-spinner} CSS as the grid.
+     */
+    static void showCardLoading(Span value) {
+        value.removeAll();
+        Span spinner = new Span();
+        spinner.setClassName("status-spinner");
+        value.add(spinner);
+    }
+
     static Span coloredLabel(String text, String color) {
         Span span = new Span(text);
         span.getStyle().set("color", color);
@@ -130,6 +142,18 @@ final class RequestViewSupport {
     static String healthIssueLine(String type, String message) {
         String prefix = type == null ? "" : "[" + type + "] ";
         return "• " + prefix + (message == null ? "" : message);
+    }
+
+    /** One-line outcome for the "Test Notifications" toast: nothing found, email sent, or found-but-not-sent. */
+    static String notificationSummary(NotificationService.NotificationResult result) {
+        int total = result.total();
+        if (total == 0) {
+            return "Notification check: nothing to report.";
+        }
+        if (result.emailSent()) {
+            return "Sent summary email: " + total + " item(s). See the email for details.";
+        }
+        return "Found " + total + " item(s), but no email was sent (mail not configured or send failed).";
     }
 
     /**

@@ -159,6 +159,7 @@ public class MovieRequest extends Request {
                 getOmbiRequestId(),
                 getOmbiRequestStatus(),
                 getOmbiUserName(),
+                getOmbiRequestedDate(),
                 getStale(),
                 getStaleReason(),
                 getMarkedStaleAt(),

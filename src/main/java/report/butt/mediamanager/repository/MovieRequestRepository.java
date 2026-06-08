@@ -13,4 +13,6 @@ public interface MovieRequestRepository extends JpaRepository<MovieRequest, Long
     Optional<MovieRequest> findByOmbiRequestId(Integer ombiRequestId);
 
     List<MovieRequest> findByOmbiRequestIdIn(Collection<Integer> ombiRequestIds);
+
+    Optional<MovieRequest> findByRadarrRequestId(Integer radarrRequestId);
 }

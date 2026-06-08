@@ -17,6 +17,8 @@ import report.butt.mediamanager.model.TvRequest;
 import report.butt.mediamanager.model.TvSeasonRequest;
 import report.butt.mediamanager.model.sonarr.Episode;
 import report.butt.mediamanager.model.sonarr.SonarrCommand;
+import report.butt.mediamanager.model.sonarr.SonarrQueue;
+import report.butt.mediamanager.model.sonarr.SonarrQueueRecord;
 import report.butt.mediamanager.repository.TvChildRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
@@ -139,11 +141,50 @@ class TvControllerTest {
         verifyNoMoreInteractions(sonarrClient);
     }
 
+    @Test
+    void deleteEpisodeDownloadAndSearch_deletesMatchingQueueItemThenSearches() {
+        TvRequest parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
+        parent.setSonarrSeriesId(55);
+        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
+        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
+        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        episode.setId(30L);
+
+        when(tvEpisodeRequestRepository.findById(30L)).thenReturn(Optional.of(episode));
+        // One queue item for this episode (id 777), one for a different episode (id 778) that must be left alone.
+        when(sonarrClient.getQueue()).thenReturn(queueOf(queueRecord(777, 55, 2, 3), queueRecord(778, 55, 2, 4)));
+        when(sonarrClient.getEpisodes(55)).thenReturn(List.of(sonarrEpisode(999, 2, 3)));
+        when(sonarrClient.searchEpisodes(List.of(999))).thenReturn(new SonarrCommand());
+
+        controller.deleteEpisodeDownloadAndSearch(30L);
+
+        verify(sonarrClient).getQueue();
+        verify(sonarrClient).deleteQueueItem(777);
+        verify(sonarrClient).getEpisodes(55);
+        verify(sonarrClient).searchEpisodes(List.of(999));
+        verifyNoMoreInteractions(sonarrClient);
+    }
+
     private static Episode sonarrEpisode(Integer id, Integer seasonNumber, Integer episodeNumber) {
         Episode episode = new Episode();
         episode.setId(id);
         episode.setSeasonNumber(seasonNumber);
         episode.setEpisodeNumber(episodeNumber);
         return episode;
+    }
+
+    private static SonarrQueueRecord queueRecord(Integer id, Integer seriesId, Integer season, Integer episodeNumber) {
+        SonarrQueueRecord record = new SonarrQueueRecord();
+        record.setId(id);
+        record.setSeriesId(seriesId);
+        record.setSeasonNumber(season);
+        record.setEpisode(sonarrEpisode(null, season, episodeNumber));
+        return record;
+    }
+
+    private static SonarrQueue queueOf(SonarrQueueRecord... records) {
+        SonarrQueue queue = new SonarrQueue();
+        queue.setRecords(List.of(records));
+        return queue;
     }
 }

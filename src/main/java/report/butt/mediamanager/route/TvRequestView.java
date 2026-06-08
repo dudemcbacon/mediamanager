@@ -13,6 +13,7 @@ import com.vaadin.flow.component.grid.GridSortOrder;
 import com.vaadin.flow.component.grid.contextmenu.GridContextMenu;
 import com.vaadin.flow.component.grid.contextmenu.GridMenuItem;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -55,6 +56,7 @@ import report.butt.mediamanager.model.sonarr.SonarrQueueRecord;
 import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.ValidationRepository;
+import report.butt.mediamanager.service.NotificationService;
 import report.butt.mediamanager.service.TvHierarchyService;
 import report.butt.mediamanager.validation.EpisodeValidator;
 import report.butt.mediamanager.validation.Validator;
@@ -105,12 +107,14 @@ public class TvRequestView extends VerticalLayout {
     private final PlexClient plexClient;
     private final DelugeClient delugeClient;
     private final SabnzbdClient sabnzbdClient;
+    private final NotificationService notificationService;
     private final Map<QueueKey, String> protocolByEpisode = new HashMap<>();
     private final Map<QueueKey, String> downloadIdByEpisode = new HashMap<>();
     private final Map<QueueKey, DelugeTorrent> torrentByEpisode = new HashMap<>();
     private final Map<QueueKey, SabnzbdSlot> slotByEpisode = new HashMap<>();
     private final Map<Integer, Set<String>> protocolsBySeriesId = new HashMap<>();
     private final AtomicBoolean downloadLoadInFlight = new AtomicBoolean(false);
+    private final AtomicBoolean statsLoadInFlight = new AtomicBoolean(false);
 
     public TvRequestView(
             TvRequestRepository tvRequestRepository,
@@ -122,6 +126,7 @@ public class TvRequestView extends VerticalLayout {
             PlexClient plexClient,
             DelugeClient delugeClient,
             SabnzbdClient sabnzbdClient,
+            NotificationService notificationService,
             @Value("${ombi.url}") String ombiUrl,
             @Value("${sonarr.url}") String sonarrUrl,
             TvHierarchyService tvHierarchyService) {
@@ -137,6 +142,7 @@ public class TvRequestView extends VerticalLayout {
         this.plexClient = plexClient;
         this.delugeClient = delugeClient;
         this.sabnzbdClient = sabnzbdClient;
+        this.notificationService = notificationService;
         this.knownValidatorNames =
                 validators.stream().map(v -> v.getClass().getSimpleName()).collect(Collectors.toUnmodifiableSet());
         this.episodeValidators = episodeValidators.stream()
@@ -293,6 +299,9 @@ public class TvRequestView extends VerticalLayout {
             tvController.searchAllEpisodes();
             refreshGrid();
         });
+        Button testNotifications = new Button(
+                "Test Notifications",
+                e -> Notification.show(RequestViewSupport.notificationSummary(notificationService.runCheck())));
         showValidCheckbox.addValueChangeListener(e -> refreshGrid());
         showStaleCheckbox.addValueChangeListener(e -> refreshGrid());
         showWithNotesCheckbox.addValueChangeListener(e -> refreshGrid());
@@ -311,6 +320,7 @@ public class TvRequestView extends VerticalLayout {
                 searchAllSeries,
                 searchAllSeasons,
                 searchAllEpisodes,
+                testNotifications,
                 showValidCheckbox,
                 showStaleCheckbox,
                 showWithNotesCheckbox,
@@ -363,21 +373,57 @@ public class TvRequestView extends VerticalLayout {
         showStaleLabel.setText("Show stale rows (" + staleCount + ")");
         showWithNotesLabel.setText("Show rows with notes (" + withNotesCount + ")");
         totalLabel.setText("Total TV shows: " + all.size());
-        SonarrQueue sonarrQueue = tvController.getSonarrQueue();
-        updateSonarrQueueCard(sonarrQueue);
-        updateQueueMaps(sonarrQueue);
-        updateSonarrHealthCard(tvController.getSonarrHealth());
 
         allRequests = all;
         applyFilters();
-        triggerDownloadLoad();
+        triggerStatsLoad();
     }
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        triggerDownloadLoad();
+        triggerStatsLoad();
     }
+
+    /** Kicks off the Sonarr queue + health fetch on the current UI, if the view is attached; a no-op otherwise. */
+    private void triggerStatsLoad() {
+        getUI().ifPresent(this::loadStatsAsync);
+    }
+
+    /**
+     * Fetches the Sonarr queue and health off the UI thread (both hit remote, VPN-fronted Sonarr and can be slow) so
+     * the page's initial render isn't blocked; the stat cards show a spinner until the results arrive via
+     * {@link UI#access}. The download-status load is chained afterwards because it joins torrents/slots to the queue
+     * maps populated here. A guard skips the fetch when one is already in flight.
+     */
+    private void loadStatsAsync(UI ui) {
+        if (!statsLoadInFlight.compareAndSet(false, true)) {
+            return;
+        }
+        RequestViewSupport.showCardLoading(sonarrQueueValue);
+        RequestViewSupport.showCardLoading(sonarrHealthValue);
+        CompletableFuture<SonarrQueue> queue = CompletableFuture.supplyAsync(tvController::getSonarrQueue);
+        CompletableFuture<List<SonarrHealthItem>> health = CompletableFuture.supplyAsync(tvController::getSonarrHealth);
+        queue.thenCombine(health, StatsResult::new)
+                .whenComplete((stats, throwable) -> ui.access(() -> {
+                    try {
+                        if (throwable != null) {
+                            log.warn("Failed to load Sonarr stats", throwable);
+                        }
+                        SonarrQueue sonarrQueue = throwable == null && stats != null ? stats.queue() : null;
+                        List<SonarrHealthItem> sonarrHealth =
+                                throwable == null && stats != null ? stats.health() : null;
+                        updateSonarrQueueCard(sonarrQueue);
+                        updateQueueMaps(sonarrQueue);
+                        updateSonarrHealthCard(sonarrHealth);
+                    } finally {
+                        statsLoadInFlight.set(false);
+                        triggerDownloadLoad();
+                    }
+                }));
+    }
+
+    private record StatsResult(SonarrQueue queue, List<SonarrHealthItem> health) {}
 
     /** Kicks off the Deluge + SABnzbd fetch on the current UI, if the view is attached; a no-op otherwise. */
     private void triggerDownloadLoad() {

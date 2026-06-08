@@ -201,6 +201,7 @@ public class TvRequest extends Request {
                 getOmbiRequestId(),
                 getOmbiRequestStatus(),
                 getOmbiUserName(),
+                getOmbiRequestedDate(),
                 getStale(),
                 getStaleReason(),
                 getMarkedStaleAt(),

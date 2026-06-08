@@ -1,6 +1,7 @@
 package report.butt.mediamanager.controller;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -30,6 +31,7 @@ import report.butt.mediamanager.model.sonarr.Episode;
 import report.butt.mediamanager.model.sonarr.SonarrCommand;
 import report.butt.mediamanager.model.sonarr.SonarrHealthItem;
 import report.butt.mediamanager.model.sonarr.SonarrQueue;
+import report.butt.mediamanager.model.sonarr.SonarrQueueRecord;
 import report.butt.mediamanager.repository.TvChildRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
@@ -334,6 +336,80 @@ public class TvController {
                 .findById(episodeId)
                 .orElseThrow(() -> new RequestNotFoundException(episodeId));
         searchEpisodes(seriesId(episode), "tv episode request " + episodeId, episodeKeysOfEpisodes(List.of(episode)));
+    }
+
+    /**
+     * Triggers a Sonarr series search for the given Sonarr series ids and stamps their requests' last-search time. Used
+     * by the admin page's "Search all" action over the not-searched-recently shows.
+     */
+    public void searchSeries(Collection<Integer> sonarrSeriesIds) {
+        List<Integer> ids =
+                sonarrSeriesIds.stream().filter(id -> id != null).distinct().toList();
+        if (ids.isEmpty()) {
+            log.info("No series ids to search");
+            return;
+        }
+        log.info("Triggering Sonarr SeriesSearch for {} series: {}", ids.size(), ids);
+        SonarrCommand command = sonarrClient.searchSeries(ids);
+        log.info(
+                "Sonarr command {} ({}) status={} result={}",
+                command.getId(),
+                command.getCommandName(),
+                command.getStatus(),
+                command.getResult());
+        Instant now = Instant.now();
+        List<TvRequest> matching = tvRequestRepository.findAll().stream()
+                .filter(tr -> tr.getSonarrSeriesId() != null && ids.contains(tr.getSonarrSeriesId()))
+                .toList();
+        matching.forEach(tr -> tr.setSonarrLastSearched(now));
+        tvRequestRepository.saveAll(matching);
+    }
+
+    /**
+     * Deletes any Sonarr downloads for this episode (removing them from the download client and blocklisting the
+     * releases) and then triggers a fresh Sonarr episode search. Used by the "Delete Download" context-menu action.
+     */
+    @Transactional
+    public void deleteEpisodeDownloadAndSearch(Long episodeId) {
+        TvEpisodeRequest episode = tvEpisodeRequestRepository
+                .findById(episodeId)
+                .orElseThrow(() -> new RequestNotFoundException(episodeId));
+        Integer seriesId = seriesId(episode);
+        Integer seasonNumber = episode.getTvSeasonRequest() == null
+                ? null
+                : episode.getTvSeasonRequest().getOmbiSeasonNumber();
+        Integer episodeNumber = episode.getOmbiEpisodeNumber();
+        if (seriesId != null && seasonNumber != null && episodeNumber != null) {
+            deleteSonarrQueueItems(seriesId, seasonNumber, episodeNumber, "tv episode request " + episodeId);
+        } else {
+            log.warn("tv episode request {} missing series/season/episode info; skipping download deletion", episodeId);
+        }
+        searchEpisode(episodeId);
+    }
+
+    /** Deletes (from the download client, with blocklist) every Sonarr queue item for the given episode. */
+    private void deleteSonarrQueueItems(Integer seriesId, Integer seasonNumber, Integer episodeNumber, String label) {
+        SonarrQueue queue;
+        try {
+            queue = sonarrClient.getQueue();
+        } catch (Exception e) {
+            log.warn("Failed to fetch Sonarr queue; cannot delete downloads for {}", label, e);
+            return;
+        }
+        if (queue == null || queue.getRecords() == null) {
+            return;
+        }
+        for (SonarrQueueRecord record : queue.getRecords()) {
+            Episode recordEpisode = record.getEpisode();
+            if (seriesId.equals(record.getSeriesId())
+                    && recordEpisode != null
+                    && seasonNumber.equals(recordEpisode.getSeasonNumber())
+                    && episodeNumber.equals(recordEpisode.getEpisodeNumber())
+                    && record.getId() != null) {
+                log.info("Deleting Sonarr queue item {} ({}) for {}", record.getId(), record.getDownloadId(), label);
+                sonarrClient.deleteQueueItem(record.getId());
+            }
+        }
     }
 
     /** Triggers one Sonarr SeasonSearch per (distinct) season number under the given node. */

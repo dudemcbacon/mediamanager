@@ -31,7 +31,7 @@ public class DelugeClient {
             new ParameterizedTypeReference<>() {};
 
     private static final List<String> TORRENT_STATUS_FIELDS =
-            List.of("name", "progress", "state", "num_peers", "num_seeds", "total_peers", "total_seeds");
+            List.of("name", "progress", "state", "num_peers", "num_seeds", "total_peers", "total_seeds", "time_added");
 
     private final RestClient restClient;
     private final String password;

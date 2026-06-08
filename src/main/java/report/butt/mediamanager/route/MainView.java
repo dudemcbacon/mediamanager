@@ -1,9 +1,12 @@
 package report.butt.mediamanager.route;
 
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.router.RouterLink;
 import jakarta.annotation.security.PermitAll;
 
 @Route
@@ -18,6 +21,12 @@ public class MainView extends VerticalLayout {
         Tab moviesTab = new Tab("Movies");
         Tab tvTab = new Tab("TV");
         Tabs tabs = new Tabs(moviesTab, tvTab);
+
+        RouterLink adminLink = new RouterLink("Admin", AdminView.class);
+        HorizontalLayout header = new HorizontalLayout(tabs, adminLink);
+        header.setWidthFull();
+        header.setAlignItems(FlexComponent.Alignment.CENTER);
+        header.expand(tabs);
 
         VerticalLayout content = new VerticalLayout();
         content.setSizeFull();
@@ -35,7 +44,7 @@ public class MainView extends VerticalLayout {
             }
         });
 
-        add(tabs, content);
+        add(header, content);
         expand(content);
     }
 }

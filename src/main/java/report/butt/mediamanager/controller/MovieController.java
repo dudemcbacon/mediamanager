@@ -1,6 +1,7 @@
 package report.butt.mediamanager.controller;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ import report.butt.mediamanager.model.ombi.OmbiReprocessResponse;
 import report.butt.mediamanager.model.radarr.RadarrCommand;
 import report.butt.mediamanager.model.radarr.RadarrHealthItem;
 import report.butt.mediamanager.model.radarr.RadarrQueue;
+import report.butt.mediamanager.model.radarr.RadarrQueueRecord;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.service.MovieRefreshService;
 import report.butt.mediamanager.service.RequestAdminService;
@@ -224,6 +226,92 @@ public class MovieController {
         movieRequests.forEach(mr -> mr.setRadarrLastSearchTime(now));
         movieRequestRepository.saveAll(movieRequests);
         return "redirect:/movies";
+    }
+
+    /**
+     * Triggers a Radarr search for the given Radarr movie ids and stamps their request's last-search time. Used by the
+     * admin page's "Search all" action over the not-searched-recently movies.
+     */
+    public void searchMovies(Collection<Integer> radarrRequestIds) {
+        List<Integer> ids =
+                radarrRequestIds.stream().filter(id -> id != null).distinct().toList();
+        if (ids.isEmpty()) {
+            log.info("No movie ids to search");
+            return;
+        }
+        log.info("Triggering Radarr MoviesSearch for {} movies: {}", ids.size(), ids);
+        RadarrCommand command = radarrClient.searchMovies(ids);
+        log.info(
+                "Radarr command {} ({}) status={} result={}",
+                command.getId(),
+                command.getCommandName(),
+                command.getStatus(),
+                command.getResult());
+        Instant now = Instant.now();
+        List<MovieRequest> matching = movieRequestRepository.findAll().stream()
+                .filter(mr -> mr.getRadarrRequestId() != null && ids.contains(mr.getRadarrRequestId()))
+                .toList();
+        matching.forEach(mr -> mr.setRadarrLastSearchTime(now));
+        movieRequestRepository.saveAll(matching);
+    }
+
+    /**
+     * Deletes any Radarr downloads for this movie (removing them from the download client and blocklisting the
+     * releases) and then triggers a fresh Radarr search. Used by the "Delete Download" context-menu action.
+     */
+    public void deleteDownloadAndSearch(Long id) {
+        MovieRequest movieRequest =
+                movieRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
+
+        Integer radarrRequestId = movieRequest.getRadarrRequestId();
+        if (radarrRequestId == null) {
+            log.warn(
+                    "MovieRequest {} ({}) has no radarrRequestId; skipping delete-download and search",
+                    id,
+                    movieRequest.getTitle());
+            return;
+        }
+
+        deleteRadarrQueueItems(radarrRequestId, id, movieRequest.getTitle());
+
+        RadarrCommand command = radarrClient.searchMovies(List.of(radarrRequestId));
+        log.info(
+                "Radarr command {} ({}) status={} result={}",
+                command.getId(),
+                command.getCommandName(),
+                command.getStatus(),
+                command.getResult());
+        movieRequest.setRadarrLastSearchTime(Instant.now());
+        movieRequestRepository.save(movieRequest);
+    }
+
+    /** Deletes (from the download client, with blocklist) every Radarr queue item for the given movie. */
+    private void deleteRadarrQueueItems(Integer radarrMovieId, Long requestId, String title) {
+        RadarrQueue queue;
+        try {
+            queue = radarrClient.getQueue();
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to fetch Radarr queue; cannot delete downloads for movie request {} ({})",
+                    requestId,
+                    title,
+                    e);
+            return;
+        }
+        if (queue == null || queue.getRecords() == null) {
+            return;
+        }
+        for (RadarrQueueRecord record : queue.getRecords()) {
+            if (radarrMovieId.equals(record.getMovieId()) && record.getId() != null) {
+                log.info(
+                        "Deleting Radarr queue item {} ({}) for movie request {} ({})",
+                        record.getId(),
+                        record.getDownloadId(),
+                        requestId,
+                        title);
+                radarrClient.deleteQueueItem(record.getId());
+            }
+        }
     }
 
     @PostMapping("/movies/{id}/quality-profile-any")

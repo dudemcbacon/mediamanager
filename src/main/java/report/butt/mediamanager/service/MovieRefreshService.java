@@ -145,6 +145,7 @@ public class MovieRefreshService {
             movieRequest.setOmbiAvailable(ombiMovie.getAvailable());
             movieRequest.setOmbiRequestStatus(ombiMovie.getRequestStatus());
             movieRequest.setOmbiUserName(ombiUserName);
+            movieRequest.setOmbiRequestedDate(DateTimeUtils.parseInstant(ombiMovie.getRequestedDate(), "Ombi"));
         }
 
         if (radarrMovie != null) {

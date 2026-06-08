@@ -61,8 +61,8 @@ public class ValidatorService {
     }
 
     /**
-     * Validates every movie request in one transaction, preloading all existing validations up front so the whole
-     * sweep costs one read of the validation table plus a single batched write of only the rows whose result changed —
+     * Validates every movie request in one transaction, preloading all existing validations up front so the whole sweep
+     * costs one read of the validation table plus a single batched write of only the rows whose result changed —
      * instead of a read and a write per (movie × validator).
      */
     @Transactional
@@ -84,8 +84,8 @@ public class ValidatorService {
     /**
      * Validates every TV show and every episode beneath it in one transaction. The episode hierarchy is loaded in three
      * bulk queries (not one lazy load per show) and all existing validations are preloaded once, so the sweep costs two
-     * reads plus a single batched write of only the changed rows — instead of a read and a write per
-     * (show/episode × validator).
+     * reads plus a single batched write of only the changed rows — instead of a read and a write per (show/episode ×
+     * validator).
      */
     @Transactional
     public void validateAllTv() {
@@ -143,7 +143,8 @@ public class ValidatorService {
         for (Validator<? extends Request> validator : applicable) {
             String name = validator.getClass().getSimpleName();
             Boolean result = runUnchecked(validator, request);
-            all.add(reconcile(existingByName.get(name), name, result, toSave, () -> new Validation(name, result, request)));
+            all.add(reconcile(
+                    existingByName.get(name), name, result, toSave, () -> new Validation(name, result, request)));
         }
         return all;
     }
@@ -166,11 +167,7 @@ public class ValidatorService {
      * construction so it only runs when there is no existing row.
      */
     private static Validation reconcile(
-            Validation existing,
-            String name,
-            Boolean result,
-            List<Validation> toSave,
-            Supplier<Validation> create) {
+            Validation existing, String name, Boolean result, List<Validation> toSave, Supplier<Validation> create) {
         if (existing == null) {
             Validation created = create.get();
             toSave.add(created);

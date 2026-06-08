@@ -6,6 +6,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class RadarrQueueRecord {
 
+    @JsonProperty("id")
+    private Integer id;
+
     @JsonProperty("movieId")
     private Integer movieId;
 
@@ -17,6 +20,14 @@ public class RadarrQueueRecord {
 
     @JsonProperty("protocol")
     private String protocol;
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
 
     public Integer getMovieId() {
         return movieId;

@@ -6,6 +6,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SonarrQueueRecord {
 
+    @JsonProperty("id")
+    private Integer id;
+
     @JsonProperty("seriesId")
     private Integer seriesId;
 
@@ -24,6 +27,14 @@ public class SonarrQueueRecord {
     /** Populated only when the queue is fetched with {@code includeEpisode=true}; carries episodeNumber. */
     @JsonProperty("episode")
     private Episode episode;
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
 
     public Integer getSeriesId() {
         return seriesId;

@@ -35,6 +35,7 @@ public abstract class Request {
     private Integer ombiRequestId;
     private String ombiRequestStatus;
     private String ombiUserName;
+    private Instant ombiRequestedDate;
 
     private Boolean stale;
 
@@ -111,6 +112,14 @@ public abstract class Request {
 
     public void setOmbiUserName(String ombiUserName) {
         this.ombiUserName = ombiUserName;
+    }
+
+    public Instant getOmbiRequestedDate() {
+        return this.ombiRequestedDate;
+    }
+
+    public void setOmbiRequestedDate(Instant ombiRequestedDate) {
+        this.ombiRequestedDate = ombiRequestedDate;
     }
 
     public Boolean getStale() {

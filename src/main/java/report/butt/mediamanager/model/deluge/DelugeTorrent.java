@@ -15,6 +15,9 @@ public class DelugeTorrent {
     @JsonProperty("state")
     private String state;
 
+    @JsonProperty("time_added")
+    private Double timeAdded;
+
     @JsonProperty("num_peers")
     private Integer numPeers;
 
@@ -49,6 +52,14 @@ public class DelugeTorrent {
 
     public void setState(String state) {
         this.state = state;
+    }
+
+    public Double getTimeAdded() {
+        return timeAdded;
+    }
+
+    public void setTimeAdded(Double timeAdded) {
+        this.timeAdded = timeAdded;
     }
 
     public Integer getNumPeers() {

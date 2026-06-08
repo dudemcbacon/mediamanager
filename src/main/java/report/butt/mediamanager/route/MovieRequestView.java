@@ -15,6 +15,7 @@ import com.vaadin.flow.component.grid.GridSortOrder;
 import com.vaadin.flow.component.grid.contextmenu.GridContextMenu;
 import com.vaadin.flow.component.grid.contextmenu.GridMenuItem;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -55,6 +56,7 @@ import report.butt.mediamanager.model.sabnzbd.SabnzbdSlot;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.ValidationRepository;
+import report.butt.mediamanager.service.NotificationService;
 import report.butt.mediamanager.validation.Validator;
 
 @Component
@@ -78,6 +80,7 @@ public class MovieRequestView extends VerticalLayout {
     private final Map<Integer, DelugeTorrent> torrentByMovieId = new HashMap<>();
     private final Map<Integer, SabnzbdSlot> slotByMovieId = new HashMap<>();
     private final AtomicBoolean downloadLoadInFlight = new AtomicBoolean(false);
+    private final AtomicBoolean statsLoadInFlight = new AtomicBoolean(false);
     private final Set<Long> movieRequestsWithNotes = new HashSet<>();
     private final Checkbox showValidCheckbox = new Checkbox(true);
     private final Checkbox showStaleCheckbox = new Checkbox(false);
@@ -101,6 +104,7 @@ public class MovieRequestView extends VerticalLayout {
     private final PlexClient plexClient;
     private final DelugeClient delugeClient;
     private final SabnzbdClient sabnzbdClient;
+    private final NotificationService notificationService;
 
     public MovieRequestView(
             MovieRequestRepository movieRequestRepository,
@@ -111,6 +115,7 @@ public class MovieRequestView extends VerticalLayout {
             PlexClient plexClient,
             DelugeClient delugeClient,
             SabnzbdClient sabnzbdClient,
+            NotificationService notificationService,
             @Value("${ombi.url}") String ombiUrl,
             @Value("${radarr.url}") String radarrUrl) {
         this.movieRequestRepository = movieRequestRepository;
@@ -124,6 +129,7 @@ public class MovieRequestView extends VerticalLayout {
         this.plexClient = plexClient;
         this.delugeClient = delugeClient;
         this.sabnzbdClient = sabnzbdClient;
+        this.notificationService = notificationService;
         this.knownValidatorNames =
                 validators.stream().map(v -> v.getClass().getSimpleName()).collect(Collectors.toUnmodifiableSet());
         setSizeFull();
@@ -172,6 +178,10 @@ public class MovieRequestView extends VerticalLayout {
         }));
         contextMenu.addItem("Search", e -> e.getItem().ifPresent(mr -> {
             movieController.searchOne(mr.getId());
+            refreshGrid();
+        }));
+        contextMenu.addItem("Delete Download", e -> e.getItem().ifPresent(mr -> {
+            movieController.deleteDownloadAndSearch(mr.getId());
             refreshGrid();
         }));
         GridMenuItem<MovieRequest> markAvailableItem =
@@ -242,6 +252,9 @@ public class MovieRequestView extends VerticalLayout {
             movieController.searchAll();
             refreshGrid();
         });
+        Button testNotifications = new Button(
+                "Test Notifications",
+                e -> Notification.show(RequestViewSupport.notificationSummary(notificationService.runCheck())));
         showValidCheckbox.addValueChangeListener(e -> refreshGrid());
         showStaleCheckbox.addValueChangeListener(e -> refreshGrid());
         showWithNotesCheckbox.addValueChangeListener(e -> refreshGrid());
@@ -259,6 +272,7 @@ public class MovieRequestView extends VerticalLayout {
                 refreshAll,
                 validateAll,
                 searchAll,
+                testNotifications,
                 showValidCheckbox,
                 showStaleCheckbox,
                 showWithNotesCheckbox,
@@ -297,21 +311,58 @@ public class MovieRequestView extends VerticalLayout {
         showStaleLabel.setText("Show stale rows (" + staleCount + ")");
         showWithNotesLabel.setText("Show rows with notes (" + withNotesCount + ")");
         totalLabel.setText("Total movies: " + all.size());
-        RadarrQueue radarrQueue = movieController.getRadarrQueue();
-        updateRadarrQueueCard(radarrQueue);
-        updateQueueMaps(radarrQueue);
-        updateRadarrHealthCard(movieController.getRadarrHealth());
 
         allRequests = all;
         applyFilters();
-        triggerDownloadLoad();
+        triggerStatsLoad();
     }
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        triggerDownloadLoad();
+        triggerStatsLoad();
     }
+
+    /** Kicks off the Radarr queue + health fetch on the current UI, if the view is attached; a no-op otherwise. */
+    private void triggerStatsLoad() {
+        getUI().ifPresent(this::loadStatsAsync);
+    }
+
+    /**
+     * Fetches the Radarr queue and health off the UI thread (both hit remote, VPN-fronted Radarr and can be slow) so
+     * the page's initial render isn't blocked; the stat cards show a spinner until the results arrive via
+     * {@link UI#access}. The download-status load is chained afterwards because it joins torrents/slots to the queue
+     * maps populated here. A guard skips the fetch when one is already in flight.
+     */
+    private void loadStatsAsync(UI ui) {
+        if (!statsLoadInFlight.compareAndSet(false, true)) {
+            return;
+        }
+        RequestViewSupport.showCardLoading(radarrQueueValue);
+        RequestViewSupport.showCardLoading(radarrHealthValue);
+        CompletableFuture<RadarrQueue> queue = CompletableFuture.supplyAsync(movieController::getRadarrQueue);
+        CompletableFuture<List<RadarrHealthItem>> health =
+                CompletableFuture.supplyAsync(movieController::getRadarrHealth);
+        queue.thenCombine(health, StatsResult::new)
+                .whenComplete((stats, throwable) -> ui.access(() -> {
+                    try {
+                        if (throwable != null) {
+                            log.warn("Failed to load Radarr stats", throwable);
+                        }
+                        RadarrQueue radarrQueue = throwable == null && stats != null ? stats.queue() : null;
+                        List<RadarrHealthItem> radarrHealth =
+                                throwable == null && stats != null ? stats.health() : null;
+                        updateRadarrQueueCard(radarrQueue);
+                        updateQueueMaps(radarrQueue);
+                        updateRadarrHealthCard(radarrHealth);
+                    } finally {
+                        statsLoadInFlight.set(false);
+                        triggerDownloadLoad();
+                    }
+                }));
+    }
+
+    private record StatsResult(RadarrQueue queue, List<RadarrHealthItem> health) {}
 
     /** Kicks off the Deluge + SABnzbd fetch on the current UI, if the view is attached; a no-op otherwise. */
     private void triggerDownloadLoad() {

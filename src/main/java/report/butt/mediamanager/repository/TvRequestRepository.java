@@ -13,4 +13,6 @@ public interface TvRequestRepository extends JpaRepository<TvRequest, Long> {
     Optional<TvRequest> findByOmbiRequestId(Integer ombiRequestId);
 
     List<TvRequest> findByOmbiRequestIdIn(Collection<Integer> ombiRequestIds);
+
+    List<TvRequest> findBySonarrSeriesId(Integer sonarrSeriesId);
 }

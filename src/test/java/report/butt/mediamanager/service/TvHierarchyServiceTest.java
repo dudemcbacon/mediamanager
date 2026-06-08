@@ -22,7 +22,13 @@ import report.butt.mediamanager.repository.TvSeasonRequestRepository;
 
 // Bootstrap credentials have no default in application.properties (fail-fast in production). Supply
 // test values here so the context can start without the MEDIAMANAGER_BOOTSTRAP_* env vars.
-@SpringBootTest(properties = {"mediamanager.bootstrap.username=test", "mediamanager.bootstrap.password=test"})
+// Required-config validation is disabled: tests don't supply the real integration/mail config it enforces.
+@SpringBootTest(
+        properties = {
+            "mediamanager.bootstrap.username=test",
+            "mediamanager.bootstrap.password=test",
+            "mediamanager.validate-required-config=false"
+        })
 @Transactional
 class TvHierarchyServiceTest {
 

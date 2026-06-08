@@ -50,7 +50,9 @@ public class TvRefreshService {
 
     private static final Logger log = LoggerFactory.getLogger(TvRefreshService.class);
 
-    /** Upper bound on concurrent Sonarr episode lookups during a full refresh; one HTTP call is made per matched show. */
+    /**
+     * Upper bound on concurrent Sonarr episode lookups during a full refresh; one HTTP call is made per matched show.
+     */
     private static final int SONARR_FETCH_CONCURRENCY = 8;
 
     private final TvRequestRepository repository;
@@ -256,9 +258,8 @@ public class TvRefreshService {
      * {@link #resolveSonarrEpisodes(Series)}.
      */
     private Map<Integer, Map<EpisodeKey, SonarrEpisodeData>> prefetchSonarrEpisodes(Collection<Series> series) {
-        List<Series> matched = series.stream()
-                .filter(s -> s != null && s.getId() != null)
-                .toList();
+        List<Series> matched =
+                series.stream().filter(s -> s != null && s.getId() != null).toList();
         if (matched.isEmpty()) {
             return Map.of();
         }
@@ -482,6 +483,8 @@ public class TvRefreshService {
             tvRequest.setOmbiAvailable(firstChild == null ? null : firstChild.getAvailable());
             tvRequest.setOmbiRequestStatus(firstChild == null ? null : firstChild.getRequestStatus());
             tvRequest.setOmbiUserName(ombiUserName);
+            tvRequest.setOmbiRequestedDate(
+                    firstChild == null ? null : DateTimeUtils.parseInstant(firstChild.getRequestedDate(), "Ombi"));
             tvRequest.setOmbiExternalProviderId(ombiTv.getExternalProviderId());
             tvRequest.setOmbiTotalSeasons(ombiTv.getTotalSeasons());
         }

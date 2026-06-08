@@ -106,7 +106,8 @@ public class TvHierarchyService {
         }
 
         Map<Long, Long> parentByChildId = children.stream()
-                .collect(Collectors.toMap(TvChildRequest::getId, c -> c.getParent().getId()));
+                .collect(Collectors.toMap(
+                        TvChildRequest::getId, c -> c.getParent().getId()));
 
         List<Long> childIds = children.stream().map(TvChildRequest::getId).toList();
         List<TvSeasonRequest> seasons = tvSeasonRequestRepository.findByTvChildRequestIdIn(childIds);
@@ -125,7 +126,9 @@ public class TvHierarchyService {
             if (parentId == null) {
                 continue;
             }
-            episodesByRequestId.computeIfAbsent(parentId, k -> new ArrayList<>()).add(episode);
+            episodesByRequestId
+                    .computeIfAbsent(parentId, k -> new ArrayList<>())
+                    .add(episode);
         }
         return episodesByRequestId;
     }
