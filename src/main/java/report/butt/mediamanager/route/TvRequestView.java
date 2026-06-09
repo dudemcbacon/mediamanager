@@ -6,7 +6,6 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.card.Card;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.dependency.StyleSheet;
-import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridSortOrder;
@@ -18,14 +17,16 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.shared.Tooltip;
-import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.data.renderer.LitRenderer;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.annotation.UIScope;
-import com.vaadin.flow.theme.aura.Aura;
+import jakarta.annotation.security.PermitAll;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,6 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import report.butt.mediamanager.client.DelugeClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.SabnzbdClient;
@@ -56,14 +59,17 @@ import report.butt.mediamanager.model.sonarr.SonarrQueueRecord;
 import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.ValidationRepository;
+import report.butt.mediamanager.security.SecurityUtils;
 import report.butt.mediamanager.service.NotificationService;
 import report.butt.mediamanager.service.TvHierarchyService;
 import report.butt.mediamanager.validation.EpisodeValidator;
 import report.butt.mediamanager.validation.Validator;
 
+@Route("tv")
+@PageTitle("TV")
+@PermitAll
 @Component
 @UIScope
-@StyleSheet(Aura.STYLESHEET)
 @StyleSheet("grid-available.css")
 public class TvRequestView extends VerticalLayout {
 
@@ -88,10 +94,11 @@ public class TvRequestView extends VerticalLayout {
     private final Checkbox showValidCheckbox = new Checkbox(true);
     private final Checkbox showStaleCheckbox = new Checkbox(false);
     private final Checkbox showWithNotesCheckbox = new Checkbox(true);
-    private final Span showValidLabel = RequestViewSupport.coloredLabel("Show valid rows", "#2e8b57");
-    private final Span showStaleLabel = RequestViewSupport.coloredLabel("Show stale rows", "#b8860b");
-    private final Span showWithNotesLabel = RequestViewSupport.coloredLabel("Show rows with notes", "#1e6fce");
-    private final Span totalLabel = RequestViewSupport.coloredLabel("Total TV shows", "#333");
+    private final Span showValidLabel = RequestViewSupport.coloredLabel("Show valid rows", "var(--aura-green-text)");
+    private final Span showStaleLabel = RequestViewSupport.coloredLabel("Show stale rows", "var(--aura-yellow-text)");
+    private final Span showWithNotesLabel =
+            RequestViewSupport.coloredLabel("Show rows with notes", "var(--aura-blue-text)");
+    private final Span totalLabel = RequestViewSupport.coloredLabel("Total TV shows", "var(--vaadin-text-color)");
     private final Span sonarrQueueValue = new Span("—");
     private final Card sonarrQueueCard = RequestViewSupport.statCard("Sonarr Queue", sonarrQueueValue);
     private final Tooltip sonarrQueueTooltip = Tooltip.forComponent(sonarrQueueCard);
@@ -99,6 +106,7 @@ public class TvRequestView extends VerticalLayout {
     private final Card sonarrHealthCard = RequestViewSupport.statCard("Health Issues", sonarrHealthValue);
     private final Tooltip sonarrHealthTooltip = Tooltip.forComponent(sonarrHealthCard);
     private final TextField searchField = new TextField();
+    private final List<Button> bulkButtons = new ArrayList<>();
     private List<TvRequest> allRequests = List.of();
     private final String ombiUrl;
     private final String sonarrUrl;
@@ -108,6 +116,7 @@ public class TvRequestView extends VerticalLayout {
     private final DelugeClient delugeClient;
     private final SabnzbdClient sabnzbdClient;
     private final NotificationService notificationService;
+    private final TransactionTemplate transactionTemplate;
     private final Map<QueueKey, String> protocolByEpisode = new HashMap<>();
     private final Map<QueueKey, String> downloadIdByEpisode = new HashMap<>();
     private final Map<QueueKey, DelugeTorrent> torrentByEpisode = new HashMap<>();
@@ -115,6 +124,7 @@ public class TvRequestView extends VerticalLayout {
     private final Map<Integer, Set<String>> protocolsBySeriesId = new HashMap<>();
     private final AtomicBoolean downloadLoadInFlight = new AtomicBoolean(false);
     private final AtomicBoolean statsLoadInFlight = new AtomicBoolean(false);
+    private final AtomicBoolean gridLoadInFlight = new AtomicBoolean(false);
 
     public TvRequestView(
             TvRequestRepository tvRequestRepository,
@@ -129,7 +139,8 @@ public class TvRequestView extends VerticalLayout {
             NotificationService notificationService,
             @Value("${ombi.url}") String ombiUrl,
             @Value("${sonarr.url}") String sonarrUrl,
-            TvHierarchyService tvHierarchyService) {
+            TvHierarchyService tvHierarchyService,
+            PlatformTransactionManager transactionManager) {
         this.tvRequestRepository = tvRequestRepository;
         this.tvController = tvController;
         this.validationRepository = validationRepository;
@@ -143,6 +154,8 @@ public class TvRequestView extends VerticalLayout {
         this.delugeClient = delugeClient;
         this.sabnzbdClient = sabnzbdClient;
         this.notificationService = notificationService;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.transactionTemplate.setReadOnly(true);
         this.knownValidatorNames =
                 validators.stream().map(v -> v.getClass().getSimpleName()).collect(Collectors.toUnmodifiableSet());
         this.episodeValidators = episodeValidators.stream()
@@ -206,32 +219,32 @@ public class TvRequestView extends VerticalLayout {
         grid.setItemDetailsRenderer(new ComponentRenderer<>(this::createDetails));
         grid.setDetailsVisibleOnClick(true);
 
+        boolean admin = SecurityUtils.isAdmin();
         GridContextMenu<TvRequest> contextMenu = grid.addContextMenu();
         RequestViewSupport.suppressGridContextMenuOnLinks(grid);
-        contextMenu.addItem("Refresh", e -> e.getItem().ifPresent(mr -> {
-            tvController.refresh(mr.getId());
-            tvController.validate(mr.getId());
-            refreshGrid();
-        }));
-        contextMenu.addItem("Search", e -> e.getItem().ifPresent(mr -> {
-            tvController.searchOne(mr.getId());
-            refreshGrid();
-        }));
+        contextMenu.addItem("Refresh", e -> e.getItem()
+                .ifPresent(mr -> runAction("Refreshing…", () -> {
+                    tvController.refresh(mr.getId());
+                    tvController.validate(mr.getId());
+                })));
+        contextMenu.addItem("Search", e -> e.getItem()
+                .ifPresent(mr -> runAction("Searching…", () -> tvController.searchOne(mr.getId()))));
         contextMenu.addItem("Search All Seasons", e -> e.getItem()
-                .ifPresent(mr -> tvController.searchAllSeasonsForRequest(mr.getId())));
+                .ifPresent(mr -> runAction(
+                        "Searching all seasons…", () -> tvController.searchAllSeasonsForRequest(mr.getId()))));
         contextMenu.addItem("Search All Episodes", e -> e.getItem()
-                .ifPresent(mr -> tvController.searchAllEpisodesForRequest(mr.getId())));
-        GridMenuItem<TvRequest> markAvailableItem =
-                contextMenu.addItem("Mark Available", e -> e.getItem().ifPresent(mr -> {
+                .ifPresent(mr -> runAction(
+                        "Searching all episodes…", () -> tvController.searchAllEpisodesForRequest(mr.getId()))));
+        GridMenuItem<TvRequest> markAvailableItem = contextMenu.addItem("Mark Available", e -> e.getItem()
+                .ifPresent(mr -> runAction("Marking available…", () -> {
                     tvController.markAvailable(mr.getId());
                     tvController.refresh(mr.getId());
                     tvController.validate(mr.getId());
-                    refreshGrid();
-                }));
-        contextMenu.addItem("Set Quality Profile to 'Any'", e -> e.getItem().ifPresent(mr -> {
-            tvController.setQualityProfileToAny(mr.getId());
-            refreshGrid();
-        }));
+                })));
+        GridMenuItem<TvRequest> qualityProfileItem =
+                contextMenu.addItem("Set Quality Profile to 'Any'", e -> e.getItem()
+                        .ifPresent(mr -> runAction(
+                                "Updating quality profile…", () -> tvController.setQualityProfileToAny(mr.getId()))));
         contextMenu.addItem("Mark as Stale", e -> e.getItem().ifPresent(this::openMarkStaleDialog));
         contextMenu.addItem("Add Note", e -> e.getItem().ifPresent(this::openAddNoteDialog));
         contextMenu.addItem("View Notes", e -> e.getItem().ifPresent(this::openViewNotesDialog));
@@ -244,10 +257,12 @@ public class TvRequestView extends VerticalLayout {
                 contextMenu.addItem("View Plex JSON", e -> e.getItem().ifPresent(this::openPlexJson));
         GridMenuItem<TvRequest> viewTvdbItem =
                 contextMenu.addItem("View TVDB", e -> e.getItem().ifPresent(this::openTvdb));
-        contextMenu.addItem("Delete TV Request", e -> e.getItem().ifPresent(mr -> {
-            tvController.delete(mr.getId());
-            refreshGrid();
-        }));
+        GridMenuItem<TvRequest> deleteRequestItem = contextMenu.addItem("Delete TV Request", e -> e.getItem()
+                .ifPresent(mr -> runAction("Deleting request…", () -> tvController.delete(mr.getId()))));
+        // USER tier may view, refresh, search, validate, and annotate; mutating Ombi/Sonarr or deleting is ADMIN-only.
+        markAvailableItem.setVisible(admin);
+        qualityProfileItem.setVisible(admin);
+        deleteRequestItem.setVisible(admin);
         contextMenu.setDynamicContentHandler(mr -> {
             if (mr == null) {
                 return false;
@@ -273,38 +288,31 @@ public class TvRequestView extends VerticalLayout {
             return valid ? "available" : "not_available";
         });
 
-        refreshGrid();
         grid.sort(List.of(new GridSortOrder<>(titleColumn, SortDirection.ASCENDING)));
         grid.setWidthFull();
         grid.setMinHeight("0");
 
-        Button refreshAll = new Button("Refresh All", e -> {
-            tvController.refreshAll();
-            tvController.validateAll();
-            refreshGrid();
-        });
-        Button validateAll = new Button("Validate All", e -> {
-            tvController.validateAll();
-            refreshGrid();
-        });
-        Button searchAllSeries = new Button("Search All Series", e -> {
-            tvController.searchAllSeries();
-            refreshGrid();
-        });
-        Button searchAllSeasons = new Button("Search All Seasons", e -> {
-            tvController.searchAllSeasons();
-            refreshGrid();
-        });
-        Button searchAllEpisodes = new Button("Search All Episodes", e -> {
-            tvController.searchAllEpisodes();
-            refreshGrid();
-        });
-        Button testNotifications = new Button(
-                "Test Notifications",
-                e -> Notification.show(RequestViewSupport.notificationSummary(notificationService.runCheck())));
-        showValidCheckbox.addValueChangeListener(e -> refreshGrid());
-        showStaleCheckbox.addValueChangeListener(e -> refreshGrid());
-        showWithNotesCheckbox.addValueChangeListener(e -> refreshGrid());
+        Button refreshAll = new Button(
+                "Refresh All",
+                e -> runBulkAction("Refreshing all…", () -> {
+                    tvController.refreshAll();
+                    tvController.validateAll();
+                }));
+        Button validateAll =
+                new Button("Validate All", e -> runBulkAction("Validating all…", tvController::validateAll));
+        Button searchAllSeries = new Button(
+                "Search All Series", e -> runBulkAction("Searching all series…", tvController::searchAllSeries));
+        Button searchAllSeasons = new Button(
+                "Search All Seasons", e -> runBulkAction("Searching all seasons…", tvController::searchAllSeasons));
+        Button searchAllEpisodes = new Button(
+                "Search All Episodes", e -> runBulkAction("Searching all episodes…", tvController::searchAllEpisodes));
+        Button testNotifications = new Button("Test Notifications", e -> runNotificationCheck());
+        testNotifications.setVisible(admin);
+        bulkButtons.addAll(List.of(
+                refreshAll, validateAll, searchAllSeries, searchAllSeasons, searchAllEpisodes, testNotifications));
+        showValidCheckbox.addValueChangeListener(e -> applyFilters());
+        showStaleCheckbox.addValueChangeListener(e -> applyFilters());
+        showWithNotesCheckbox.addValueChangeListener(e -> applyFilters());
         showValidCheckbox.setLabelComponent(showValidLabel);
         showStaleCheckbox.setLabelComponent(showStaleLabel);
         showWithNotesCheckbox.setLabelComponent(showWithNotesLabel);
@@ -331,58 +339,156 @@ public class TvRequestView extends VerticalLayout {
         setFlexGrow(1, grid);
     }
 
+    /**
+     * Runs a blocking controller action (Ombi/Sonarr/Plex) off the UI thread, refreshing the grid when it completes.
+     */
+    private void runAction(String workingMessage, Runnable action) {
+        getUI().ifPresent(ui -> RequestViewSupport.runAsync(ui, log, workingMessage, action, this::refreshGrid));
+    }
+
+    private void setBulkButtonsEnabled(boolean enabled) {
+        bulkButtons.forEach(b -> b.setEnabled(enabled));
+    }
+
+    /**
+     * Like {@link #runAction}, but for the toolbar's library-wide buttons: disables all of them for the duration so a
+     * long operation can't be double-fired or overlapped with another bulk action, re-enabling them on completion.
+     */
+    private void runBulkAction(String workingMessage, Runnable action) {
+        getUI().ifPresent(ui -> {
+            setBulkButtonsEnabled(false);
+            RequestViewSupport.runAsync(ui, log, workingMessage, action, () -> {
+                setBulkButtonsEnabled(true);
+                refreshGrid();
+            });
+        });
+    }
+
+    /** Runs the notification check off the UI thread and shows its summary toast. */
+    private void runNotificationCheck() {
+        getUI().ifPresent(ui -> {
+            setBulkButtonsEnabled(false);
+            Notification working = new Notification("Running notification check…");
+            working.setDuration(0);
+            working.setPosition(Notification.Position.BOTTOM_START);
+            working.open();
+            CompletableFuture.supplyAsync(notificationService::runCheck)
+                    .whenComplete((result, throwable) -> ui.access(() -> {
+                        try {
+                            working.close();
+                            if (throwable != null) {
+                                log.warn("Notification check failed", throwable);
+                                Notification.show("Notification check failed; see the server log.");
+                            } else {
+                                Notification.show(RequestViewSupport.notificationSummary(result));
+                            }
+                        } finally {
+                            setBulkButtonsEnabled(true);
+                        }
+                    }));
+        });
+    }
+
+    /**
+     * Reloads the grid's data off the UI thread and, when it lands, refreshes the stat cards. The DB reads run inside a
+     * read-only transaction on the worker thread because {@link Validation#getRequest()}/{@code getTvEpisode()} and
+     * {@link Note#getRequest()} are lazy and would otherwise fail outside the request-bound session. A no-op until the
+     * view is attached; the initial load is kicked off from {@link #onAttach}.
+     */
     private void refreshGrid() {
-        latestValidations.clear();
-        latestEpisodeValidations.clear();
+        getUI().ifPresent(this::loadGridAsync);
+    }
+
+    private void loadGridAsync(UI ui) {
+        if (!gridLoadInFlight.compareAndSet(false, true)) {
+            return;
+        }
+        CompletableFuture.supplyAsync(() -> transactionTemplate.execute(status -> buildSnapshot()))
+                .whenComplete((snapshot, throwable) -> ui.access(() -> {
+                    try {
+                        if (throwable != null) {
+                            log.warn("Failed to refresh TV grid", throwable);
+                        } else if (snapshot != null) {
+                            applySnapshot(snapshot);
+                        }
+                    } finally {
+                        gridLoadInFlight.set(false);
+                        triggerStatsLoad();
+                    }
+                }));
+    }
+
+    private record GridSnapshot(
+            Map<Long, Map<String, Validation>> latestValidations,
+            Map<Long, Map<String, Validation>> latestEpisodeValidations,
+            Map<Long, Boolean> subValidations,
+            Set<Long> withNotes,
+            List<TvRequest> all,
+            long validCount,
+            long staleCount,
+            long withNotesCount) {}
+
+    /**
+     * Reads request- and episode-level validations, the show hierarchies (for the sub-validation roll-up), notes, and
+     * requests, building every row index. Runs inside a read-only transaction on the worker thread.
+     */
+    private GridSnapshot buildSnapshot() {
+        Map<Long, Map<String, Validation>> latest = new HashMap<>();
+        Map<Long, Map<String, Validation>> latestEpisode = new HashMap<>();
         for (Validation v : validationRepository.findAll()) {
             String name = v.getValidationName();
             if (knownValidatorNames.contains(name)) {
                 Long tvRequestId = v.getRequest().getId();
-                latestValidations
-                        .computeIfAbsent(tvRequestId, k -> new HashMap<>())
+                latest.computeIfAbsent(tvRequestId, k -> new HashMap<>())
                         .merge(name, v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
             } else if (knownEpisodeValidatorNames.contains(name) && v.getTvEpisode() != null) {
                 Long episodeId = v.getTvEpisode().getId();
-                latestEpisodeValidations
+                latestEpisode
                         .computeIfAbsent(episodeId, k -> new HashMap<>())
                         .merge(name, v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
             }
         }
-        subValidations.clear();
+        Map<Long, Boolean> subs = new HashMap<>();
         tvHierarchyService
                 .loadAllHierarchies()
-                .forEach((tvRequestId, children) -> subValidations.put(
+                .forEach((tvRequestId, children) -> subs.put(
                         tvRequestId,
-                        TvHierarchyTreeGrid.allChildrenValidation(
-                                children, episodeValidators, latestEpisodeValidations)));
-
-        tvRequestsWithNotes.clear();
-        noteRepository
-                .findAll()
-                .forEach(n -> tvRequestsWithNotes.add(n.getRequest().getId()));
+                        TvHierarchyTreeGrid.allChildrenValidation(children, episodeValidators, latestEpisode)));
+        Set<Long> withNotes = new HashSet<>();
+        noteRepository.findAll().forEach(n -> withNotes.add(n.getRequest().getId()));
         List<TvRequest> all = tvRequestRepository.findAll();
         long validCount = all.stream()
-                .filter(mr -> mr.isValid(knownValidatorNames, latestValidations.getOrDefault(mr.getId(), Map.of())))
+                .filter(mr -> mr.isValid(knownValidatorNames, latest.getOrDefault(mr.getId(), Map.of())))
                 .count();
         long staleCount =
                 all.stream().filter(mr -> Boolean.TRUE.equals(mr.getStale())).count();
-        long withNotesCount = all.stream()
-                .filter(mr -> tvRequestsWithNotes.contains(mr.getId()))
-                .count();
-        showValidLabel.setText("Show valid rows (" + validCount + ")");
-        showStaleLabel.setText("Show stale rows (" + staleCount + ")");
-        showWithNotesLabel.setText("Show rows with notes (" + withNotesCount + ")");
-        totalLabel.setText("Total TV shows: " + all.size());
+        long withNotesCount =
+                all.stream().filter(mr -> withNotes.contains(mr.getId())).count();
+        return new GridSnapshot(latest, latestEpisode, subs, withNotes, all, validCount, staleCount, withNotesCount);
+    }
 
-        allRequests = all;
+    /** Applies a freshly loaded snapshot to the view state (on the UI thread) and re-runs the active filters. */
+    private void applySnapshot(GridSnapshot snapshot) {
+        latestValidations.clear();
+        latestValidations.putAll(snapshot.latestValidations());
+        latestEpisodeValidations.clear();
+        latestEpisodeValidations.putAll(snapshot.latestEpisodeValidations());
+        subValidations.clear();
+        subValidations.putAll(snapshot.subValidations());
+        tvRequestsWithNotes.clear();
+        tvRequestsWithNotes.addAll(snapshot.withNotes());
+        showValidLabel.setText("Show valid rows (" + snapshot.validCount() + ")");
+        showStaleLabel.setText("Show stale rows (" + snapshot.staleCount() + ")");
+        showWithNotesLabel.setText("Show rows with notes (" + snapshot.withNotesCount() + ")");
+        totalLabel.setText("Total TV shows: " + snapshot.all().size());
+        allRequests = snapshot.all();
         applyFilters();
-        triggerStatsLoad();
     }
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        triggerStatsLoad();
+        refreshGrid();
     }
 
     /** Kicks off the Sonarr queue + health fetch on the current UI, if the view is attached; a no-op otherwise. */
@@ -560,106 +666,34 @@ public class TvRequestView extends VerticalLayout {
             "Repeated download attempts without success");
 
     private void openMarkStaleDialog(TvRequest mr) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Mark \"" + mr.getTitle() + "\" as stale");
-
-        TextArea reason = new TextArea("Reason");
-        reason.setWidthFull();
-        reason.setMinHeight("8em");
-        if (mr.getStaleReason() != null) {
-            reason.setValue(mr.getStaleReason());
-        }
-
-        HorizontalLayout cannedReasons = new HorizontalLayout();
-        cannedReasons.getStyle().set("flex-wrap", "wrap");
-        for (String canned : CANNED_STALE_REASONS) {
-            Button preset = new Button(canned, e -> reason.setValue(canned));
-            cannedReasons.add(preset);
-        }
-
-        Button submit = new Button("Submit", e -> {
-            tvController.markStale(mr.getId(), reason.getValue());
-            dialog.close();
-            refreshGrid();
-        });
-        Button cancel = new Button("Cancel", e -> dialog.close());
-
-        dialog.add(cannedReasons, reason);
-        dialog.getFooter().add(cancel, submit);
-        dialog.open();
+        RequestViewSupport.openTextEntryDialog(
+                "Mark \"" + mr.getTitle() + "\" as stale",
+                "Reason",
+                mr.getStaleReason(),
+                CANNED_STALE_REASONS,
+                false,
+                reason -> {
+                    tvController.markStale(mr.getId(), reason);
+                    refreshGrid();
+                });
     }
 
     private void openAddNoteDialog(TvRequest mr) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Add note to \"" + mr.getTitle() + "\"");
-
-        TextArea note = new TextArea("Note");
-        note.setWidthFull();
-        note.setMinHeight("8em");
-
-        Button submit = new Button("Submit", e -> {
-            if (note.getValue() == null || note.getValue().isBlank()) {
-                return;
-            }
-            tvController.addNote(mr.getId(), note.getValue());
-            dialog.close();
-            refreshGrid();
-        });
-        Button cancel = new Button("Cancel", e -> dialog.close());
-
-        dialog.add(note);
-        dialog.getFooter().add(cancel, submit);
-        dialog.open();
+        RequestViewSupport.openTextEntryDialog(
+                "Add note to \"" + mr.getTitle() + "\"", "Note", null, List.of(), true, note -> {
+                    tvController.addNote(mr.getId(), note);
+                    refreshGrid();
+                });
     }
 
     private void openViewNotesDialog(TvRequest mr) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Notes for \"" + mr.getTitle() + "\"");
-        dialog.setWidth("600px");
-
-        VerticalLayout body = new VerticalLayout();
-        body.setPadding(false);
-        body.setSpacing(true);
-
-        List<Note> notes = noteRepository.findByRequestOrderByCreatedAtDesc(mr);
-        if (notes.isEmpty()) {
-            body.add(new Span("No notes yet."));
-        } else {
-            for (Note n : notes) {
-                VerticalLayout entry = new VerticalLayout();
-                entry.setPadding(false);
-                entry.setSpacing(false);
-                Span timestamp = new Span(String.valueOf(n.getCreatedAt()));
-                timestamp.getStyle().set("font-size", "var(--lumo-font-size-s)");
-                timestamp.getStyle().set("color", "var(--lumo-secondary-text-color)");
-                Span text = new Span(n.getNotes());
-                text.getStyle().set("white-space", "pre-wrap");
-                entry.add(timestamp, text);
-                body.add(entry);
-            }
-        }
-
-        Button close = new Button("Close", e -> dialog.close());
-        dialog.add(body);
-        dialog.getFooter().add(close);
-        dialog.open();
+        RequestViewSupport.openNotesDialog(mr.getTitle(), noteRepository.findByRequestOrderByCreatedAtDesc(mr));
     }
 
     private void openPlexQueryUrlDialog(TvRequest mr) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Plex query URL for \"" + mr.getTitle() + "\"");
-        dialog.setWidth("600px");
-
         String url = plexClient.showQueryUrl(mr.getTitle());
-        TextArea urlField = new TextArea();
-        urlField.setReadOnly(true);
-        urlField.setWidthFull();
-        urlField.setValue(url == null ? "Plex query URL unavailable" : url);
-
-        Button close = new Button("Close", e -> dialog.close());
-        dialog.add(urlField);
-        dialog.getFooter().add(close);
-        dialog.open();
+        RequestViewSupport.openTextDialog(
+                "Plex query URL for \"" + mr.getTitle() + "\"", url == null ? "Plex query URL unavailable" : url);
     }
 
     /** Opens the row's Ombi details page in a new browser tab. */

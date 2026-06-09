@@ -8,7 +8,6 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.card.Card;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.dependency.StyleSheet;
-import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridSortOrder;
@@ -20,14 +19,16 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.shared.Tooltip;
-import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.data.renderer.LitRenderer;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.annotation.UIScope;
-import com.vaadin.flow.theme.aura.Aura;
+import jakarta.annotation.security.PermitAll;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,6 +42,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import report.butt.mediamanager.client.DelugeClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.SabnzbdClient;
@@ -56,12 +59,15 @@ import report.butt.mediamanager.model.sabnzbd.SabnzbdSlot;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.ValidationRepository;
+import report.butt.mediamanager.security.SecurityUtils;
 import report.butt.mediamanager.service.NotificationService;
 import report.butt.mediamanager.validation.Validator;
 
+@Route("")
+@PageTitle("Movies")
+@PermitAll
 @Component
 @UIScope
-@StyleSheet(Aura.STYLESHEET)
 @StyleSheet("grid-available.css")
 public class MovieRequestView extends VerticalLayout {
 
@@ -81,14 +87,16 @@ public class MovieRequestView extends VerticalLayout {
     private final Map<Integer, SabnzbdSlot> slotByMovieId = new HashMap<>();
     private final AtomicBoolean downloadLoadInFlight = new AtomicBoolean(false);
     private final AtomicBoolean statsLoadInFlight = new AtomicBoolean(false);
+    private final AtomicBoolean gridLoadInFlight = new AtomicBoolean(false);
     private final Set<Long> movieRequestsWithNotes = new HashSet<>();
     private final Checkbox showValidCheckbox = new Checkbox(true);
     private final Checkbox showStaleCheckbox = new Checkbox(false);
     private final Checkbox showWithNotesCheckbox = new Checkbox(true);
-    private final Span showValidLabel = RequestViewSupport.coloredLabel("Show valid rows", "#2e8b57");
-    private final Span showStaleLabel = RequestViewSupport.coloredLabel("Show stale rows", "#b8860b");
-    private final Span showWithNotesLabel = RequestViewSupport.coloredLabel("Show rows with notes", "#1e6fce");
-    private final Span totalLabel = RequestViewSupport.coloredLabel("Total movies", "#333");
+    private final Span showValidLabel = RequestViewSupport.coloredLabel("Show valid rows", "var(--aura-green-text)");
+    private final Span showStaleLabel = RequestViewSupport.coloredLabel("Show stale rows", "var(--aura-yellow-text)");
+    private final Span showWithNotesLabel =
+            RequestViewSupport.coloredLabel("Show rows with notes", "var(--aura-blue-text)");
+    private final Span totalLabel = RequestViewSupport.coloredLabel("Total movies", "var(--vaadin-text-color)");
     private final Span radarrQueueValue = new Span("—");
     private final Card radarrQueueCard = RequestViewSupport.statCard("Radarr Queue", radarrQueueValue);
     private final Tooltip radarrQueueTooltip = Tooltip.forComponent(radarrQueueCard);
@@ -96,6 +104,7 @@ public class MovieRequestView extends VerticalLayout {
     private final Card radarrHealthCard = RequestViewSupport.statCard("Health Issues", radarrHealthValue);
     private final Tooltip radarrHealthTooltip = Tooltip.forComponent(radarrHealthCard);
     private final TextField searchField = new TextField();
+    private final List<Button> bulkButtons = new ArrayList<>();
     private List<MovieRequest> allRequests = List.of();
     private final String ombiUrl;
     private final String radarrUrl;
@@ -105,6 +114,7 @@ public class MovieRequestView extends VerticalLayout {
     private final DelugeClient delugeClient;
     private final SabnzbdClient sabnzbdClient;
     private final NotificationService notificationService;
+    private final TransactionTemplate transactionTemplate;
 
     public MovieRequestView(
             MovieRequestRepository movieRequestRepository,
@@ -117,7 +127,8 @@ public class MovieRequestView extends VerticalLayout {
             SabnzbdClient sabnzbdClient,
             NotificationService notificationService,
             @Value("${ombi.url}") String ombiUrl,
-            @Value("${radarr.url}") String radarrUrl) {
+            @Value("${radarr.url}") String radarrUrl,
+            PlatformTransactionManager transactionManager) {
         this.movieRequestRepository = movieRequestRepository;
         this.movieController = movieController;
         this.validationRepository = validationRepository;
@@ -130,6 +141,8 @@ public class MovieRequestView extends VerticalLayout {
         this.delugeClient = delugeClient;
         this.sabnzbdClient = sabnzbdClient;
         this.notificationService = notificationService;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.transactionTemplate.setReadOnly(true);
         this.knownValidatorNames =
                 validators.stream().map(v -> v.getClass().getSimpleName()).collect(Collectors.toUnmodifiableSet());
         setSizeFull();
@@ -169,32 +182,30 @@ public class MovieRequestView extends VerticalLayout {
         grid.setItemDetailsRenderer(new ComponentRenderer<>(MovieRequestView::createDetails));
         grid.setDetailsVisibleOnClick(true);
 
+        boolean admin = SecurityUtils.isAdmin();
         GridContextMenu<MovieRequest> contextMenu = grid.addContextMenu();
         RequestViewSupport.suppressGridContextMenuOnLinks(grid);
-        contextMenu.addItem("Refresh", e -> e.getItem().ifPresent(mr -> {
-            movieController.refresh(mr.getId());
-            movieController.validate(mr.getId());
-            refreshGrid();
-        }));
-        contextMenu.addItem("Search", e -> e.getItem().ifPresent(mr -> {
-            movieController.searchOne(mr.getId());
-            refreshGrid();
-        }));
-        contextMenu.addItem("Delete Download", e -> e.getItem().ifPresent(mr -> {
-            movieController.deleteDownloadAndSearch(mr.getId());
-            refreshGrid();
-        }));
-        GridMenuItem<MovieRequest> markAvailableItem =
-                contextMenu.addItem("Mark Available", e -> e.getItem().ifPresent(mr -> {
+        contextMenu.addItem("Refresh", e -> e.getItem()
+                .ifPresent(mr -> runAction("Refreshing…", () -> {
+                    movieController.refresh(mr.getId());
+                    movieController.validate(mr.getId());
+                })));
+        contextMenu.addItem("Search", e -> e.getItem()
+                .ifPresent(mr -> runAction("Searching…", () -> movieController.searchOne(mr.getId()))));
+        GridMenuItem<MovieRequest> deleteDownloadItem = contextMenu.addItem("Delete Download", e -> e.getItem()
+                .ifPresent(mr ->
+                        runAction("Deleting download…", () -> movieController.deleteDownloadAndSearch(mr.getId()))));
+        GridMenuItem<MovieRequest> markAvailableItem = contextMenu.addItem("Mark Available", e -> e.getItem()
+                .ifPresent(mr -> runAction("Marking available…", () -> {
                     movieController.markAvailable(mr.getId());
                     movieController.refresh(mr.getId());
                     movieController.validate(mr.getId());
-                    refreshGrid();
-                }));
-        contextMenu.addItem("Set Quality Profile to 'Any'", e -> e.getItem().ifPresent(mr -> {
-            movieController.setQualityProfileToAny(mr.getId());
-            refreshGrid();
-        }));
+                })));
+        GridMenuItem<MovieRequest> qualityProfileItem =
+                contextMenu.addItem("Set Quality Profile to 'Any'", e -> e.getItem()
+                        .ifPresent(mr -> runAction(
+                                "Updating quality profile…",
+                                () -> movieController.setQualityProfileToAny(mr.getId()))));
         contextMenu.addItem("Mark as Stale", e -> e.getItem().ifPresent(this::openMarkStaleDialog));
         contextMenu.addItem("Add Note", e -> e.getItem().ifPresent(this::openAddNoteDialog));
         contextMenu.addItem("View Notes", e -> e.getItem().ifPresent(this::openViewNotesDialog));
@@ -207,10 +218,13 @@ public class MovieRequestView extends VerticalLayout {
                 contextMenu.addItem("View Plex Json", e -> e.getItem().ifPresent(this::openPlexJson));
         GridMenuItem<MovieRequest> viewTmdbItem =
                 contextMenu.addItem("View TMDB", e -> e.getItem().ifPresent(this::openTmdb));
-        contextMenu.addItem("Delete Movie Request", e -> e.getItem().ifPresent(mr -> {
-            movieController.delete(mr.getId());
-            refreshGrid();
-        }));
+        GridMenuItem<MovieRequest> deleteRequestItem = contextMenu.addItem("Delete Movie Request", e -> e.getItem()
+                .ifPresent(mr -> runAction("Deleting request…", () -> movieController.delete(mr.getId()))));
+        // USER tier may view, refresh, search, validate, and annotate; mutating Ombi/Radarr or deleting is ADMIN-only.
+        deleteDownloadItem.setVisible(admin);
+        markAvailableItem.setVisible(admin);
+        qualityProfileItem.setVisible(admin);
+        deleteRequestItem.setVisible(admin);
         contextMenu.setDynamicContentHandler(mr -> {
             if (mr == null) {
                 return false;
@@ -234,30 +248,25 @@ public class MovieRequestView extends VerticalLayout {
             return mr.isValid(knownValidatorNames, latestForRow) ? "available" : "not_available";
         });
 
-        refreshGrid();
         grid.sort(List.of(new GridSortOrder<>(titleColumn, SortDirection.ASCENDING)));
         grid.setWidthFull();
         grid.setMinHeight("0");
 
-        Button refreshAll = new Button("Refresh All", e -> {
-            movieController.refreshAll();
-            movieController.validateAll();
-            refreshGrid();
-        });
-        Button validateAll = new Button("Validate All", e -> {
-            movieController.validateAll();
-            refreshGrid();
-        });
-        Button searchAll = new Button("Search All", e -> {
-            movieController.searchAll();
-            refreshGrid();
-        });
-        Button testNotifications = new Button(
-                "Test Notifications",
-                e -> Notification.show(RequestViewSupport.notificationSummary(notificationService.runCheck())));
-        showValidCheckbox.addValueChangeListener(e -> refreshGrid());
-        showStaleCheckbox.addValueChangeListener(e -> refreshGrid());
-        showWithNotesCheckbox.addValueChangeListener(e -> refreshGrid());
+        Button refreshAll = new Button(
+                "Refresh All",
+                e -> runBulkAction("Refreshing all…", () -> {
+                    movieController.refreshAll();
+                    movieController.validateAll();
+                }));
+        Button validateAll =
+                new Button("Validate All", e -> runBulkAction("Validating all…", movieController::validateAll));
+        Button searchAll = new Button("Search All", e -> runBulkAction("Searching all…", movieController::searchAll));
+        Button testNotifications = new Button("Test Notifications", e -> runNotificationCheck());
+        testNotifications.setVisible(admin);
+        bulkButtons.addAll(List.of(refreshAll, validateAll, searchAll, testNotifications));
+        showValidCheckbox.addValueChangeListener(e -> applyFilters());
+        showStaleCheckbox.addValueChangeListener(e -> applyFilters());
+        showWithNotesCheckbox.addValueChangeListener(e -> applyFilters());
         showValidCheckbox.setLabelComponent(showValidLabel);
         showStaleCheckbox.setLabelComponent(showStaleLabel);
         showWithNotesCheckbox.setLabelComponent(showWithNotesLabel);
@@ -283,44 +292,135 @@ public class MovieRequestView extends VerticalLayout {
         setFlexGrow(1, grid);
     }
 
+    /**
+     * Runs a blocking controller action (Ombi/Radarr/Plex) off the UI thread, refreshing the grid when it completes.
+     */
+    private void runAction(String workingMessage, Runnable action) {
+        getUI().ifPresent(ui -> RequestViewSupport.runAsync(ui, log, workingMessage, action, this::refreshGrid));
+    }
+
+    private void setBulkButtonsEnabled(boolean enabled) {
+        bulkButtons.forEach(b -> b.setEnabled(enabled));
+    }
+
+    /**
+     * Like {@link #runAction}, but for the toolbar's library-wide buttons: disables all of them for the duration so a
+     * long operation can't be double-fired or overlapped with another bulk action, re-enabling them on completion.
+     */
+    private void runBulkAction(String workingMessage, Runnable action) {
+        getUI().ifPresent(ui -> {
+            setBulkButtonsEnabled(false);
+            RequestViewSupport.runAsync(ui, log, workingMessage, action, () -> {
+                setBulkButtonsEnabled(true);
+                refreshGrid();
+            });
+        });
+    }
+
+    /** Runs the notification check off the UI thread and shows its summary toast. */
+    private void runNotificationCheck() {
+        getUI().ifPresent(ui -> {
+            setBulkButtonsEnabled(false);
+            Notification working = new Notification("Running notification check…");
+            working.setDuration(0);
+            working.setPosition(Notification.Position.BOTTOM_START);
+            working.open();
+            CompletableFuture.supplyAsync(notificationService::runCheck)
+                    .whenComplete((result, throwable) -> ui.access(() -> {
+                        try {
+                            working.close();
+                            if (throwable != null) {
+                                log.warn("Notification check failed", throwable);
+                                Notification.show("Notification check failed; see the server log.");
+                            } else {
+                                Notification.show(RequestViewSupport.notificationSummary(result));
+                            }
+                        } finally {
+                            setBulkButtonsEnabled(true);
+                        }
+                    }));
+        });
+    }
+
+    /**
+     * Reloads the grid's data off the UI thread and, when it lands, refreshes the stat cards. The DB reads run inside a
+     * read-only transaction on the worker thread because {@link Validation#getRequest()} / {@link Note#getRequest()}
+     * are lazy and would otherwise fail outside the request-bound session. A no-op until the view is attached (a UI is
+     * needed for {@link UI#access}); the initial load is kicked off from {@link #onAttach}.
+     */
     private void refreshGrid() {
-        latestValidations.clear();
+        getUI().ifPresent(this::loadGridAsync);
+    }
+
+    private void loadGridAsync(UI ui) {
+        if (!gridLoadInFlight.compareAndSet(false, true)) {
+            return;
+        }
+        CompletableFuture.supplyAsync(() -> transactionTemplate.execute(status -> buildSnapshot()))
+                .whenComplete((snapshot, throwable) -> ui.access(() -> {
+                    try {
+                        if (throwable != null) {
+                            log.warn("Failed to refresh movie grid", throwable);
+                        } else if (snapshot != null) {
+                            applySnapshot(snapshot);
+                        }
+                    } finally {
+                        gridLoadInFlight.set(false);
+                        triggerStatsLoad();
+                    }
+                }));
+    }
+
+    private record GridSnapshot(
+            Map<Long, Map<String, Validation>> latestValidations,
+            Set<Long> withNotes,
+            List<MovieRequest> all,
+            long validCount,
+            long staleCount,
+            long withNotesCount) {}
+
+    /** Reads validations, notes, and requests and builds the row indexes. Runs inside a read-only transaction. */
+    private GridSnapshot buildSnapshot() {
+        Map<Long, Map<String, Validation>> latest = new HashMap<>();
         for (Validation v : validationRepository.findAll()) {
             if (!knownValidatorNames.contains(v.getValidationName())) {
                 continue;
             }
             Long movieRequestId = v.getRequest().getId();
-            latestValidations
-                    .computeIfAbsent(movieRequestId, k -> new HashMap<>())
+            latest.computeIfAbsent(movieRequestId, k -> new HashMap<>())
                     .merge(v.getValidationName(), v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
         }
-        movieRequestsWithNotes.clear();
-        noteRepository
-                .findAll()
-                .forEach(n -> movieRequestsWithNotes.add(n.getRequest().getId()));
+        Set<Long> withNotes = new HashSet<>();
+        noteRepository.findAll().forEach(n -> withNotes.add(n.getRequest().getId()));
         List<MovieRequest> all = movieRequestRepository.findAll();
         long validCount = all.stream()
-                .filter(mr -> mr.isValid(knownValidatorNames, latestValidations.getOrDefault(mr.getId(), Map.of())))
+                .filter(mr -> mr.isValid(knownValidatorNames, latest.getOrDefault(mr.getId(), Map.of())))
                 .count();
         long staleCount =
                 all.stream().filter(mr -> Boolean.TRUE.equals(mr.getStale())).count();
-        long withNotesCount = all.stream()
-                .filter(mr -> movieRequestsWithNotes.contains(mr.getId()))
-                .count();
-        showValidLabel.setText("Show valid rows (" + validCount + ")");
-        showStaleLabel.setText("Show stale rows (" + staleCount + ")");
-        showWithNotesLabel.setText("Show rows with notes (" + withNotesCount + ")");
-        totalLabel.setText("Total movies: " + all.size());
+        long withNotesCount =
+                all.stream().filter(mr -> withNotes.contains(mr.getId())).count();
+        return new GridSnapshot(latest, withNotes, all, validCount, staleCount, withNotesCount);
+    }
 
-        allRequests = all;
+    /** Applies a freshly loaded snapshot to the view state (on the UI thread) and re-runs the active filters. */
+    private void applySnapshot(GridSnapshot snapshot) {
+        latestValidations.clear();
+        latestValidations.putAll(snapshot.latestValidations());
+        movieRequestsWithNotes.clear();
+        movieRequestsWithNotes.addAll(snapshot.withNotes());
+        showValidLabel.setText("Show valid rows (" + snapshot.validCount() + ")");
+        showStaleLabel.setText("Show stale rows (" + snapshot.staleCount() + ")");
+        showWithNotesLabel.setText("Show rows with notes (" + snapshot.withNotesCount() + ")");
+        totalLabel.setText("Total movies: " + snapshot.all().size());
+        allRequests = snapshot.all();
         applyFilters();
-        triggerStatsLoad();
     }
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        triggerStatsLoad();
+        refreshGrid();
     }
 
     /** Kicks off the Radarr queue + health fetch on the current UI, if the view is attached; a no-op otherwise. */
@@ -472,106 +572,34 @@ public class MovieRequestView extends VerticalLayout {
             "Repeated download attempts without success");
 
     private void openMarkStaleDialog(MovieRequest mr) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Mark \"" + mr.getTitle() + "\" as stale");
-
-        TextArea reason = new TextArea("Reason");
-        reason.setWidthFull();
-        reason.setMinHeight("8em");
-        if (mr.getStaleReason() != null) {
-            reason.setValue(mr.getStaleReason());
-        }
-
-        HorizontalLayout cannedReasons = new HorizontalLayout();
-        cannedReasons.getStyle().set("flex-wrap", "wrap");
-        for (String canned : CANNED_STALE_REASONS) {
-            Button preset = new Button(canned, e -> reason.setValue(canned));
-            cannedReasons.add(preset);
-        }
-
-        Button submit = new Button("Submit", e -> {
-            movieController.markStale(mr.getId(), reason.getValue());
-            dialog.close();
-            refreshGrid();
-        });
-        Button cancel = new Button("Cancel", e -> dialog.close());
-
-        dialog.add(cannedReasons, reason);
-        dialog.getFooter().add(cancel, submit);
-        dialog.open();
+        RequestViewSupport.openTextEntryDialog(
+                "Mark \"" + mr.getTitle() + "\" as stale",
+                "Reason",
+                mr.getStaleReason(),
+                CANNED_STALE_REASONS,
+                false,
+                reason -> {
+                    movieController.markStale(mr.getId(), reason);
+                    refreshGrid();
+                });
     }
 
     private void openAddNoteDialog(MovieRequest mr) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Add note to \"" + mr.getTitle() + "\"");
-
-        TextArea note = new TextArea("Note");
-        note.setWidthFull();
-        note.setMinHeight("8em");
-
-        Button submit = new Button("Submit", e -> {
-            if (note.getValue() == null || note.getValue().isBlank()) {
-                return;
-            }
-            movieController.addNote(mr.getId(), note.getValue());
-            dialog.close();
-            refreshGrid();
-        });
-        Button cancel = new Button("Cancel", e -> dialog.close());
-
-        dialog.add(note);
-        dialog.getFooter().add(cancel, submit);
-        dialog.open();
+        RequestViewSupport.openTextEntryDialog(
+                "Add note to \"" + mr.getTitle() + "\"", "Note", null, List.of(), true, note -> {
+                    movieController.addNote(mr.getId(), note);
+                    refreshGrid();
+                });
     }
 
     private void openViewNotesDialog(MovieRequest mr) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Notes for \"" + mr.getTitle() + "\"");
-        dialog.setWidth("600px");
-
-        VerticalLayout body = new VerticalLayout();
-        body.setPadding(false);
-        body.setSpacing(true);
-
-        List<Note> notes = noteRepository.findByRequestOrderByCreatedAtDesc(mr);
-        if (notes.isEmpty()) {
-            body.add(new Span("No notes yet."));
-        } else {
-            for (Note n : notes) {
-                VerticalLayout entry = new VerticalLayout();
-                entry.setPadding(false);
-                entry.setSpacing(false);
-                Span timestamp = new Span(String.valueOf(n.getCreatedAt()));
-                timestamp.getStyle().set("font-size", "var(--lumo-font-size-s)");
-                timestamp.getStyle().set("color", "var(--lumo-secondary-text-color)");
-                Span text = new Span(n.getNotes());
-                text.getStyle().set("white-space", "pre-wrap");
-                entry.add(timestamp, text);
-                body.add(entry);
-            }
-        }
-
-        Button close = new Button("Close", e -> dialog.close());
-        dialog.add(body);
-        dialog.getFooter().add(close);
-        dialog.open();
+        RequestViewSupport.openNotesDialog(mr.getTitle(), noteRepository.findByRequestOrderByCreatedAtDesc(mr));
     }
 
     private void openPlexQueryUrlDialog(MovieRequest mr) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Plex query URL for \"" + mr.getTitle() + "\"");
-        dialog.setWidth("600px");
-
         String url = plexClient.movieQueryUrl(mr.getTitle());
-        TextArea urlField = new TextArea();
-        urlField.setReadOnly(true);
-        urlField.setWidthFull();
-        urlField.setValue(url == null ? "Plex query URL unavailable" : url);
-
-        Button close = new Button("Close", e -> dialog.close());
-        dialog.add(urlField);
-        dialog.getFooter().add(close);
-        dialog.open();
+        RequestViewSupport.openTextDialog(
+                "Plex query URL for \"" + mr.getTitle() + "\"", url == null ? "Plex query URL unavailable" : url);
     }
 
     /** Opens the row's Ombi details page in a new browser tab. */

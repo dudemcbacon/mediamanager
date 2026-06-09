@@ -10,6 +10,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
@@ -163,6 +164,7 @@ public class TvController {
     }
 
     @PostMapping("/tv/{id}/quality-profile-any")
+    @PreAuthorize("hasRole('ADMIN')")
     public String setQualityProfileToAny(@PathVariable Long id) {
         log.info("Set quality profile to '{}' request for tv request {}", ANY_QUALITY_PROFILE, id);
         TvRequest tvRequest = tvRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
@@ -370,6 +372,7 @@ public class TvController {
      * releases) and then triggers a fresh Sonarr episode search. Used by the "Delete Download" context-menu action.
      */
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteEpisodeDownloadAndSearch(Long episodeId) {
         TvEpisodeRequest episode = tvEpisodeRequestRepository
                 .findById(episodeId)
@@ -553,6 +556,7 @@ public class TvController {
     }
 
     @PostMapping("/tv/{id}/mark-available")
+    @PreAuthorize("hasRole('ADMIN')")
     public String markAvailable(@PathVariable Long id) {
         log.info("Mark available request for tv request {}", id);
         TvRequest tvRequest = tvRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
@@ -595,6 +599,7 @@ public class TvController {
     }
 
     @PostMapping("/tv/{id}/delete")
+    @PreAuthorize("hasRole('ADMIN')")
     public String delete(@PathVariable Long id) {
         log.info("Delete request for tv request {}", id);
         requestAdminService.delete(tvRequestRepository, id);

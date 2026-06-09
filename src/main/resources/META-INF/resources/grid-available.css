@@ -14,8 +14,8 @@ vaadin-grid::part(has_notes) {
   display: inline-block;
   width: 1em;
   height: 1em;
-  border: 2px solid var(--lumo-contrast-30pct, #ccc);
-  border-top-color: var(--lumo-primary-color, #1e6fce);
+  border: 2px solid var(--vaadin-border-color-secondary, #ccc);
+  border-top-color: var(--aura-accent-color, #1e6fce);
   border-radius: 50%;
   animation: status-spin 0.8s linear infinite;
 }

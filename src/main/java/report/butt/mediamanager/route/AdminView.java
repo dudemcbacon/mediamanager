@@ -14,8 +14,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.router.RouterLink;
-import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -58,7 +57,7 @@ import report.butt.mediamanager.service.NotificationService.ZeroSeedDownload;
  * delivers the results (see {@code @Push}).
  */
 @Route("admin")
-@PermitAll
+@RolesAllowed("ADMIN")
 public class AdminView extends VerticalLayout {
 
     private static final Logger log = LoggerFactory.getLogger(AdminView.class);
@@ -177,7 +176,6 @@ public class AdminView extends VerticalLayout {
 
         setWidthFull();
 
-        add(new RouterLink("← Back to requests", MainView.class));
         add(new H2("Admin"));
 
         add(new H3("Leaderboards (top " + LEADERBOARD_SIZE + ")"));
@@ -587,7 +585,7 @@ public class AdminView extends VerticalLayout {
 
         private Section(String title, Grid<T> grid) {
             this.title = title;
-            this.header = RequestViewSupport.coloredLabel(title, "#333");
+            this.header = RequestViewSupport.coloredLabel(title, "var(--vaadin-text-color)");
             this.grid = grid;
         }
 

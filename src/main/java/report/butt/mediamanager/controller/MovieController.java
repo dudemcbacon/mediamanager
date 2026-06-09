@@ -7,6 +7,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -259,6 +260,7 @@ public class MovieController {
      * Deletes any Radarr downloads for this movie (removing them from the download client and blocklisting the
      * releases) and then triggers a fresh Radarr search. Used by the "Delete Download" context-menu action.
      */
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteDownloadAndSearch(Long id) {
         MovieRequest movieRequest =
                 movieRequestRepository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
@@ -315,6 +317,7 @@ public class MovieController {
     }
 
     @PostMapping("/movies/{id}/quality-profile-any")
+    @PreAuthorize("hasRole('ADMIN')")
     public String setQualityProfileToAny(@PathVariable Long id) {
         log.info("Set quality profile to '{}' request for movie request {}", ANY_QUALITY_PROFILE, id);
         MovieRequest movieRequest =
@@ -341,6 +344,7 @@ public class MovieController {
     }
 
     @PostMapping("/movies/{id}/mark-available")
+    @PreAuthorize("hasRole('ADMIN')")
     public String markAvailable(@PathVariable Long id) {
         log.info("Mark available request for movie request {}", id);
         MovieRequest movieRequest =
@@ -367,6 +371,7 @@ public class MovieController {
     }
 
     @PostMapping("/movies/{id}/delete")
+    @PreAuthorize("hasRole('ADMIN')")
     public String delete(@PathVariable Long id) {
         log.info("Delete request for movie request {}", id);
         requestAdminService.delete(movieRequestRepository, id);

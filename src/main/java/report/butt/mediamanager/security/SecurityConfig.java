@@ -3,6 +3,7 @@ package report.butt.mediamanager.security;
 import com.vaadin.flow.spring.security.VaadinSecurityConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -12,12 +13,17 @@ import report.butt.mediamanager.route.LoginView;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(auth -> auth.requestMatchers("/*.css", "/*.js", "/*.ico", "/*.png", "/*.svg")
                 .permitAll()
+                .requestMatchers("/actuator/health/**")
+                .permitAll()
+                .requestMatchers("/actuator/**")
+                .hasRole("ADMIN")
                 .requestMatchers("/plex-cache/**")
                 .authenticated());
         http.with(VaadinSecurityConfigurer.vaadin(), configurer -> configurer.loginView(LoginView.class));

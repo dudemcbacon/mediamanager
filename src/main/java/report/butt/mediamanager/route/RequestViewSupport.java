@@ -1,14 +1,20 @@
 package report.butt.mediamanager.route;
 
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.badge.Badge;
 import com.vaadin.flow.component.badge.BadgeVariant;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.card.Card;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.shared.Tooltip;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.renderer.LitRenderer;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -18,7 +24,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.Validation;
 import report.butt.mediamanager.model.deluge.DelugeTorrent;
 import report.butt.mediamanager.service.NotificationService;
@@ -43,9 +53,9 @@ final class RequestViewSupport {
 
     static String resultIconColor(Boolean result) {
         if (result == null) {
-            return "var(--lumo-tertiary-text-color)";
+            return "var(--vaadin-text-color-disabled)";
         }
-        return result ? "var(--lumo-success-color, green)" : "var(--lumo-error-color, red)";
+        return result ? "var(--aura-green, green)" : "var(--aura-red, red)";
     }
 
     /** Latest validation result for a request id + validator name, or null when none is recorded. */
@@ -91,7 +101,7 @@ final class RequestViewSupport {
         }
         HorizontalLayout badges = new HorizontalLayout();
         badges.setSpacing(false);
-        badges.getStyle().set("gap", "var(--lumo-space-xs)");
+        badges.getStyle().set("gap", "0.25rem");
         if (protocols.stream().anyMatch(RequestViewSupport::isTorrent)) {
             Badge torrent = new Badge("torrent");
             torrent.addThemeVariants(BadgeVariant.FILLED);
@@ -114,7 +124,7 @@ final class RequestViewSupport {
     }
 
     static Card statCard(String title, Span value) {
-        value.getStyle().set("font-size", "var(--lumo-font-size-xxl)").set("font-weight", "bold");
+        value.getStyle().set("font-size", "1.5rem").set("font-weight", "bold");
         Card card = new Card();
         card.setTitle(title);
         card.add(value);
@@ -154,6 +164,128 @@ final class RequestViewSupport {
             return "Sent summary email: " + total + " item(s). See the email for details.";
         }
         return "Found " + total + " item(s), but no email was sent (mail not configured or send failed).";
+    }
+
+    // --- async actions ---
+
+    /**
+     * Runs a blocking action (e.g. a controller call that hits Ombi/Radarr/Sonarr) off the UI thread so the browser
+     * isn't frozen, showing a persistent "working" notification until it finishes. Failures are logged and surfaced as
+     * a toast; {@code always} (when non-null) runs on the UI thread on completion — success or failure — e.g. to
+     * refresh a grid. Requires server push (see {@code @Push}).
+     */
+    static void runAsync(UI ui, Logger log, String workingMessage, Runnable action, Runnable always) {
+        Notification working = new Notification(workingMessage);
+        working.setDuration(0);
+        working.setPosition(Notification.Position.BOTTOM_START);
+        working.open();
+        CompletableFuture.runAsync(action)
+                .whenComplete((unused, throwable) -> ui.access(() -> {
+                    try {
+                        working.close();
+                        if (throwable != null) {
+                            log.warn("{} failed", workingMessage, throwable);
+                            Notification.show("Action failed; see the server log.");
+                        }
+                    } finally {
+                        if (always != null) {
+                            always.run();
+                        }
+                    }
+                }));
+    }
+
+    // --- shared dialogs (used by MovieRequestView and TvRequestView) ---
+
+    /** A read-only single-field dialog, e.g. for showing a Plex query URL. */
+    static void openTextDialog(String headerTitle, String content) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(headerTitle);
+        dialog.setWidth("600px");
+        TextArea field = new TextArea();
+        field.setReadOnly(true);
+        field.setWidthFull();
+        field.setValue(content);
+        dialog.add(field);
+        dialog.getFooter().add(new Button("Close", e -> dialog.close()));
+        dialog.open();
+    }
+
+    /** Lists a request's notes (caller supplies them newest-first) in a dialog. */
+    static void openNotesDialog(String requestTitle, List<Note> notes) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Notes for \"" + requestTitle + "\"");
+        dialog.setWidth("600px");
+
+        VerticalLayout body = new VerticalLayout();
+        body.setPadding(false);
+        body.setSpacing(true);
+        if (notes.isEmpty()) {
+            body.add(new Span("No notes yet."));
+        } else {
+            for (Note n : notes) {
+                VerticalLayout entry = new VerticalLayout();
+                entry.setPadding(false);
+                entry.setSpacing(false);
+                Span timestamp = new Span(String.valueOf(n.getCreatedAt()));
+                timestamp
+                        .getStyle()
+                        .set("font-size", "var(--aura-font-size-s)")
+                        .set("color", "var(--vaadin-text-color-secondary)");
+                Span text = new Span(n.getNotes());
+                text.getStyle().set("white-space", "pre-wrap");
+                entry.add(timestamp, text);
+                body.add(entry);
+            }
+        }
+        dialog.add(body);
+        dialog.getFooter().add(new Button("Close", e -> dialog.close()));
+        dialog.open();
+    }
+
+    /**
+     * A free-text entry dialog with optional canned-value preset buttons. On submit it passes the entered text to
+     * {@code onSubmit} and closes; when {@code requireNonBlank} is set, a blank value keeps the dialog open instead.
+     */
+    static void openTextEntryDialog(
+            String headerTitle,
+            String fieldLabel,
+            String prefill,
+            List<String> cannedValues,
+            boolean requireNonBlank,
+            Consumer<String> onSubmit) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(headerTitle);
+
+        TextArea field = new TextArea(fieldLabel);
+        field.setWidthFull();
+        field.setMinHeight("8em");
+        if (prefill != null) {
+            field.setValue(prefill);
+        }
+
+        Button submit = new Button("Submit", e -> {
+            String value = field.getValue();
+            if (requireNonBlank && (value == null || value.isBlank())) {
+                return;
+            }
+            onSubmit.accept(value);
+            dialog.close();
+        });
+        Button cancel = new Button("Cancel", e -> dialog.close());
+
+        if (cannedValues.isEmpty()) {
+            dialog.add(field);
+        } else {
+            HorizontalLayout canned = new HorizontalLayout();
+            canned.getStyle().set("flex-wrap", "wrap");
+            for (String value : cannedValues) {
+                canned.add(new Button(value, e -> field.setValue(value)));
+            }
+            dialog.add(canned, field);
+        }
+        dialog.getFooter().add(cancel, submit);
+        dialog.open();
     }
 
     /**

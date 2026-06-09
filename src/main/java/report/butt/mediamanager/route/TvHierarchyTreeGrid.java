@@ -15,6 +15,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import report.butt.mediamanager.controller.TvController;
 import report.butt.mediamanager.model.TvChildRequest;
 import report.butt.mediamanager.model.TvEpisodeRequest;
@@ -26,9 +28,12 @@ import report.butt.mediamanager.model.sabnzbd.SabnzbdSlot;
 import report.butt.mediamanager.route.TvHierarchyRow.ChildRow;
 import report.butt.mediamanager.route.TvHierarchyRow.EpisodeRow;
 import report.butt.mediamanager.route.TvHierarchyRow.SeasonRow;
+import report.butt.mediamanager.security.SecurityUtils;
 import report.butt.mediamanager.validation.EpisodeValidator;
 
 class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
+
+    private static final Logger log = LoggerFactory.getLogger(TvHierarchyTreeGrid.class);
 
     /** A queued episode's Sonarr protocol joined to its Deluge torrent or SABnzbd slot (either may be null). */
     record EpisodeDownload(String protocol, DelugeTorrent torrent, SabnzbdSlot slot) {}
@@ -96,34 +101,41 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         GridMenuItem<TvHierarchyRow> searchAllSeasons =
                 contextMenu.addItem("Search All Seasons", e -> e.getItem().ifPresent(row -> {
                     if (row instanceof ChildRow(TvChildRequest child)) {
-                        tvController.searchAllSeasonsForChild(child.getId());
+                        runAsync("Searching all seasons…", () -> tvController.searchAllSeasonsForChild(child.getId()));
                     }
                 }));
         GridMenuItem<TvHierarchyRow> searchAllEpisodes =
                 contextMenu.addItem("Search All Episodes", e -> e.getItem().ifPresent(row -> {
                     switch (row) {
-                        case ChildRow(TvChildRequest child) -> tvController.searchAllEpisodesForChild(child.getId());
+                        case ChildRow(TvChildRequest child) ->
+                            runAsync(
+                                    "Searching all episodes…",
+                                    () -> tvController.searchAllEpisodesForChild(child.getId()));
                         case SeasonRow(TvSeasonRequest season) ->
-                            tvController.searchAllEpisodesForSeason(season.getId());
+                            runAsync(
+                                    "Searching all episodes…",
+                                    () -> tvController.searchAllEpisodesForSeason(season.getId()));
                         case EpisodeRow ignored -> {}
                     }
                 }));
         GridMenuItem<TvHierarchyRow> searchSeason =
                 contextMenu.addItem("Search Season", e -> e.getItem().ifPresent(row -> {
                     if (row instanceof SeasonRow(TvSeasonRequest season)) {
-                        tvController.searchSeason(season.getId());
+                        runAsync("Searching season…", () -> tvController.searchSeason(season.getId()));
                     }
                 }));
         GridMenuItem<TvHierarchyRow> searchEpisode =
                 contextMenu.addItem("Search Episode", e -> e.getItem().ifPresent(row -> {
                     if (row instanceof EpisodeRow(TvEpisodeRequest episode)) {
-                        tvController.searchEpisode(episode.getId());
+                        runAsync("Searching episode…", () -> tvController.searchEpisode(episode.getId()));
                     }
                 }));
         GridMenuItem<TvHierarchyRow> deleteDownload =
                 contextMenu.addItem("Delete Download", e -> e.getItem().ifPresent(row -> {
                     if (row instanceof EpisodeRow(TvEpisodeRequest episode)) {
-                        tvController.deleteEpisodeDownloadAndSearch(episode.getId());
+                        runAsync(
+                                "Deleting download…",
+                                () -> tvController.deleteEpisodeDownloadAndSearch(episode.getId()));
                     }
                 }));
 
@@ -135,9 +147,16 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
             searchAllEpisodes.setVisible(row instanceof ChildRow || row instanceof SeasonRow);
             searchSeason.setVisible(row instanceof SeasonRow);
             searchEpisode.setVisible(row instanceof EpisodeRow);
-            deleteDownload.setVisible(row instanceof EpisodeRow);
+            // Deleting a download mutates Sonarr/the download client, so it's ADMIN-only (matches MovieRequestView
+            // and the server-side @PreAuthorize on TvController#deleteEpisodeDownloadAndSearch).
+            deleteDownload.setVisible(row instanceof EpisodeRow && SecurityUtils.isAdmin());
             return true;
         });
+    }
+
+    /** Runs a blocking Sonarr search/delete off the UI thread so the detail grid doesn't freeze. */
+    private void runAsync(String workingMessage, Runnable action) {
+        getUI().ifPresent(ui -> RequestViewSupport.runAsync(ui, log, workingMessage, action, null));
     }
 
     /**
@@ -366,11 +385,11 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     private static Component resultIcon(boolean result) {
         if (result) {
             Icon icon = VaadinIcon.CHECK.create();
-            icon.getStyle().set("color", "var(--lumo-success-color, green)");
+            icon.getStyle().set("color", "var(--aura-green, green)");
             return icon;
         }
         Icon icon = VaadinIcon.CLOSE.create();
-        icon.getStyle().set("color", "var(--lumo-error-color, red)");
+        icon.getStyle().set("color", "var(--aura-red, red)");
         return icon;
     }
 
