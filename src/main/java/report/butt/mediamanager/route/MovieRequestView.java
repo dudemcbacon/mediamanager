@@ -390,6 +390,11 @@ public class MovieRequestView extends VerticalLayout {
 
     /** Reads validations, notes, and requests and builds the row indexes. Runs inside a read-only transaction. */
     private GridSnapshot buildSnapshot() {
+        // Load the concrete MovieRequests up front so they are managed in the persistence context before we navigate
+        // Validation#getRequest()/Note#getRequest() (declared as the base Request). Otherwise Hibernate creates
+        // base-Request proxies for those ids first, then narrows each to MovieRequest, logging
+        // "Narrowing proxy to ... MovieRequest - this operation breaks ==" once per movie on every refresh.
+        List<MovieRequest> all = movieRequestRepository.findAll();
         Map<Long, Map<String, Validation>> latest = new HashMap<>();
         for (Validation v : validationRepository.findAll()) {
             if (!knownValidatorNames.contains(v.getValidationName())) {
@@ -401,7 +406,6 @@ public class MovieRequestView extends VerticalLayout {
         }
         Set<Long> withNotes = new HashSet<>();
         noteRepository.findAll().forEach(n -> withNotes.add(n.getRequest().getId()));
-        List<MovieRequest> all = movieRequestRepository.findAll();
         return new GridSnapshot(latest, withNotes, all);
     }
 

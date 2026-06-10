@@ -446,6 +446,11 @@ public class TvRequestView extends VerticalLayout {
      * requests, building every row index. Runs inside a read-only transaction on the worker thread.
      */
     private GridSnapshot buildSnapshot() {
+        // Load the concrete TvRequests up front so they are managed in the persistence context before we navigate
+        // Validation#getRequest()/Note#getRequest() (declared as the base Request) and TvChildRequest#getParent().
+        // Otherwise Hibernate creates base-Request proxies for those ids first, then narrows each to TvRequest,
+        // logging "Narrowing proxy to ... TvRequest - this operation breaks ==" once per show on every refresh.
+        List<TvRequest> all = tvRequestRepository.findAll();
         Map<Long, Map<String, Validation>> latest = new HashMap<>();
         Map<Long, Map<String, Validation>> latestEpisode = new HashMap<>();
         for (Validation v : validationRepository.findAll()) {
@@ -469,7 +474,6 @@ public class TvRequestView extends VerticalLayout {
                         TvHierarchyTreeGrid.allChildrenValidation(children, episodeValidators, latestEpisode)));
         Set<Long> withNotes = new HashSet<>();
         noteRepository.findAll().forEach(n -> withNotes.add(n.getRequest().getId()));
-        List<TvRequest> all = tvRequestRepository.findAll();
         return new GridSnapshot(latest, latestEpisode, subs, withNotes, all);
     }
 

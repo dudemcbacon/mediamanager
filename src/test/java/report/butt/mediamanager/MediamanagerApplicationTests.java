@@ -8,7 +8,8 @@ import report.butt.mediamanager.client.PlexClient;
 @SpringBootTest(
         properties = {
             "mediamanager.bootstrap.username=test",
-            "mediamanager.bootstrap.password=test",
+            // Must differ from the username: AppUserBootstrap rejects equal bootstrap creds on a clean DB (CI).
+            "mediamanager.bootstrap.password=test-admin-pw",
             "mediamanager.validate-required-config=false"
         })
 class MediamanagerApplicationTests {
