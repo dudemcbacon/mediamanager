@@ -1,5 +1,6 @@
 package report.butt.mediamanager.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +17,9 @@ public interface ValidationRepository extends JpaRepository<Validation, Long> {
     List<Validation> findByRequest(Request request);
 
     List<Validation> findByTvEpisode(TvEpisodeRequest tvEpisode);
+
+    /** All validations for the given episodes, fetched in a single {@code IN} query (used for one show's refresh). */
+    List<Validation> findByTvEpisodeIn(Collection<TvEpisodeRequest> tvEpisodes);
 
     @Transactional
     void deleteByRequest(Request request);

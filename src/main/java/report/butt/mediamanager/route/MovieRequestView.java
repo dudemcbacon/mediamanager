@@ -1,6 +1,7 @@
 package report.butt.mediamanager.route;
 
 import com.vaadin.flow.component.AttachEvent;
+import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.badge.Badge;
 import com.vaadin.flow.component.badge.BadgeVariant;
@@ -26,6 +27,7 @@ import com.vaadin.flow.data.renderer.LitRenderer;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.shared.Registration;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.security.PermitAll;
 import java.util.ArrayList;
@@ -36,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -115,6 +118,12 @@ public class MovieRequestView extends VerticalLayout {
     private final SabnzbdClient sabnzbdClient;
     private final NotificationService notificationService;
     private final TransactionTemplate transactionTemplate;
+    private final ExecutorService uiTaskExecutor;
+
+    /** How often to quietly re-fetch live Radarr/download status while the view is open. */
+    private static final int LIVE_POLL_INTERVAL_MS = 30_000;
+
+    private Registration pollRegistration;
 
     public MovieRequestView(
             MovieRequestRepository movieRequestRepository,
@@ -128,7 +137,8 @@ public class MovieRequestView extends VerticalLayout {
             NotificationService notificationService,
             @Value("${ombi.url}") String ombiUrl,
             @Value("${radarr.url}") String radarrUrl,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            ExecutorService uiTaskExecutor) {
         this.movieRequestRepository = movieRequestRepository;
         this.movieController = movieController;
         this.validationRepository = validationRepository;
@@ -143,6 +153,7 @@ public class MovieRequestView extends VerticalLayout {
         this.notificationService = notificationService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.transactionTemplate.setReadOnly(true);
+        this.uiTaskExecutor = uiTaskExecutor;
         this.knownValidatorNames =
                 validators.stream().map(v -> v.getClass().getSimpleName()).collect(Collectors.toUnmodifiableSet());
         setSizeFull();
@@ -186,24 +197,25 @@ public class MovieRequestView extends VerticalLayout {
         GridContextMenu<MovieRequest> contextMenu = grid.addContextMenu();
         RequestViewSupport.suppressGridContextMenuOnLinks(grid);
         contextMenu.addItem("Refresh", e -> e.getItem()
-                .ifPresent(mr -> runAction("Refreshing…", () -> {
+                .ifPresent(mr -> runRowAction(mr, "Refreshing…", () -> {
                     movieController.refresh(mr.getId());
                     movieController.validate(mr.getId());
                 })));
         contextMenu.addItem("Search", e -> e.getItem()
-                .ifPresent(mr -> runAction("Searching…", () -> movieController.searchOne(mr.getId()))));
+                .ifPresent(mr -> runRowAction(mr, "Searching…", () -> movieController.searchOne(mr.getId()))));
         GridMenuItem<MovieRequest> deleteDownloadItem = contextMenu.addItem("Delete Download", e -> e.getItem()
-                .ifPresent(mr ->
-                        runAction("Deleting download…", () -> movieController.deleteDownloadAndSearch(mr.getId()))));
+                .ifPresent(mr -> runRowAction(
+                        mr, "Deleting download…", () -> movieController.deleteDownloadAndSearch(mr.getId()))));
         GridMenuItem<MovieRequest> markAvailableItem = contextMenu.addItem("Mark Available", e -> e.getItem()
-                .ifPresent(mr -> runAction("Marking available…", () -> {
+                .ifPresent(mr -> runRowAction(mr, "Marking available…", () -> {
                     movieController.markAvailable(mr.getId());
                     movieController.refresh(mr.getId());
                     movieController.validate(mr.getId());
                 })));
         GridMenuItem<MovieRequest> qualityProfileItem =
                 contextMenu.addItem("Set Quality Profile to 'Any'", e -> e.getItem()
-                        .ifPresent(mr -> runAction(
+                        .ifPresent(mr -> runRowAction(
+                                mr,
                                 "Updating quality profile…",
                                 () -> movieController.setQualityProfileToAny(mr.getId()))));
         contextMenu.addItem("Mark as Stale", e -> e.getItem().ifPresent(this::openMarkStaleDialog));
@@ -219,7 +231,7 @@ public class MovieRequestView extends VerticalLayout {
         GridMenuItem<MovieRequest> viewTmdbItem =
                 contextMenu.addItem("View TMDB", e -> e.getItem().ifPresent(this::openTmdb));
         GridMenuItem<MovieRequest> deleteRequestItem = contextMenu.addItem("Delete Movie Request", e -> e.getItem()
-                .ifPresent(mr -> runAction("Deleting request…", () -> movieController.delete(mr.getId()))));
+                .ifPresent(mr -> runRowAction(mr, "Deleting request…", () -> movieController.delete(mr.getId()))));
         // USER tier may view, refresh, search, validate, and annotate; mutating Ombi/Radarr or deleting is ADMIN-only.
         deleteDownloadItem.setVisible(admin);
         markAvailableItem.setVisible(admin);
@@ -276,6 +288,7 @@ public class MovieRequestView extends VerticalLayout {
         searchField.addValueChangeListener(e -> applyFilters());
         HorizontalLayout statsRow = new HorizontalLayout(radarrQueueCard, radarrHealthCard);
         statsRow.setAlignItems(FlexComponent.Alignment.CENTER);
+        statsRow.getStyle().set("flex-wrap", "wrap");
         HorizontalLayout toolbar = new HorizontalLayout(
                 searchField,
                 refreshAll,
@@ -287,16 +300,29 @@ public class MovieRequestView extends VerticalLayout {
                 showWithNotesCheckbox,
                 totalLabel);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
+        // Many controls in one row: let them wrap instead of overflowing on narrow screens.
+        toolbar.getStyle().set("flex-wrap", "wrap");
 
         add(statsRow, toolbar, grid);
         setFlexGrow(1, grid);
     }
 
     /**
-     * Runs a blocking controller action (Ombi/Radarr/Plex) off the UI thread, refreshing the grid when it completes.
+     * Runs a blocking per-row controller action (Ombi/Radarr/Plex) off the UI thread. On completion it refreshes only
+     * the affected row's DB state — instead of re-reading every validation/note/request — and reloads the live
+     * Radarr/download status, since the action may have changed the queue.
      */
-    private void runAction(String workingMessage, Runnable action) {
-        getUI().ifPresent(ui -> RequestViewSupport.runAsync(ui, log, workingMessage, action, this::refreshGrid));
+    private void runRowAction(MovieRequest mr, String workingMessage, Runnable action) {
+        getUI().ifPresent(ui -> RequestViewSupport.runAsync(
+                ui,
+                log,
+                workingMessage,
+                action,
+                () -> {
+                    refreshRow(mr.getId());
+                    triggerStatsLoad(true);
+                },
+                uiTaskExecutor));
     }
 
     private void setBulkButtonsEnabled(boolean enabled) {
@@ -310,36 +336,23 @@ public class MovieRequestView extends VerticalLayout {
     private void runBulkAction(String workingMessage, Runnable action) {
         getUI().ifPresent(ui -> {
             setBulkButtonsEnabled(false);
-            RequestViewSupport.runAsync(ui, log, workingMessage, action, () -> {
-                setBulkButtonsEnabled(true);
-                refreshGrid();
-            });
+            RequestViewSupport.runAsync(
+                    ui,
+                    log,
+                    workingMessage,
+                    action,
+                    () -> {
+                        setBulkButtonsEnabled(true);
+                        refreshGrid();
+                    },
+                    uiTaskExecutor);
         });
     }
 
     /** Runs the notification check off the UI thread and shows its summary toast. */
     private void runNotificationCheck() {
-        getUI().ifPresent(ui -> {
-            setBulkButtonsEnabled(false);
-            Notification working = new Notification("Running notification check…");
-            working.setDuration(0);
-            working.setPosition(Notification.Position.BOTTOM_START);
-            working.open();
-            CompletableFuture.supplyAsync(notificationService::runCheck)
-                    .whenComplete((result, throwable) -> ui.access(() -> {
-                        try {
-                            working.close();
-                            if (throwable != null) {
-                                log.warn("Notification check failed", throwable);
-                                Notification.show("Notification check failed; see the server log.");
-                            } else {
-                                Notification.show(RequestViewSupport.notificationSummary(result));
-                            }
-                        } finally {
-                            setBulkButtonsEnabled(true);
-                        }
-                    }));
-        });
+        getUI().ifPresent(ui -> RequestViewSupport.runNotificationCheck(
+                ui, log, notificationService, uiTaskExecutor, this::setBulkButtonsEnabled));
     }
 
     /**
@@ -356,28 +369,24 @@ public class MovieRequestView extends VerticalLayout {
         if (!gridLoadInFlight.compareAndSet(false, true)) {
             return;
         }
-        CompletableFuture.supplyAsync(() -> transactionTemplate.execute(status -> buildSnapshot()))
+        CompletableFuture.supplyAsync(() -> transactionTemplate.execute(status -> buildSnapshot()), uiTaskExecutor)
                 .whenComplete((snapshot, throwable) -> ui.access(() -> {
                     try {
                         if (throwable != null) {
                             log.warn("Failed to refresh movie grid", throwable);
+                            Notification.show("Failed to load movies; see the server log.");
                         } else if (snapshot != null) {
                             applySnapshot(snapshot);
                         }
                     } finally {
                         gridLoadInFlight.set(false);
-                        triggerStatsLoad();
+                        triggerStatsLoad(true);
                     }
                 }));
     }
 
     private record GridSnapshot(
-            Map<Long, Map<String, Validation>> latestValidations,
-            Set<Long> withNotes,
-            List<MovieRequest> all,
-            long validCount,
-            long staleCount,
-            long withNotesCount) {}
+            Map<Long, Map<String, Validation>> latestValidations, Set<Long> withNotes, List<MovieRequest> all) {}
 
     /** Reads validations, notes, and requests and builds the row indexes. Runs inside a read-only transaction. */
     private GridSnapshot buildSnapshot() {
@@ -393,14 +402,7 @@ public class MovieRequestView extends VerticalLayout {
         Set<Long> withNotes = new HashSet<>();
         noteRepository.findAll().forEach(n -> withNotes.add(n.getRequest().getId()));
         List<MovieRequest> all = movieRequestRepository.findAll();
-        long validCount = all.stream()
-                .filter(mr -> mr.isValid(knownValidatorNames, latest.getOrDefault(mr.getId(), Map.of())))
-                .count();
-        long staleCount =
-                all.stream().filter(mr -> Boolean.TRUE.equals(mr.getStale())).count();
-        long withNotesCount =
-                all.stream().filter(mr -> withNotes.contains(mr.getId())).count();
-        return new GridSnapshot(latest, withNotes, all, validCount, staleCount, withNotesCount);
+        return new GridSnapshot(latest, withNotes, all);
     }
 
     /** Applies a freshly loaded snapshot to the view state (on the UI thread) and re-runs the active filters. */
@@ -409,23 +411,110 @@ public class MovieRequestView extends VerticalLayout {
         latestValidations.putAll(snapshot.latestValidations());
         movieRequestsWithNotes.clear();
         movieRequestsWithNotes.addAll(snapshot.withNotes());
-        showValidLabel.setText("Show valid rows (" + snapshot.validCount() + ")");
-        showStaleLabel.setText("Show stale rows (" + snapshot.staleCount() + ")");
-        showWithNotesLabel.setText("Show rows with notes (" + snapshot.withNotesCount() + ")");
-        totalLabel.setText("Total movies: " + snapshot.all().size());
         allRequests = snapshot.all();
+        updateCountLabels();
+        applyFilters();
+    }
+
+    /** Recomputes the toolbar count labels from the in-memory row state (no DB read). */
+    private void updateCountLabels() {
+        long valid = allRequests.stream()
+                .filter(mr -> mr.isValid(knownValidatorNames, latestValidations.getOrDefault(mr.getId(), Map.of())))
+                .count();
+        long stale = allRequests.stream()
+                .filter(mr -> Boolean.TRUE.equals(mr.getStale()))
+                .count();
+        long withNotes = allRequests.stream()
+                .filter(mr -> movieRequestsWithNotes.contains(mr.getId()))
+                .count();
+        showValidLabel.setText("Show valid rows (" + valid + ")");
+        showStaleLabel.setText("Show stale rows (" + stale + ")");
+        showWithNotesLabel.setText("Show rows with notes (" + withNotes + ")");
+        totalLabel.setText("Total movies: " + allRequests.size());
+    }
+
+    private record RowSnapshot(MovieRequest request, Map<String, Validation> validations, boolean hasNotes) {}
+
+    /** Refreshes a single row's DB state (validations, notes, entity) off the UI thread — see {@link #runRowAction}. */
+    private void refreshRow(Long id) {
+        getUI().ifPresent(ui -> CompletableFuture.supplyAsync(
+                        () -> transactionTemplate.execute(status -> buildRowSnapshot(id)), uiTaskExecutor)
+                .whenComplete((row, throwable) -> ui.access(() -> {
+                    if (throwable != null) {
+                        log.warn("Failed to refresh movie row {}", id, throwable);
+                        Notification.show("Failed to refresh row; see the server log.");
+                    } else if (row != null) {
+                        applyRowSnapshot(id, row);
+                    }
+                })));
+    }
+
+    /** Reads one request's validations and notes. Runs inside a read-only transaction; null request means deleted. */
+    private RowSnapshot buildRowSnapshot(Long id) {
+        MovieRequest mr = movieRequestRepository.findById(id).orElse(null);
+        if (mr == null) {
+            return new RowSnapshot(null, Map.of(), false);
+        }
+        Map<String, Validation> byName = new HashMap<>();
+        for (Validation v : validationRepository.findByRequest(mr)) {
+            if (knownValidatorNames.contains(v.getValidationName())) {
+                byName.merge(
+                        v.getValidationName(), v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
+            }
+        }
+        boolean hasNotes = !noteRepository.findByRequestOrderByCreatedAtDesc(mr).isEmpty();
+        return new RowSnapshot(mr, byName, hasNotes);
+    }
+
+    /** Merges a single row's refreshed state into the view (on the UI thread) and re-runs the active filters. */
+    private void applyRowSnapshot(Long id, RowSnapshot row) {
+        List<MovieRequest> updated = new ArrayList<>(allRequests);
+        updated.removeIf(r -> id.equals(r.getId()));
+        if (row.request() == null) {
+            latestValidations.remove(id);
+            movieRequestsWithNotes.remove(id);
+        } else {
+            updated.add(row.request());
+            latestValidations.put(id, row.validations());
+            if (row.hasNotes()) {
+                movieRequestsWithNotes.add(id);
+            } else {
+                movieRequestsWithNotes.remove(id);
+            }
+        }
+        allRequests = updated;
+        updateCountLabels();
         applyFilters();
     }
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
+        UI ui = attachEvent.getUI();
+        ui.setPollInterval(LIVE_POLL_INTERVAL_MS);
+        // Quietly refresh just the live Radarr/download status on each poll (not the whole grid) so progress, peers,
+        // and the queue card stay current without a manual reload.
+        pollRegistration = ui.addPollListener(e -> triggerStatsLoad(false));
         refreshGrid();
     }
 
-    /** Kicks off the Radarr queue + health fetch on the current UI, if the view is attached; a no-op otherwise. */
-    private void triggerStatsLoad() {
-        getUI().ifPresent(this::loadStatsAsync);
+    @Override
+    protected void onDetach(DetachEvent detachEvent) {
+        if (pollRegistration != null) {
+            pollRegistration.remove();
+            pollRegistration = null;
+        }
+        detachEvent.getUI().setPollInterval(-1);
+        super.onDetach(detachEvent);
+    }
+
+    /**
+     * Kicks off the Radarr queue + health fetch on the current UI, if the view is attached; a no-op otherwise. When
+     * {@code showLoading} is set the stat cards show a spinner first (initial/explicit loads); the background poll
+     * passes {@code false} so the cards update in place without flashing.
+     */
+    private void triggerStatsLoad(boolean showLoading) {
+        getUI().ifPresent(ui -> loadStatsAsync(ui, showLoading));
     }
 
     /**
@@ -434,15 +523,18 @@ public class MovieRequestView extends VerticalLayout {
      * {@link UI#access}. The download-status load is chained afterwards because it joins torrents/slots to the queue
      * maps populated here. A guard skips the fetch when one is already in flight.
      */
-    private void loadStatsAsync(UI ui) {
+    private void loadStatsAsync(UI ui, boolean showLoading) {
         if (!statsLoadInFlight.compareAndSet(false, true)) {
             return;
         }
-        RequestViewSupport.showCardLoading(radarrQueueValue);
-        RequestViewSupport.showCardLoading(radarrHealthValue);
-        CompletableFuture<RadarrQueue> queue = CompletableFuture.supplyAsync(movieController::getRadarrQueue);
+        if (showLoading) {
+            RequestViewSupport.showCardLoading(radarrQueueValue);
+            RequestViewSupport.showCardLoading(radarrHealthValue);
+        }
+        CompletableFuture<RadarrQueue> queue =
+                CompletableFuture.supplyAsync(movieController::getRadarrQueue, uiTaskExecutor);
         CompletableFuture<List<RadarrHealthItem>> health =
-                CompletableFuture.supplyAsync(movieController::getRadarrHealth);
+                CompletableFuture.supplyAsync(movieController::getRadarrHealth, uiTaskExecutor);
         queue.thenCombine(health, StatsResult::new)
                 .whenComplete((stats, throwable) -> ui.access(() -> {
                     try {
@@ -457,7 +549,7 @@ public class MovieRequestView extends VerticalLayout {
                         updateRadarrHealthCard(radarrHealth);
                     } finally {
                         statsLoadInFlight.set(false);
-                        triggerDownloadLoad();
+                        triggerDownloadLoad(showLoading);
                     }
                 }));
     }
@@ -465,8 +557,8 @@ public class MovieRequestView extends VerticalLayout {
     private record StatsResult(RadarrQueue queue, List<RadarrHealthItem> health) {}
 
     /** Kicks off the Deluge + SABnzbd fetch on the current UI, if the view is attached; a no-op otherwise. */
-    private void triggerDownloadLoad() {
-        getUI().ifPresent(this::loadDownloadStatusAsync);
+    private void triggerDownloadLoad(boolean showLoading) {
+        getUI().ifPresent(ui -> loadDownloadStatusAsync(ui, showLoading));
     }
 
     /**
@@ -475,15 +567,19 @@ public class MovieRequestView extends VerticalLayout {
      * pushed back via {@link UI#access}. Requires server push (see {@code @Push}). A guard skips the fetch when one is
      * already in flight.
      */
-    private void loadDownloadStatusAsync(UI ui) {
+    private void loadDownloadStatusAsync(UI ui, boolean showLoading) {
         if (!downloadLoadInFlight.compareAndSet(false, true)) {
             return;
         }
-        // Render the per-row spinners now that the in-flight guard is set.
-        grid.getDataProvider().refreshAll();
+        // Render the per-row spinners now that the in-flight guard is set. Skipped for the background poll so rows
+        // don't flash a spinner every interval — they just update in place when the new status lands.
+        if (showLoading) {
+            grid.getDataProvider().refreshAll();
+        }
         CompletableFuture<Map<String, DelugeTorrent>> torrents =
-                CompletableFuture.supplyAsync(delugeClient::getTorrentsStatus);
-        CompletableFuture<Map<String, SabnzbdSlot>> slots = CompletableFuture.supplyAsync(sabnzbdClient::getQueueSlots);
+                CompletableFuture.supplyAsync(delugeClient::getTorrentsStatus, uiTaskExecutor);
+        CompletableFuture<Map<String, SabnzbdSlot>> slots =
+                CompletableFuture.supplyAsync(sabnzbdClient::getQueueSlots, uiTaskExecutor);
         torrents.thenCombine(slots, DownloadStatus::new)
                 .whenComplete((status, throwable) -> ui.access(() -> {
                     try {
@@ -580,7 +676,7 @@ public class MovieRequestView extends VerticalLayout {
                 false,
                 reason -> {
                     movieController.markStale(mr.getId(), reason);
-                    refreshGrid();
+                    refreshRow(mr.getId());
                 });
     }
 
@@ -588,7 +684,7 @@ public class MovieRequestView extends VerticalLayout {
         RequestViewSupport.openTextEntryDialog(
                 "Add note to \"" + mr.getTitle() + "\"", "Note", null, List.of(), true, note -> {
                     movieController.addNote(mr.getId(), note);
-                    refreshGrid();
+                    refreshRow(mr.getId());
                 });
     }
 
@@ -663,46 +759,19 @@ public class MovieRequestView extends VerticalLayout {
         return tmdbid == null ? null : "https://www.themoviedb.org/movie/" + tmdbid;
     }
 
-    private static final String IMPORT_BLOCKED_COLOR = "#f44336";
-    private static final String IMPORT_PENDING_COLOR = "#ffeb3b";
-    private static final String HEALTH_WARNING_COLOR = "#ffeb3b";
-
-    /**
-     * Updates the queue card's number, a per-state breakdown tooltip, and a severity background: red when any item is
-     * importBlocked (highest priority), yellow when any is importPending.
-     */
+    /** Updates the queue card's number, per-state breakdown tooltip, and severity background. */
     private void updateRadarrQueueCard(RadarrQueue queue) {
         if (queue == null) {
-            radarrQueueValue.setText("—");
-            radarrQueueTooltip.setText("Radarr queue unavailable");
-            radarrQueueCard.getStyle().remove("background-color");
+            RequestViewSupport.updateQueueCard(radarrQueueCard, radarrQueueValue, radarrQueueTooltip, null, null);
             return;
         }
-
-        Integer total = queue.getTotalRecords();
-        radarrQueueValue.setText(total == null ? "—" : String.valueOf(total));
-
         List<RadarrQueueRecord> records = queue.getRecords() == null ? List.of() : queue.getRecords();
         Map<String, Long> byState = records.stream()
                 .map(RadarrQueueRecord::getTrackedDownloadState)
                 .filter(state -> state != null)
                 .collect(Collectors.groupingBy(state -> state, Collectors.counting()));
-
-        String breakdown = byState.entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue()
-                        .reversed()
-                        .thenComparing(Map.Entry.<String, Long>comparingByKey()))
-                .map(e -> e.getKey() + ": " + e.getValue())
-                .collect(Collectors.joining(", "));
-        radarrQueueTooltip.setText(breakdown.isEmpty() ? "No active downloads" : breakdown);
-
-        if (byState.containsKey("importBlocked")) {
-            radarrQueueCard.getStyle().set("background-color", IMPORT_BLOCKED_COLOR);
-        } else if (byState.containsKey("importPending")) {
-            radarrQueueCard.getStyle().set("background-color", IMPORT_PENDING_COLOR);
-        } else {
-            radarrQueueCard.getStyle().remove("background-color");
-        }
+        RequestViewSupport.updateQueueCard(
+                radarrQueueCard, radarrQueueValue, radarrQueueTooltip, queue.getTotalRecords(), byState);
     }
 
     /**
@@ -727,26 +796,13 @@ public class MovieRequestView extends VerticalLayout {
 
     /** Sets the health count and a tooltip listing each reported issue. */
     private void updateRadarrHealthCard(List<RadarrHealthItem> health) {
-        if (health == null) {
-            radarrHealthValue.setText("—");
-            radarrHealthTooltip.setText("Radarr health unavailable");
-            radarrHealthCard.getStyle().remove("background-color");
-            return;
-        }
-        radarrHealthValue.setText(String.valueOf(health.size()));
-        if (health.isEmpty()) {
-            radarrHealthTooltip.setText("No health issues");
-            radarrHealthCard.getStyle().remove("background-color");
-            return;
-        }
-        radarrHealthTooltip.setText(health.stream()
-                .map(h -> RequestViewSupport.healthIssueLine(h.getType(), h.getMessage()))
-                .collect(Collectors.joining("\n")));
-        if (health.stream().anyMatch(h -> "warning".equalsIgnoreCase(h.getType()))) {
-            radarrHealthCard.getStyle().set("background-color", HEALTH_WARNING_COLOR);
-        } else {
-            radarrHealthCard.getStyle().remove("background-color");
-        }
+        RequestViewSupport.updateHealthCard(
+                radarrHealthCard,
+                radarrHealthValue,
+                radarrHealthTooltip,
+                health,
+                RadarrHealthItem::getType,
+                RadarrHealthItem::getMessage);
     }
 
     /**
@@ -773,10 +829,10 @@ public class MovieRequestView extends VerticalLayout {
      * then the progress (torrent progress or SABnzbd percentage), or a dash.
      */
     private LitRenderer<MovieRequest> progressRenderer() {
-        return LitRenderer.<MovieRequest>of("<span class=\"status-spinner\" ?hidden=\"${!item.loading}\"></span>"
-                        + "<span ?hidden=\"${item.loading}\">${item.progress}</span>")
+        return LitRenderer.<MovieRequest>of(RequestViewSupport.progressCellTemplate(true))
                 .withProperty("loading", this::isStatusLoading)
-                .withProperty("progress", this::progressText);
+                .withProperty("pct", this::progressPercent)
+                .withProperty("label", this::progressText);
     }
 
     /**
@@ -784,10 +840,18 @@ public class MovieRequestView extends VerticalLayout {
      * Non-torrent (usenet) downloads have no peers, so they show a dash.
      */
     private LitRenderer<MovieRequest> peersRenderer() {
-        return LitRenderer.<MovieRequest>of("<span class=\"status-spinner\" ?hidden=\"${!item.loading}\"></span>"
+        return LitRenderer.<MovieRequest>of("<span class=\"status-spinner\" role=\"status\" aria-label=\"Loading\""
+                        + " ?hidden=\"${!item.loading}\"></span>"
                         + "<span ?hidden=\"${item.loading}\">${item.peers}</span>")
                 .withProperty("loading", this::isPeersLoading)
                 .withProperty("peers", this::peersText);
+    }
+
+    /** Numeric download percentage (0–100) for the Progress bar, or -1 when there's nothing to show. */
+    private double progressPercent(MovieRequest mr) {
+        Integer movieId = mr.getRadarrRequestId();
+        return RequestViewSupport.progressPercentOf(
+                protocolByMovieId.get(movieId), torrentByMovieId.get(movieId), slotByMovieId.get(movieId));
     }
 
     /** Loading for the Progress cell: any queued movie whose download status is still in flight. */

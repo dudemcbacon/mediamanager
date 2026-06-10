@@ -25,12 +25,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.Validation;
 import report.butt.mediamanager.model.deluge.DelugeTorrent;
+import report.butt.mediamanager.model.sabnzbd.SabnzbdSlot;
 import report.butt.mediamanager.service.NotificationService;
 
 /**
@@ -92,6 +95,50 @@ final class RequestViewSupport {
     }
 
     /**
+     * Numeric download percentage (0–100) for a queued item, or {@code -1} when there's no progress to show (not
+     * queued, or the torrent/slot hasn't reported yet). Drives the visual progress bar; the matching text label still
+     * comes from {@link #formatProgress}/{@link #formatPercentage}.
+     */
+    static double progressPercentOf(String protocol, DelugeTorrent torrent, SabnzbdSlot slot) {
+        if (protocol == null) {
+            return -1;
+        }
+        if (isTorrent(protocol)) {
+            return torrent == null || torrent.getProgress() == null ? -1 : clampPercent(torrent.getProgress());
+        }
+        if (slot == null || slot.getPercentage() == null || slot.getPercentage().isBlank()) {
+            return -1;
+        }
+        try {
+            return clampPercent(Double.parseDouble(slot.getPercentage().trim()));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    private static double clampPercent(double value) {
+        return Math.max(0, Math.min(100, value));
+    }
+
+    /**
+     * Lit template for a Progress cell: an optional loading spinner, then a thin determinate bar with a percentage
+     * label when {@code item.pct >= 0}, otherwise the plain {@code item.label} text (e.g. a dash). Bound properties:
+     * {@code pct} (double, -1 when N/A), {@code label} (string), and — only when {@code withSpinner} — {@code loading}.
+     */
+    static String progressCellTemplate(boolean withSpinner) {
+        String spinner = withSpinner
+                ? "<span class=\"status-spinner\" role=\"status\" aria-label=\"Loading\" ?hidden=\"${!item.loading}\">"
+                        + "</span>"
+                : "";
+        String loadGuard = withSpinner ? "item.loading || " : "";
+        return spinner
+                + "<span class=\"mm-progress-wrap\" ?hidden=\"${" + loadGuard + "item.pct < 0}\">"
+                + "<span class=\"mm-progress\"><span class=\"mm-progress-fill\" style=\"width: ${item.pct}%\"></span>"
+                + "</span><span class=\"mm-progress-label\">${item.label}</span></span>"
+                + "<span ?hidden=\"${" + loadGuard + "item.pct >= 0}\">${item.label}</span>";
+    }
+
+    /**
      * Protocol badges for a Status/Type cell: a solid-blue {@code torrent} badge and/or a solid-green {@code usenet}
      * badge, or a dash when nothing is queued.
      */
@@ -139,7 +186,109 @@ final class RequestViewSupport {
         value.removeAll();
         Span spinner = new Span();
         spinner.setClassName("status-spinner");
+        spinner.getElement().setAttribute("role", "status");
+        spinner.getElement().setAttribute("aria-label", "Loading");
         value.add(spinner);
+    }
+
+    // --- stat cards (Radarr/Sonarr queue + health) ---
+
+    // Severity tints for the queue/health stat cards (defined in styles.css, color-scheme aware).
+    private static final String IMPORT_BLOCKED_COLOR = "var(--mm-severity-blocked-bg)";
+    private static final String IMPORT_PENDING_COLOR = "var(--mm-severity-warning-bg)";
+    private static final String HEALTH_WARNING_COLOR = "var(--mm-severity-warning-bg)";
+
+    /**
+     * Updates a queue stat card from a per-state breakdown: the headline count, a tooltip listing each tracked-download
+     * state, and a severity background — red when anything is {@code importBlocked} (highest priority), yellow when
+     * anything is {@code importPending}. A null {@code byState} means the queue couldn't be fetched.
+     */
+    static void updateQueueCard(
+            Card card, Span value, Tooltip tooltip, Integer totalRecords, Map<String, Long> byState) {
+        if (byState == null) {
+            value.setText("—");
+            tooltip.setText("Queue unavailable");
+            card.getStyle().remove("background-color");
+            return;
+        }
+        value.setText(totalRecords == null ? "—" : String.valueOf(totalRecords));
+        String breakdown = byState.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()))
+                .map(e -> e.getKey() + ": " + e.getValue())
+                .collect(Collectors.joining(", "));
+        tooltip.setText(breakdown.isEmpty() ? "No active downloads" : breakdown);
+        if (byState.containsKey("importBlocked")) {
+            card.getStyle().set("background-color", IMPORT_BLOCKED_COLOR);
+        } else if (byState.containsKey("importPending")) {
+            card.getStyle().set("background-color", IMPORT_PENDING_COLOR);
+        } else {
+            card.getStyle().remove("background-color");
+        }
+    }
+
+    /**
+     * Updates a health stat card: the issue count, a tooltip listing each issue, and a yellow background when any issue
+     * is a warning. A null {@code health} means health couldn't be fetched.
+     */
+    static <H> void updateHealthCard(
+            Card card,
+            Span value,
+            Tooltip tooltip,
+            List<H> health,
+            Function<H, String> typeFn,
+            Function<H, String> messageFn) {
+        if (health == null) {
+            value.setText("—");
+            tooltip.setText("Health unavailable");
+            card.getStyle().remove("background-color");
+            return;
+        }
+        value.setText(String.valueOf(health.size()));
+        if (health.isEmpty()) {
+            tooltip.setText("No health issues");
+            card.getStyle().remove("background-color");
+            return;
+        }
+        tooltip.setText(health.stream()
+                .map(h -> healthIssueLine(typeFn.apply(h), messageFn.apply(h)))
+                .collect(Collectors.joining("\n")));
+        if (health.stream().anyMatch(h -> "warning".equalsIgnoreCase(typeFn.apply(h)))) {
+            card.getStyle().set("background-color", HEALTH_WARNING_COLOR);
+        } else {
+            card.getStyle().remove("background-color");
+        }
+    }
+
+    /**
+     * Runs the notification check off the UI thread and shows its summary toast. {@code setBulkButtonsEnabled} brackets
+     * the work — called with {@code false} up front (to disable the toolbar's bulk buttons) and {@code true} on
+     * completion, success or failure.
+     */
+    static void runNotificationCheck(
+            UI ui,
+            Logger log,
+            NotificationService notificationService,
+            Executor executor,
+            Consumer<Boolean> setBulkButtonsEnabled) {
+        setBulkButtonsEnabled.accept(false);
+        Notification working = new Notification("Running notification check…");
+        working.setDuration(0);
+        working.setPosition(Notification.Position.BOTTOM_START);
+        working.open();
+        CompletableFuture.supplyAsync(notificationService::runCheck, executor)
+                .whenComplete((result, throwable) -> ui.access(() -> {
+                    try {
+                        working.close();
+                        if (throwable != null) {
+                            log.warn("Notification check failed", throwable);
+                            Notification.show("Notification check failed; see the server log.");
+                        } else {
+                            Notification.show(notificationSummary(result));
+                        }
+                    } finally {
+                        setBulkButtonsEnabled.accept(true);
+                    }
+                }));
     }
 
     static Span coloredLabel(String text, String color) {
@@ -174,12 +323,13 @@ final class RequestViewSupport {
      * a toast; {@code always} (when non-null) runs on the UI thread on completion — success or failure — e.g. to
      * refresh a grid. Requires server push (see {@code @Push}).
      */
-    static void runAsync(UI ui, Logger log, String workingMessage, Runnable action, Runnable always) {
+    static void runAsync(
+            UI ui, Logger log, String workingMessage, Runnable action, Runnable always, Executor executor) {
         Notification working = new Notification(workingMessage);
         working.setDuration(0);
         working.setPosition(Notification.Position.BOTTOM_START);
         working.open();
-        CompletableFuture.runAsync(action)
+        CompletableFuture.runAsync(action, executor)
                 .whenComplete((unused, throwable) -> ui.access(() -> {
                     try {
                         working.close();

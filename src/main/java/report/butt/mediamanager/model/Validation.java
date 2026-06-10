@@ -100,6 +100,10 @@ public class Validation {
         return this.createdAt;
     }
 
+    public Instant getUpdatedAt() {
+        return this.updatedAt;
+    }
+
     public void setRequest(Request request) {
         this.request = request;
     }

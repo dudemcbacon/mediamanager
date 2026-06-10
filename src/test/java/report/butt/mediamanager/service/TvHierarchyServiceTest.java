@@ -57,6 +57,75 @@ class TvHierarchyServiceTest {
     private PlexClient plexClient;
 
     @Test
+    void loadAllHierarchies_returnsHierarchyGroupedByParentId() {
+        TvRequest parent =
+                tvRequestRepository.save(new TvRequest("All Hierarchies Show", 888001, false, 8801, "Common.Approved"));
+
+        TvChildRequest child = tvChildRequestRepository.save(
+                new TvChildRequest(parent, "All Hierarchies Show", 888001, false, 8901, "Common.Approved"));
+
+        TvSeasonRequest season = tvSeasonRequestRepository.save(new TvSeasonRequest(child, 8800, 1, false));
+        tvEpisodeRequestRepository.save(new TvEpisodeRequest(season, 8900, 1));
+        tvEpisodeRequestRepository.save(new TvEpisodeRequest(season, 8901, 2));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        var result = service.loadAllHierarchies();
+
+        // Result may contain entries from other tests; verify our parent's entry is correct
+        assertNotNull(result.get(parent.getId()), "parent entry must be present");
+        List<TvChildRequest> children = result.get(parent.getId());
+        assertEquals(1, children.size());
+        assertEquals(1, children.get(0).getSeasonRequests().size());
+        assertEquals(
+                2,
+                children.get(0).getSeasonRequests().get(0).getEpisodeRequests().size());
+    }
+
+    @Test
+    void loadEpisodesByRequestId_returnsEpisodesGroupedByParentId() {
+        TvRequest parent =
+                tvRequestRepository.save(new TvRequest("Eps By Id Show", 777001, false, 7701, "Common.Approved"));
+
+        TvChildRequest child = tvChildRequestRepository.save(
+                new TvChildRequest(parent, "Eps By Id Show", 777001, false, 7801, "Common.Approved"));
+
+        TvSeasonRequest season = tvSeasonRequestRepository.save(new TvSeasonRequest(child, 7700, 1, false));
+        TvEpisodeRequest ep1 = tvEpisodeRequestRepository.save(new TvEpisodeRequest(season, 7800, 1));
+        TvEpisodeRequest ep2 = tvEpisodeRequestRepository.save(new TvEpisodeRequest(season, 7801, 2));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        var result = service.loadEpisodesByRequestId();
+
+        // Result may contain entries from other tests; verify our parent's entry
+        List<TvEpisodeRequest> episodes = result.get(parent.getId());
+        assertNotNull(episodes, "episodes for our parent must be present");
+        assertEquals(2, episodes.size());
+    }
+
+    @Test
+    void loadEpisodes_returnsAllEpisodesForShow() {
+        TvRequest parent =
+                tvRequestRepository.save(new TvRequest("Load Episodes Show", 666001, false, 6601, "Common.Approved"));
+
+        TvChildRequest child = tvChildRequestRepository.save(
+                new TvChildRequest(parent, "Load Episodes Show", 666001, false, 6701, "Common.Approved"));
+
+        TvSeasonRequest season = tvSeasonRequestRepository.save(new TvSeasonRequest(child, 6600, 1, false));
+        tvEpisodeRequestRepository.save(new TvEpisodeRequest(season, 6700, 1));
+        tvEpisodeRequestRepository.save(new TvEpisodeRequest(season, 6701, 2));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        List<TvEpisodeRequest> episodes = service.loadEpisodes(parent);
+        assertEquals(2, episodes.size());
+    }
+
+    @Test
     void loadHierarchy_returnsChildrenSeasonsAndEpisodesInOrder() {
         TvRequest parent =
                 tvRequestRepository.save(new TvRequest("Hierarchy Test Show", 999001, false, 9001, "Common.Approved"));

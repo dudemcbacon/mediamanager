@@ -1,0 +1,13 @@
+/*
+ * Shared, theme- and color-scheme-aware status tints for the request grids and the Radarr/Sonarr
+ * stat cards. Each is an Aura palette color mixed into the current background, so it adapts to the
+ * light/dark color scheme automatically (both inputs are color-scheme aware). Never hardcode hex
+ * here — see the Aura theme. Referenced from grid-available.css and the queue/health cards.
+ */
+html {
+  --mm-row-available-bg: color-mix(in srgb, var(--aura-green) 22%, var(--aura-background-color));
+  --mm-row-stale-bg: color-mix(in srgb, var(--aura-yellow) 28%, var(--aura-background-color));
+  --mm-row-notes-bg: color-mix(in srgb, var(--aura-blue) 22%, var(--aura-background-color));
+  --mm-severity-blocked-bg: color-mix(in srgb, var(--aura-red) 30%, var(--aura-background-color));
+  --mm-severity-warning-bg: color-mix(in srgb, var(--aura-yellow) 35%, var(--aura-background-color));
+}

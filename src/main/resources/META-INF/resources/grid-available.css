@@ -1,13 +1,13 @@
 vaadin-grid::part(available) {
-  background-color: #c8f7c5;
+  background-color: var(--mm-row-available-bg);
 }
 
 vaadin-grid::part(stale) {
-  background-color: #fff3a3;
+  background-color: var(--mm-row-stale-bg);
 }
 
 vaadin-grid::part(has_notes) {
-  background-color: #b3d4fc;
+  background-color: var(--mm-row-notes-bg);
 }
 
 .status-spinner {
@@ -24,4 +24,33 @@ vaadin-grid::part(has_notes) {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Thin determinate download-progress bar shown in the grids' Progress column (see RequestViewSupport). */
+.mm-progress-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.mm-progress {
+  position: relative;
+  display: inline-block;
+  width: 4em;
+  height: 0.55em;
+  border-radius: 0.3em;
+  background-color: var(--vaadin-border-color-secondary, #d0d0d0);
+  overflow: hidden;
+}
+
+.mm-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 2px;
+  background-color: var(--aura-accent-color, #1e6fce);
+}
+
+.mm-progress-label {
+  font-size: var(--aura-font-size-xs, 0.75rem);
+  white-space: nowrap;
 }

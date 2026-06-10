@@ -1,6 +1,7 @@
 package report.butt.mediamanager.route;
 
 import com.vaadin.flow.component.AttachEvent;
+import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.card.Card;
@@ -24,6 +25,7 @@ import com.vaadin.flow.data.renderer.LitRenderer;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.shared.Registration;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.security.PermitAll;
 import java.util.ArrayList;
@@ -34,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -48,6 +51,7 @@ import report.butt.mediamanager.client.SabnzbdClient;
 import report.butt.mediamanager.controller.TvController;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.TvChildRequest;
+import report.butt.mediamanager.model.TvEpisodeRequest;
 import report.butt.mediamanager.model.TvRequest;
 import report.butt.mediamanager.model.Validation;
 import report.butt.mediamanager.model.deluge.DelugeTorrent;
@@ -125,6 +129,12 @@ public class TvRequestView extends VerticalLayout {
     private final AtomicBoolean downloadLoadInFlight = new AtomicBoolean(false);
     private final AtomicBoolean statsLoadInFlight = new AtomicBoolean(false);
     private final AtomicBoolean gridLoadInFlight = new AtomicBoolean(false);
+    private final ExecutorService uiTaskExecutor;
+
+    /** How often to quietly re-fetch live Sonarr/download status while the view is open. */
+    private static final int LIVE_POLL_INTERVAL_MS = 30_000;
+
+    private Registration pollRegistration;
 
     public TvRequestView(
             TvRequestRepository tvRequestRepository,
@@ -140,7 +150,8 @@ public class TvRequestView extends VerticalLayout {
             @Value("${ombi.url}") String ombiUrl,
             @Value("${sonarr.url}") String sonarrUrl,
             TvHierarchyService tvHierarchyService,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            ExecutorService uiTaskExecutor) {
         this.tvRequestRepository = tvRequestRepository;
         this.tvController = tvController;
         this.validationRepository = validationRepository;
@@ -156,6 +167,7 @@ public class TvRequestView extends VerticalLayout {
         this.notificationService = notificationService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.transactionTemplate.setReadOnly(true);
+        this.uiTaskExecutor = uiTaskExecutor;
         this.knownValidatorNames =
                 validators.stream().map(v -> v.getClass().getSimpleName()).collect(Collectors.toUnmodifiableSet());
         this.episodeValidators = episodeValidators.stream()
@@ -223,28 +235,30 @@ public class TvRequestView extends VerticalLayout {
         GridContextMenu<TvRequest> contextMenu = grid.addContextMenu();
         RequestViewSupport.suppressGridContextMenuOnLinks(grid);
         contextMenu.addItem("Refresh", e -> e.getItem()
-                .ifPresent(mr -> runAction("Refreshing…", () -> {
+                .ifPresent(mr -> runRowAction(mr, "Refreshing…", () -> {
                     tvController.refresh(mr.getId());
                     tvController.validate(mr.getId());
                 })));
         contextMenu.addItem("Search", e -> e.getItem()
-                .ifPresent(mr -> runAction("Searching…", () -> tvController.searchOne(mr.getId()))));
+                .ifPresent(mr -> runRowAction(mr, "Searching…", () -> tvController.searchOne(mr.getId()))));
         contextMenu.addItem("Search All Seasons", e -> e.getItem()
-                .ifPresent(mr -> runAction(
-                        "Searching all seasons…", () -> tvController.searchAllSeasonsForRequest(mr.getId()))));
+                .ifPresent(mr -> runRowAction(
+                        mr, "Searching all seasons…", () -> tvController.searchAllSeasonsForRequest(mr.getId()))));
         contextMenu.addItem("Search All Episodes", e -> e.getItem()
-                .ifPresent(mr -> runAction(
-                        "Searching all episodes…", () -> tvController.searchAllEpisodesForRequest(mr.getId()))));
+                .ifPresent(mr -> runRowAction(
+                        mr, "Searching all episodes…", () -> tvController.searchAllEpisodesForRequest(mr.getId()))));
         GridMenuItem<TvRequest> markAvailableItem = contextMenu.addItem("Mark Available", e -> e.getItem()
-                .ifPresent(mr -> runAction("Marking available…", () -> {
+                .ifPresent(mr -> runRowAction(mr, "Marking available…", () -> {
                     tvController.markAvailable(mr.getId());
                     tvController.refresh(mr.getId());
                     tvController.validate(mr.getId());
                 })));
         GridMenuItem<TvRequest> qualityProfileItem =
                 contextMenu.addItem("Set Quality Profile to 'Any'", e -> e.getItem()
-                        .ifPresent(mr -> runAction(
-                                "Updating quality profile…", () -> tvController.setQualityProfileToAny(mr.getId()))));
+                        .ifPresent(mr -> runRowAction(
+                                mr,
+                                "Updating quality profile…",
+                                () -> tvController.setQualityProfileToAny(mr.getId()))));
         contextMenu.addItem("Mark as Stale", e -> e.getItem().ifPresent(this::openMarkStaleDialog));
         contextMenu.addItem("Add Note", e -> e.getItem().ifPresent(this::openAddNoteDialog));
         contextMenu.addItem("View Notes", e -> e.getItem().ifPresent(this::openViewNotesDialog));
@@ -258,7 +272,7 @@ public class TvRequestView extends VerticalLayout {
         GridMenuItem<TvRequest> viewTvdbItem =
                 contextMenu.addItem("View TVDB", e -> e.getItem().ifPresent(this::openTvdb));
         GridMenuItem<TvRequest> deleteRequestItem = contextMenu.addItem("Delete TV Request", e -> e.getItem()
-                .ifPresent(mr -> runAction("Deleting request…", () -> tvController.delete(mr.getId()))));
+                .ifPresent(mr -> runRowAction(mr, "Deleting request…", () -> tvController.delete(mr.getId()))));
         // USER tier may view, refresh, search, validate, and annotate; mutating Ombi/Sonarr or deleting is ADMIN-only.
         markAvailableItem.setVisible(admin);
         qualityProfileItem.setVisible(admin);
@@ -321,6 +335,7 @@ public class TvRequestView extends VerticalLayout {
         searchField.setValueChangeMode(ValueChangeMode.LAZY);
         searchField.addValueChangeListener(e -> applyFilters());
         HorizontalLayout statsRow = new HorizontalLayout(sonarrQueueCard, sonarrHealthCard);
+        statsRow.getStyle().set("flex-wrap", "wrap");
         HorizontalLayout toolbar = new HorizontalLayout(
                 searchField,
                 refreshAll,
@@ -334,16 +349,29 @@ public class TvRequestView extends VerticalLayout {
                 showWithNotesCheckbox,
                 totalLabel);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
+        // Many controls in one row: let them wrap instead of overflowing on narrow screens.
+        toolbar.getStyle().set("flex-wrap", "wrap");
 
         add(statsRow, toolbar, grid);
         setFlexGrow(1, grid);
     }
 
     /**
-     * Runs a blocking controller action (Ombi/Sonarr/Plex) off the UI thread, refreshing the grid when it completes.
+     * Runs a blocking per-row controller action (Ombi/Sonarr/Plex) off the UI thread. On completion it refreshes only
+     * the affected show's DB state (request- and episode-level validations, notes, sub-roll-up) instead of re-reading
+     * the whole library, and reloads the live Sonarr/download status since the action may have changed the queue.
      */
-    private void runAction(String workingMessage, Runnable action) {
-        getUI().ifPresent(ui -> RequestViewSupport.runAsync(ui, log, workingMessage, action, this::refreshGrid));
+    private void runRowAction(TvRequest mr, String workingMessage, Runnable action) {
+        getUI().ifPresent(ui -> RequestViewSupport.runAsync(
+                ui,
+                log,
+                workingMessage,
+                action,
+                () -> {
+                    refreshRow(mr.getId());
+                    triggerStatsLoad(true);
+                },
+                uiTaskExecutor));
     }
 
     private void setBulkButtonsEnabled(boolean enabled) {
@@ -357,36 +385,23 @@ public class TvRequestView extends VerticalLayout {
     private void runBulkAction(String workingMessage, Runnable action) {
         getUI().ifPresent(ui -> {
             setBulkButtonsEnabled(false);
-            RequestViewSupport.runAsync(ui, log, workingMessage, action, () -> {
-                setBulkButtonsEnabled(true);
-                refreshGrid();
-            });
+            RequestViewSupport.runAsync(
+                    ui,
+                    log,
+                    workingMessage,
+                    action,
+                    () -> {
+                        setBulkButtonsEnabled(true);
+                        refreshGrid();
+                    },
+                    uiTaskExecutor);
         });
     }
 
     /** Runs the notification check off the UI thread and shows its summary toast. */
     private void runNotificationCheck() {
-        getUI().ifPresent(ui -> {
-            setBulkButtonsEnabled(false);
-            Notification working = new Notification("Running notification check…");
-            working.setDuration(0);
-            working.setPosition(Notification.Position.BOTTOM_START);
-            working.open();
-            CompletableFuture.supplyAsync(notificationService::runCheck)
-                    .whenComplete((result, throwable) -> ui.access(() -> {
-                        try {
-                            working.close();
-                            if (throwable != null) {
-                                log.warn("Notification check failed", throwable);
-                                Notification.show("Notification check failed; see the server log.");
-                            } else {
-                                Notification.show(RequestViewSupport.notificationSummary(result));
-                            }
-                        } finally {
-                            setBulkButtonsEnabled(true);
-                        }
-                    }));
-        });
+        getUI().ifPresent(ui -> RequestViewSupport.runNotificationCheck(
+                ui, log, notificationService, uiTaskExecutor, this::setBulkButtonsEnabled));
     }
 
     /**
@@ -403,17 +418,18 @@ public class TvRequestView extends VerticalLayout {
         if (!gridLoadInFlight.compareAndSet(false, true)) {
             return;
         }
-        CompletableFuture.supplyAsync(() -> transactionTemplate.execute(status -> buildSnapshot()))
+        CompletableFuture.supplyAsync(() -> transactionTemplate.execute(status -> buildSnapshot()), uiTaskExecutor)
                 .whenComplete((snapshot, throwable) -> ui.access(() -> {
                     try {
                         if (throwable != null) {
                             log.warn("Failed to refresh TV grid", throwable);
+                            Notification.show("Failed to load TV shows; see the server log.");
                         } else if (snapshot != null) {
                             applySnapshot(snapshot);
                         }
                     } finally {
                         gridLoadInFlight.set(false);
-                        triggerStatsLoad();
+                        triggerStatsLoad(true);
                     }
                 }));
     }
@@ -423,10 +439,7 @@ public class TvRequestView extends VerticalLayout {
             Map<Long, Map<String, Validation>> latestEpisodeValidations,
             Map<Long, Boolean> subValidations,
             Set<Long> withNotes,
-            List<TvRequest> all,
-            long validCount,
-            long staleCount,
-            long withNotesCount) {}
+            List<TvRequest> all) {}
 
     /**
      * Reads request- and episode-level validations, the show hierarchies (for the sub-validation roll-up), notes, and
@@ -457,14 +470,7 @@ public class TvRequestView extends VerticalLayout {
         Set<Long> withNotes = new HashSet<>();
         noteRepository.findAll().forEach(n -> withNotes.add(n.getRequest().getId()));
         List<TvRequest> all = tvRequestRepository.findAll();
-        long validCount = all.stream()
-                .filter(mr -> mr.isValid(knownValidatorNames, latest.getOrDefault(mr.getId(), Map.of())))
-                .count();
-        long staleCount =
-                all.stream().filter(mr -> Boolean.TRUE.equals(mr.getStale())).count();
-        long withNotesCount =
-                all.stream().filter(mr -> withNotes.contains(mr.getId())).count();
-        return new GridSnapshot(latest, latestEpisode, subs, withNotes, all, validCount, staleCount, withNotesCount);
+        return new GridSnapshot(latest, latestEpisode, subs, withNotes, all);
     }
 
     /** Applies a freshly loaded snapshot to the view state (on the UI thread) and re-runs the active filters. */
@@ -477,23 +483,138 @@ public class TvRequestView extends VerticalLayout {
         subValidations.putAll(snapshot.subValidations());
         tvRequestsWithNotes.clear();
         tvRequestsWithNotes.addAll(snapshot.withNotes());
-        showValidLabel.setText("Show valid rows (" + snapshot.validCount() + ")");
-        showStaleLabel.setText("Show stale rows (" + snapshot.staleCount() + ")");
-        showWithNotesLabel.setText("Show rows with notes (" + snapshot.withNotesCount() + ")");
-        totalLabel.setText("Total TV shows: " + snapshot.all().size());
         allRequests = snapshot.all();
+        updateCountLabels();
+        applyFilters();
+    }
+
+    /** Recomputes the toolbar count labels from the in-memory row state (no DB read). */
+    private void updateCountLabels() {
+        long valid = allRequests.stream()
+                .filter(mr -> mr.isValid(knownValidatorNames, latestValidations.getOrDefault(mr.getId(), Map.of())))
+                .count();
+        long stale = allRequests.stream()
+                .filter(mr -> Boolean.TRUE.equals(mr.getStale()))
+                .count();
+        long withNotes = allRequests.stream()
+                .filter(mr -> tvRequestsWithNotes.contains(mr.getId()))
+                .count();
+        showValidLabel.setText("Show valid rows (" + valid + ")");
+        showStaleLabel.setText("Show stale rows (" + stale + ")");
+        showWithNotesLabel.setText("Show rows with notes (" + withNotes + ")");
+        totalLabel.setText("Total TV shows: " + allRequests.size());
+    }
+
+    private record RowSnapshot(
+            TvRequest request,
+            Map<String, Validation> validations,
+            Map<Long, Map<String, Validation>> episodeValidations,
+            Boolean sub,
+            boolean hasNotes) {}
+
+    /** Refreshes a single show's DB state off the UI thread — see {@link #runRowAction}. */
+    private void refreshRow(Long id) {
+        getUI().ifPresent(ui -> CompletableFuture.supplyAsync(
+                        () -> transactionTemplate.execute(status -> buildRowSnapshot(id)), uiTaskExecutor)
+                .whenComplete((row, throwable) -> ui.access(() -> {
+                    if (throwable != null) {
+                        log.warn("Failed to refresh TV row {}", id, throwable);
+                        Notification.show("Failed to refresh row; see the server log.");
+                    } else if (row != null) {
+                        applyRowSnapshot(id, row);
+                    }
+                })));
+    }
+
+    /**
+     * Reads one show's request- and episode-level validations (the episodes fetched in a single {@code IN} query),
+     * notes, and sub-roll-up. Runs inside a read-only transaction; a null request means the show was deleted.
+     */
+    private RowSnapshot buildRowSnapshot(Long id) {
+        TvRequest mr = tvRequestRepository.findById(id).orElse(null);
+        if (mr == null) {
+            return new RowSnapshot(null, Map.of(), Map.of(), null, false);
+        }
+        Map<String, Validation> byName = new HashMap<>();
+        for (Validation v : validationRepository.findByRequest(mr)) {
+            if (knownValidatorNames.contains(v.getValidationName())) {
+                byName.merge(
+                        v.getValidationName(), v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
+            }
+        }
+        List<TvChildRequest> children = tvHierarchyService.loadHierarchy(mr);
+        List<TvEpisodeRequest> episodes = children.stream()
+                .flatMap(c -> c.getSeasonRequests().stream())
+                .flatMap(s -> s.getEpisodeRequests().stream())
+                .toList();
+        Map<Long, Map<String, Validation>> latestEpisode = new HashMap<>();
+        if (!episodes.isEmpty()) {
+            for (Validation v : validationRepository.findByTvEpisodeIn(episodes)) {
+                String name = v.getValidationName();
+                if (knownEpisodeValidatorNames.contains(name) && v.getTvEpisode() != null) {
+                    latestEpisode
+                            .computeIfAbsent(v.getTvEpisode().getId(), k -> new HashMap<>())
+                            .merge(name, v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
+                }
+            }
+        }
+        Boolean sub = TvHierarchyTreeGrid.allChildrenValidation(children, episodeValidators, latestEpisode);
+        boolean hasNotes = !noteRepository.findByRequestOrderByCreatedAtDesc(mr).isEmpty();
+        return new RowSnapshot(mr, byName, latestEpisode, sub, hasNotes);
+    }
+
+    /** Merges a single show's refreshed state into the view (on the UI thread) and re-runs the active filters. */
+    private void applyRowSnapshot(Long id, RowSnapshot row) {
+        List<TvRequest> updated = new ArrayList<>(allRequests);
+        updated.removeIf(r -> id.equals(r.getId()));
+        if (row.request() == null) {
+            latestValidations.remove(id);
+            subValidations.remove(id);
+            tvRequestsWithNotes.remove(id);
+        } else {
+            updated.add(row.request());
+            latestValidations.put(id, row.validations());
+            latestEpisodeValidations.putAll(row.episodeValidations());
+            subValidations.put(id, row.sub());
+            if (row.hasNotes()) {
+                tvRequestsWithNotes.add(id);
+            } else {
+                tvRequestsWithNotes.remove(id);
+            }
+        }
+        allRequests = updated;
+        updateCountLabels();
         applyFilters();
     }
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
+        UI ui = attachEvent.getUI();
+        ui.setPollInterval(LIVE_POLL_INTERVAL_MS);
+        // Quietly refresh just the live Sonarr/download status on each poll (not the whole grid) so the queue card and
+        // the expanded detail tree's progress stay current without a manual reload.
+        pollRegistration = ui.addPollListener(e -> triggerStatsLoad(false));
         refreshGrid();
     }
 
-    /** Kicks off the Sonarr queue + health fetch on the current UI, if the view is attached; a no-op otherwise. */
-    private void triggerStatsLoad() {
-        getUI().ifPresent(this::loadStatsAsync);
+    @Override
+    protected void onDetach(DetachEvent detachEvent) {
+        if (pollRegistration != null) {
+            pollRegistration.remove();
+            pollRegistration = null;
+        }
+        detachEvent.getUI().setPollInterval(-1);
+        super.onDetach(detachEvent);
+    }
+
+    /**
+     * Kicks off the Sonarr queue + health fetch on the current UI, if the view is attached; a no-op otherwise. When
+     * {@code showLoading} is set the stat cards show a spinner first (initial/explicit loads); the background poll
+     * passes {@code false} so the cards update in place without flashing.
+     */
+    private void triggerStatsLoad(boolean showLoading) {
+        getUI().ifPresent(ui -> loadStatsAsync(ui, showLoading));
     }
 
     /**
@@ -502,14 +623,18 @@ public class TvRequestView extends VerticalLayout {
      * {@link UI#access}. The download-status load is chained afterwards because it joins torrents/slots to the queue
      * maps populated here. A guard skips the fetch when one is already in flight.
      */
-    private void loadStatsAsync(UI ui) {
+    private void loadStatsAsync(UI ui, boolean showLoading) {
         if (!statsLoadInFlight.compareAndSet(false, true)) {
             return;
         }
-        RequestViewSupport.showCardLoading(sonarrQueueValue);
-        RequestViewSupport.showCardLoading(sonarrHealthValue);
-        CompletableFuture<SonarrQueue> queue = CompletableFuture.supplyAsync(tvController::getSonarrQueue);
-        CompletableFuture<List<SonarrHealthItem>> health = CompletableFuture.supplyAsync(tvController::getSonarrHealth);
+        if (showLoading) {
+            RequestViewSupport.showCardLoading(sonarrQueueValue);
+            RequestViewSupport.showCardLoading(sonarrHealthValue);
+        }
+        CompletableFuture<SonarrQueue> queue =
+                CompletableFuture.supplyAsync(tvController::getSonarrQueue, uiTaskExecutor);
+        CompletableFuture<List<SonarrHealthItem>> health =
+                CompletableFuture.supplyAsync(tvController::getSonarrHealth, uiTaskExecutor);
         queue.thenCombine(health, StatsResult::new)
                 .whenComplete((stats, throwable) -> ui.access(() -> {
                     try {
@@ -546,8 +671,9 @@ public class TvRequestView extends VerticalLayout {
             return;
         }
         CompletableFuture<Map<String, DelugeTorrent>> torrents =
-                CompletableFuture.supplyAsync(delugeClient::getTorrentsStatus);
-        CompletableFuture<Map<String, SabnzbdSlot>> slots = CompletableFuture.supplyAsync(sabnzbdClient::getQueueSlots);
+                CompletableFuture.supplyAsync(delugeClient::getTorrentsStatus, uiTaskExecutor);
+        CompletableFuture<Map<String, SabnzbdSlot>> slots =
+                CompletableFuture.supplyAsync(sabnzbdClient::getQueueSlots, uiTaskExecutor);
         torrents.thenCombine(slots, DownloadStatus::new)
                 .whenComplete((status, throwable) -> ui.access(() -> {
                     try {
@@ -674,7 +800,7 @@ public class TvRequestView extends VerticalLayout {
                 false,
                 reason -> {
                     tvController.markStale(mr.getId(), reason);
-                    refreshGrid();
+                    refreshRow(mr.getId());
                 });
     }
 
@@ -682,7 +808,7 @@ public class TvRequestView extends VerticalLayout {
         RequestViewSupport.openTextEntryDialog(
                 "Add note to \"" + mr.getTitle() + "\"", "Note", null, List.of(), true, note -> {
                     tvController.addNote(mr.getId(), note);
-                    refreshGrid();
+                    refreshRow(mr.getId());
                 });
     }
 
@@ -774,70 +900,30 @@ public class TvRequestView extends VerticalLayout {
         return tvdbId == null ? null : "https://www.thetvdb.com/?id=" + tvdbId + "&tab=series";
     }
 
-    private static final String IMPORT_BLOCKED_COLOR = "#f44336";
-    private static final String IMPORT_PENDING_COLOR = "#ffeb3b";
-    private static final String HEALTH_WARNING_COLOR = "#ffeb3b";
-
-    /**
-     * Updates the queue card's number, a per-state breakdown tooltip, and a severity background: red when any item is
-     * importBlocked (highest priority), yellow when any is importPending.
-     */
+    /** Updates the queue card's number, per-state breakdown tooltip, and severity background. */
     private void updateSonarrQueueCard(SonarrQueue queue) {
         if (queue == null) {
-            sonarrQueueValue.setText("—");
-            sonarrQueueTooltip.setText("Sonarr queue unavailable");
-            sonarrQueueCard.getStyle().remove("background-color");
+            RequestViewSupport.updateQueueCard(sonarrQueueCard, sonarrQueueValue, sonarrQueueTooltip, null, null);
             return;
         }
-
-        Integer total = queue.getTotalRecords();
-        sonarrQueueValue.setText(total == null ? "—" : String.valueOf(total));
-
         List<SonarrQueueRecord> records = queue.getRecords() == null ? List.of() : queue.getRecords();
         Map<String, Long> byState = records.stream()
                 .map(SonarrQueueRecord::getTrackedDownloadState)
                 .filter(state -> state != null)
                 .collect(Collectors.groupingBy(state -> state, Collectors.counting()));
-
-        String breakdown = byState.entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue()
-                        .reversed()
-                        .thenComparing(Map.Entry.<String, Long>comparingByKey()))
-                .map(e -> e.getKey() + ": " + e.getValue())
-                .collect(Collectors.joining(", "));
-        sonarrQueueTooltip.setText(breakdown.isEmpty() ? "No active downloads" : breakdown);
-
-        if (byState.containsKey("importBlocked")) {
-            sonarrQueueCard.getStyle().set("background-color", IMPORT_BLOCKED_COLOR);
-        } else if (byState.containsKey("importPending")) {
-            sonarrQueueCard.getStyle().set("background-color", IMPORT_PENDING_COLOR);
-        } else {
-            sonarrQueueCard.getStyle().remove("background-color");
-        }
+        RequestViewSupport.updateQueueCard(
+                sonarrQueueCard, sonarrQueueValue, sonarrQueueTooltip, queue.getTotalRecords(), byState);
     }
 
     /** Sets the health count and a tooltip listing each reported issue. */
     private void updateSonarrHealthCard(List<SonarrHealthItem> health) {
-        if (health == null) {
-            sonarrHealthValue.setText("—");
-            sonarrHealthTooltip.setText("Sonarr health unavailable");
-            sonarrHealthCard.getStyle().remove("background-color");
-            return;
-        }
-        sonarrHealthValue.setText(String.valueOf(health.size()));
-        if (health.isEmpty()) {
-            sonarrHealthTooltip.setText("No health issues");
-            sonarrHealthCard.getStyle().remove("background-color");
-            return;
-        }
-        sonarrHealthTooltip.setText(health.stream()
-                .map(h -> RequestViewSupport.healthIssueLine(h.getType(), h.getMessage()))
-                .collect(Collectors.joining("\n")));
-        if (health.stream().anyMatch(h -> "warning".equalsIgnoreCase(h.getType()))) {
-            sonarrHealthCard.getStyle().set("background-color", HEALTH_WARNING_COLOR);
-        } else {
-            sonarrHealthCard.getStyle().remove("background-color");
-        }
+        RequestViewSupport.updateHealthCard(
+                sonarrHealthCard,
+                sonarrHealthValue,
+                sonarrHealthTooltip,
+                health,
+                SonarrHealthItem::getType,
+                SonarrHealthItem::getMessage);
     }
 
     private LitRenderer<TvRequest> qualityBadgeRenderer() {
@@ -910,7 +996,7 @@ public class TvRequestView extends VerticalLayout {
         com.vaadin.flow.component.Component hierarchy = children.isEmpty()
                 ? TvHierarchyTreeGrid.placeholderWhenEmpty()
                 : new TvHierarchyTreeGrid(
-                        children, episodeValidators, latestEpisodeValidations, downloads, tvController);
+                        children, episodeValidators, latestEpisodeValidations, downloads, tvController, uiTaskExecutor);
 
         VerticalLayout layout = new VerticalLayout(fields, hierarchy);
         layout.setWidthFull();

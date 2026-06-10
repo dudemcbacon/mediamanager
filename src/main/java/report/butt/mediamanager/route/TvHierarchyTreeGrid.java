@@ -9,12 +9,14 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.data.provider.hierarchy.TreeData;
 import com.vaadin.flow.data.provider.hierarchy.TreeDataProvider;
+import com.vaadin.flow.data.renderer.LitRenderer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import report.butt.mediamanager.controller.TvController;
@@ -45,13 +47,16 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     // protocols of its downloading seasons. Progress/Peers stay episode-only.
     private final Map<Long, Set<String>> protocolsBySeasonId = new HashMap<>();
     private final Map<Long, Set<String>> protocolsByChildId = new HashMap<>();
+    private final Executor uiTaskExecutor;
 
     TvHierarchyTreeGrid(
             List<TvChildRequest> children,
             List<EpisodeValidator> episodeValidators,
             Map<Long, Map<String, Validation>> latestEpisodeValidations,
             Map<EpisodeKey, EpisodeDownload> episodeDownloads,
-            TvController tvController) {
+            TvController tvController,
+            Executor uiTaskExecutor) {
+        this.uiTaskExecutor = uiTaskExecutor;
         setSizeFull();
 
         TreeData<TvHierarchyRow> treeData = new TreeData<>();
@@ -78,7 +83,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         addColumn(TvHierarchyTreeGrid::statusText).setHeader("Status").setAutoWidth(true);
 
         addComponentColumn(this::typeComponent).setHeader("Type").setAutoWidth(true);
-        addColumn(this::progressText).setHeader("Progress").setAutoWidth(true);
+        addColumn(progressRenderer()).setHeader("Progress").setAutoWidth(true);
         addColumn(this::peersText).setHeader("Peers").setAutoWidth(true);
 
         for (EpisodeValidator validator : episodeValidators) {
@@ -156,7 +161,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
 
     /** Runs a blocking Sonarr search/delete off the UI thread so the detail grid doesn't freeze. */
     private void runAsync(String workingMessage, Runnable action) {
-        getUI().ifPresent(ui -> RequestViewSupport.runAsync(ui, log, workingMessage, action, null));
+        getUI().ifPresent(ui -> RequestViewSupport.runAsync(ui, log, workingMessage, action, null, uiTaskExecutor));
     }
 
     /**
@@ -212,6 +217,21 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
                         child.getId() == null ? Set.of() : protocolsByChildId.getOrDefault(child.getId(), Set.of());
                 };
         return RequestViewSupport.protocolBadges(protocols);
+    }
+
+    /** Progress cell: a thin determinate bar with the percentage for a queued episode, else a dash. */
+    private LitRenderer<TvHierarchyRow> progressRenderer() {
+        return LitRenderer.<TvHierarchyRow>of(RequestViewSupport.progressCellTemplate(false))
+                .withProperty("pct", this::progressPercent)
+                .withProperty("label", this::progressText);
+    }
+
+    /** Numeric download percentage (0–100) for the Progress bar, or -1 when there's nothing to show. */
+    private double progressPercent(TvHierarchyRow row) {
+        EpisodeDownload download = downloadFor(row);
+        return download == null
+                ? -1
+                : RequestViewSupport.progressPercentOf(download.protocol(), download.torrent(), download.slot());
     }
 
     /** Download progress for a queued episode: torrent progress or SABnzbd percentage, else a dash. */

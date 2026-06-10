@@ -1,5 +1,7 @@
 plugins {
   id 'java'
+  id 'jacoco'
+  id 'jacoco-report-aggregation'
   alias(libs.plugins.vaadin)
   alias libs.plugins.spring.boot
   alias libs.plugins.spring.dependency.management
@@ -94,6 +96,7 @@ spotless {
     java {
         removeUnusedImports()
         importOrder()
+        trimTrailingWhitespace()
 
         cleanthat().addMutator('SafeAndConsensual')
 
@@ -131,3 +134,84 @@ tasks.withType(JavaCompile).configureEach {
         }
     }
 }
+
+jacoco {
+    toolVersion = '0.8.13'
+}
+
+// Lists pulled from CoverageExtension defaults
+def generatedSources = [
+        // Dagger generated classes
+        '**/Dagger*_*Component.class',
+        '**/Dagger*_*Component$*.class',
+        '**/*_*Factory.class',
+        // Possible other generated classes
+        '**/*$$*',
+        // jsonschema2pojo-generated DTOs for external APIs (pure getters/setters, no logic).
+        '**/model/ombi/**',
+        '**/model/radarr/**',
+        '**/model/plex/**',
+        '**/model/sonarr/**',
+        '**/model/sabnzbd/**',
+        '**/model/deluge/**',
+        // Vaadin views: UI wiring, exercised by browser/e2e tests rather than unit coverage.
+        '**/route/**',
+]
+def coverageExcludes = [
+        // Dagger generated classes
+        '*/Dagger*_*Component',
+        '*/Dagger*_*Component$*',
+        '*/*_*Factory',
+        // Possible other generated classes
+        '**/*$$*',
+]
+
+// Threshold applied to every counter via COVEREDRATIO.
+// Plugin default is 0.0 (i.e. won't fail the build). Raise to enforce, e.g. 0.80.
+def coverageThreshold = 0.8
+
+// Don't instrument these classes during test (perf). Class-name globs, NOT ant patterns.
+test {
+    jacoco {
+        excludes = coverageExcludes
+    }
+}
+
+jacocoTestReport {
+    // Omit generated classes from the report. Ant patterns against .class paths.
+    classDirectories.setFrom(files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: generatedSources)
+    }))
+
+    reports {
+        html.required = true
+        xml.required = true
+        csv.required = false
+    }
+}
+
+jacocoTestCoverageVerification {
+    classDirectories.setFrom(files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: generatedSources)
+    }))
+
+    // element scope: BUNDLE, PACKAGE, CLASS, SOURCEFILE or METHOD. Enforce 80% across the whole
+    // bundle (the usual meaning of "80% coverage"), measured over the non-excluded business-logic
+    // classes only (generated DTOs and Vaadin views are dropped via classDirectories above).
+    violationRules {
+        rule {
+            element = 'BUNDLE'
+            limit { counter = 'INSTRUCTION'; minimum = coverageThreshold }
+        }
+    }
+}
+
+// Run reports + verification as part of `check`
+check.dependsOn jacocoTestReport, testCodeCoverageReport, jacocoTestCoverageVerification
+jacocoTestCoverageVerification.mustRunAfter jacocoTestReport, testCodeCoverageReport
+
+// ca.cutterslade.analyze 2.0.0 wires analyzeClassesDependencies -> bootTestRun, so `check`
+// (which runs analyzeDependencies) ends up actually starting the app — Tomcat + the Vaadin dev
+// server + a live DB — and fails. bootTestRun produces no output analyze consumes, and there's no
+// custom test-main class here, so it has no place in `check`. Disable it; use `bootRun` to run the app.
+tasks.named('bootTestRun') { enabled = false }

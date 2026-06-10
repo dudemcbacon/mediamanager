@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
@@ -85,6 +86,7 @@ public class AdminView extends VerticalLayout {
     private final String ombiUrl;
     private final String radarrUrl;
     private final String sonarrUrl;
+    private final ExecutorService uiTaskExecutor;
 
     private final ProgressBar leaderboardProgress = indeterminateBar();
     private final ProgressBar snapshotProgress = indeterminateBar();
@@ -125,7 +127,8 @@ public class AdminView extends VerticalLayout {
             TvController tvController,
             @Value("${ombi.url}") String ombiUrl,
             @Value("${radarr.url}") String radarrUrl,
-            @Value("${sonarr.url}") String sonarrUrl) {
+            @Value("${sonarr.url}") String sonarrUrl,
+            ExecutorService uiTaskExecutor) {
         this.movieRequestRepository = movieRequestRepository;
         this.tvRequestRepository = tvRequestRepository;
         this.notificationService = notificationService;
@@ -135,6 +138,7 @@ public class AdminView extends VerticalLayout {
         this.ombiUrl = ombiUrl;
         this.radarrUrl = radarrUrl;
         this.sonarrUrl = sonarrUrl;
+        this.uiTaskExecutor = uiTaskExecutor;
 
         movieBoard = new Section<>("Top movie requesters", leaderboardGrid("Movie requests"));
         tvBoard = new Section<>("Top TV requesters", leaderboardGrid("TV requests"));
@@ -213,8 +217,11 @@ public class AdminView extends VerticalLayout {
         if (!leaderboardLoading.compareAndSet(false, true)) {
             return;
         }
-        CompletableFuture.supplyAsync(() -> new Leaderboards(
-                        leaderboard(movieRequestRepository.findAll()), leaderboard(tvRequestRepository.findAll())))
+        CompletableFuture.supplyAsync(
+                        () -> new Leaderboards(
+                                leaderboard(movieRequestRepository.findAll()),
+                                leaderboard(tvRequestRepository.findAll())),
+                        uiTaskExecutor)
                 .whenComplete((boards, throwable) -> ui.access(() -> {
                     try {
                         if (throwable != null) {
@@ -238,7 +245,7 @@ public class AdminView extends VerticalLayout {
         if (!snapshotLoading.compareAndSet(false, true)) {
             return;
         }
-        CompletableFuture.supplyAsync(notificationService::snapshot)
+        CompletableFuture.supplyAsync(notificationService::snapshot, uiTaskExecutor)
                 .whenComplete((snapshot, throwable) -> ui.access(() -> {
                     try {
                         if (throwable != null) {
@@ -285,7 +292,7 @@ public class AdminView extends VerticalLayout {
             return;
         }
         setDownloadButtonsEnabled(false);
-        CompletableFuture.supplyAsync(() -> downloadCleanupService.deleteTorrentsAndReprocess(hashes))
+        CompletableFuture.supplyAsync(() -> downloadCleanupService.deleteTorrentsAndReprocess(hashes), uiTaskExecutor)
                 .whenComplete((result, throwable) -> ui.access(() -> {
                     try {
                         if (throwable != null) {
@@ -320,13 +327,15 @@ public class AdminView extends VerticalLayout {
         }
         searchAllUnsearchedMovies.setEnabled(false);
         searchAllUnsearchedTv.setEnabled(false);
-        CompletableFuture.runAsync(() -> {
-                    if (tv) {
-                        tvController.searchSeries(ids);
-                    } else {
-                        movieController.searchMovies(ids);
-                    }
-                })
+        CompletableFuture.runAsync(
+                        () -> {
+                            if (tv) {
+                                tvController.searchSeries(ids);
+                            } else {
+                                movieController.searchMovies(ids);
+                            }
+                        },
+                        uiTaskExecutor)
                 .whenComplete((unused, throwable) -> ui.access(() -> {
                     try {
                         if (throwable != null) {
