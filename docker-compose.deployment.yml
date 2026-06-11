@@ -7,7 +7,7 @@ services:
     labels:
       com.centurylinklabs.watchtower.enable: true
     ports:
-      - '${APP_PORT:-8080}:8080'
+      - '${APP_PORT:-12345}:8080'
     env_file:
       - .env
 
