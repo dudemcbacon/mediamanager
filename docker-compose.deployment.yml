@@ -1,7 +1,7 @@
 ---
 services:
   mediamanager:
-    image: ${MEDIAMANAGER_IMAGE:-ghcr.io/bburnett/mediamanager:latest}
+    image: ${MEDIAMANAGER_IMAGE:-ghcr.io/dudemcbacon/mediamanager:latest}
     container_name: mediamanager-app
     restart: unless-stopped
     labels:
