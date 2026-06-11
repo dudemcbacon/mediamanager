@@ -1,3 +1,4 @@
+---
 services:
   mediamanager:
     image: ${MEDIAMANAGER_IMAGE:-ghcr.io/bburnett/mediamanager:latest}
