@@ -10,9 +10,12 @@ RUN ./gradlew --version --no-daemon
 COPY package.json package-lock.json tsconfig.json types.d.ts vite.config.ts ./
 COPY src ./src
 
+# Commit sha for the in-app version footer; .git isn't in the build context, so CI passes it in.
+ARG GIT_SHA=""
+
 RUN --mount=type=cache,target=/root/.gradle \
     --mount=type=cache,target=/workspace/node_modules \
-    ./gradlew bootJar -Pvaadin.productionMode --no-daemon
+    ./gradlew bootJar -Pvaadin.productionMode -PgitSha="$GIT_SHA" --no-daemon
 
 RUN cp build/libs/*.jar app.jar
 

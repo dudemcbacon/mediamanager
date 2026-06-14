@@ -11,6 +11,11 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+# Serialize runs per-ref so two main builds can't race on the version-bump commit/push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -58,8 +63,54 @@ jobs:
             build/test-results/
           if-no-files-found: ignore
 
-  build:
+  # Bumps the version and commits it back to main once tests pass. On every other ref it just
+  # echoes the current version, so the build job (which needs this job) still runs for branches/PRs.
+  version:
     needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and bump version
+        id: resolve
+        run: |
+          set -euo pipefail
+          current=$(grep -E "^version = " build.gradle | sed -E "s/^version = '(.*)'.*/\1/")
+          echo "Current version: $current"
+          sha="${{ github.sha }}"
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            base="${current%-SNAPSHOT}"
+            if [ "$current" = "$base" ]; then
+              # Already a released version -> increment the patch.
+              major="${base%%.*}"; rest="${base#*.}"; minor="${rest%%.*}"; patch="${rest#*.}"
+              newv="$major.$minor.$((patch + 1))"
+            else
+              # Had -SNAPSHOT -> release it as-is by dropping the suffix.
+              newv="$base"
+            fi
+            echo "Releasing version: $newv"
+            sed -i -E "s/^version = '.*'/version = '$newv'/" build.gradle
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "ci: release $newv [skip ci]" build.gradle
+            git push origin HEAD:main
+            sha=$(git rev-parse HEAD)
+            echo "version=$newv" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$current" >> "$GITHUB_OUTPUT"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: [test, version]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -67,6 +118,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Build from the (possibly) bumped commit so build-info.version matches the published tag.
+          ref: ${{ needs.version.outputs.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -89,6 +143,7 @@ jobs:
             type=ref,event=pr
             type=sha,format=long
             type=semver,pattern={{version}}
+            type=raw,value=${{ needs.version.outputs.version }},enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
@@ -98,5 +153,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_SHA=${{ needs.version.outputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

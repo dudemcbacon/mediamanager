@@ -4,7 +4,9 @@ import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dependency.JsModule;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.sidenav.SideNav;
@@ -12,6 +14,10 @@ import com.vaadin.flow.component.sidenav.SideNavItem;
 import com.vaadin.flow.router.Layout;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 import jakarta.annotation.security.PermitAll;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.info.BuildProperties;
 import report.butt.mediamanager.security.SecurityUtils;
 
 /**
@@ -27,7 +33,7 @@ import report.butt.mediamanager.security.SecurityUtils;
 @PermitAll
 public class MainLayout extends AppLayout {
 
-    public MainLayout(AuthenticationContext authenticationContext) {
+    public MainLayout(AuthenticationContext authenticationContext, ObjectProvider<BuildProperties> buildProperties) {
         H1 title = new H1("Media Manager");
         title.getStyle().set("font-size", "var(--aura-font-size-l)").set("margin", "0");
 
@@ -47,5 +53,46 @@ public class MainLayout extends AppLayout {
             nav.addItem(new SideNavItem("Users", UserAdminView.class));
         }
         addToDrawer(nav);
+
+        BuildProperties build = buildProperties.getIfAvailable();
+        Span version = new Span("v" + (build != null ? build.getVersion() : "dev"));
+        version.getStyle().set("font-size", "var(--aura-font-size-xs)");
+
+        Div footer = new Div(version);
+        footer.getStyle()
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("color", "var(--vaadin-text-color-secondary)")
+                .set("margin-top", "auto")
+                .set("padding", "var(--vaadin-padding-s)");
+
+        if (build != null) {
+            String detail = buildDetail(build);
+            if (!detail.isEmpty()) {
+                Span meta = new Span(detail);
+                meta.getStyle().set("font-size", "var(--aura-font-size-xs)").set("opacity", "0.7");
+                footer.add(meta);
+            }
+        }
+        addToDrawer(footer);
+    }
+
+    private static final DateTimeFormatter BUILD_DATE =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.systemDefault());
+
+    /** Renders the build date and, when available, the short git sha as "{@code 2026-06-14 · a10eba5}". */
+    private static String buildDetail(BuildProperties build) {
+        StringBuilder sb = new StringBuilder();
+        if (build.getTime() != null) {
+            sb.append(BUILD_DATE.format(build.getTime()));
+        }
+        String commit = build.get("commit");
+        if (commit != null && !commit.isBlank()) {
+            if (!sb.isEmpty()) {
+                sb.append(" · ");
+            }
+            sb.append(commit);
+        }
+        return sb.toString();
     }
 }
