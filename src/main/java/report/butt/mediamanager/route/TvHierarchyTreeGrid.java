@@ -282,10 +282,10 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     }
 
     /**
-     * Row-level roll-up for the parent grid's Sub-Validations column: TRUE only when every child (and thus every season
-     * and episode beneath it) is validated and valid across all episode validators, null when nothing is validated yet,
-     * FALSE otherwise. Uses the same per-child {@link #childResult} the tree displays, so the column and the expanded
-     * rows agree.
+     * Row-level roll-up for the parent grid's Sub-Validations column: TRUE when every validated child is valid across
+     * all episode validators, null when nothing is validated yet, FALSE otherwise. Children that are still unknown
+     * (shown as "—") are ignored rather than counted as failures, matching the per-child {@link #childResult} the tree
+     * displays so the column and the expanded rows agree.
      */
     static Boolean allChildrenValidation(
             List<TvChildRequest> children,
@@ -297,7 +297,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
                 childResults.add(childResult(child, validator.getClass().getSimpleName(), latestEpisodeValidations));
             }
         }
-        return rollUp(childResults);
+        return rollUpIgnoringUnknown(childResults);
     }
 
     private static Boolean episodeResult(
@@ -318,9 +318,13 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
                 .toList());
     }
 
+    /**
+     * Child-request roll-up. Unlike {@link #seasonResult}/{@link #episodeResult}, an unknown ("—") season is ignored
+     * rather than treated as a failure, so a child is valid when every season that has been validated is valid.
+     */
     private static Boolean childResult(
             TvChildRequest child, String validationName, Map<Long, Map<String, Validation>> latestEpisodeValidations) {
-        return rollUp(child.getSeasonRequests().stream()
+        return rollUpIgnoringUnknown(child.getSeasonRequests().stream()
                 .map(season -> seasonResult(season, validationName, latestEpisodeValidations))
                 .toList());
     }
@@ -336,6 +340,26 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
             if (result != null) {
                 anyKnown = true;
             }
+            if (!Boolean.TRUE.equals(result)) {
+                allValid = false;
+            }
+        }
+        return anyKnown ? allValid : null;
+    }
+
+    /**
+     * Like {@link #rollUp} but skips unknown ("—") entries instead of counting them as failures: null when every entry
+     * is unknown, TRUE when every known entry is valid, FALSE when any known entry failed. Used at the child-request
+     * level so that not-yet-validated rows don't drag an otherwise-valid child to a failure.
+     */
+    private static Boolean rollUpIgnoringUnknown(List<Boolean> results) {
+        boolean anyKnown = false;
+        boolean allValid = true;
+        for (Boolean result : results) {
+            if (result == null) {
+                continue;
+            }
+            anyKnown = true;
             if (!Boolean.TRUE.equals(result)) {
                 allValid = false;
             }

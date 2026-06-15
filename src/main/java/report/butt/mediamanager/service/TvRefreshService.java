@@ -611,8 +611,9 @@ public class TvRefreshService {
 
     private static boolean allEpisodesAvailable(OmbiTvSeasonRequest ombiSeason) {
         List<OmbiTvEpisode> episodes = ombiSeason.getEpisodes();
+        // A season with no episodes associated has nothing outstanding, so treat it as available.
         if (episodes == null || episodes.isEmpty()) {
-            return false;
+            return true;
         }
         return episodes.stream().allMatch(episode -> Boolean.TRUE.equals(episode.getAvailable()));
     }

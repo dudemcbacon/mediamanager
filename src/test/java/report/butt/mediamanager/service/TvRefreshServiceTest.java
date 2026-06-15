@@ -1,6 +1,7 @@
 package report.butt.mediamanager.service;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
@@ -14,6 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -22,6 +24,7 @@ import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.SonarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.TvRequest;
+import report.butt.mediamanager.model.TvSeasonRequest;
 import report.butt.mediamanager.model.ombi.OmbiTvChildRequest;
 import report.butt.mediamanager.model.ombi.OmbiTvEpisode;
 import report.butt.mediamanager.model.ombi.OmbiTvRequest;
@@ -231,6 +234,35 @@ class TvRefreshServiceTest {
         service.refreshAll();
 
         verify(seasonRepository).saveAll(anyList());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked") // Safe: seasonRepository.saveAll is always invoked with a List<TvSeasonRequest>.
+    void refreshAllSeasonWithNoEpisodesIsMarkedAvailable() {
+        OmbiTvRequest ombiTv = ombiTv(3, "Empty Season Show", 902);
+        OmbiTvChildRequest child = ombiChild(3, 13);
+        OmbiTvSeasonRequest season = ombiSeason(300, 1);
+        season.setEpisodes(List.of()); // zero episodes associated
+        child.setSeasonRequests(List.of(season));
+        ombiTv.setChildRequests(List.of(child));
+
+        when(ombiClient.getTvRequests()).thenReturn(List.of(ombiTv));
+        when(sonarrClient.getAllSeries()).thenReturn(List.of());
+        when(sonarrClient.getQualityProfilesById()).thenReturn(Map.of());
+        when(plexClient.getAllShowsIndexedByTvdb()).thenReturn(Map.of());
+        when(plexClient.getAllEpisodesIndexedByShow()).thenReturn(Map.of());
+        when(repository.findByOmbiRequestIdIn(any())).thenReturn(List.of());
+        when(childRepository.findByOmbiRequestIdIn(any())).thenReturn(List.of());
+        when(seasonRepository.findByTvChildRequestIdIn(any())).thenReturn(List.of());
+        when(episodeRepository.findByTvSeasonRequestIdIn(any())).thenReturn(List.of());
+
+        service.refreshAll();
+
+        ArgumentCaptor<List<TvSeasonRequest>> captor = ArgumentCaptor.forClass(List.class);
+        verify(seasonRepository).saveAll(captor.capture());
+        assertTrue(
+                captor.getValue().stream().allMatch(s -> Boolean.TRUE.equals(s.getOmbiSeasonAvailable())),
+                "A season with no episodes should be marked available");
     }
 
     // --- refreshOne ---
