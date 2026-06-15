@@ -7,7 +7,9 @@ COPY gradlew settings.gradle build.gradle ./
 COPY gradle ./gradle
 RUN ./gradlew --version --no-daemon
 
-COPY package.json package-lock.json tsconfig.json types.d.ts vite.config.ts ./
+# gradle.properties carries the project version (CI bumps it each release); without it,
+# project.version falls back to Gradle's "unspecified" default and the in-app footer shows "vunspecified".
+COPY gradle.properties package.json package-lock.json tsconfig.json types.d.ts vite.config.ts ./
 COPY src ./src
 
 # Commit sha for the in-app version footer; .git isn't in the build context, so CI passes it in.
