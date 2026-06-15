@@ -303,7 +303,7 @@ public class MovieRequestView extends VerticalLayout {
         // Many controls in one row: let them wrap instead of overflowing on narrow screens.
         toolbar.getStyle().set("flex-wrap", "wrap");
 
-        add(statsRow, toolbar, grid);
+        add(statsRow, toolbar, grid, RequestViewSupport.iconsetLoader());
         setFlexGrow(1, grid);
     }
 

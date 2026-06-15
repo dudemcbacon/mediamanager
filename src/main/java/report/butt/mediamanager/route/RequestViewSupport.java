@@ -10,6 +10,8 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -67,6 +69,24 @@ final class RequestViewSupport {
         Map<String, Validation> byName = latestValidations.get(requestId);
         Validation v = byName == null ? null : byName.get(validationName);
         return v == null ? null : v.getResult();
+    }
+
+    /**
+     * A visually-hidden server-side {@link Icon} to add to a view so the {@code @vaadin/icons} iconset module loads.
+     *
+     * <p>The validator-result and external-link cells render {@code <vaadin-icon>} from {@link LitRenderer} template
+     * strings (the {@code validatorResultRenderer}s and {@link #linkRenderer}). In the optimized production bundle,
+     * Vaadin loads and registers the {@code vaadin} iconset only when a real {@link Icon} component is rendered — a bare
+     * {@code @JsModule} import is never triggered for template-string icons, so those cells stay blank in production
+     * (they work in dev, where the frontend loads eagerly). This is also why TV icons appear only once a row is expanded
+     * today: the detail tree grid is the only place using the Java {@code VaadinIcon} API. Adding one hidden {@code
+     * Icon} per view registers the iconset up front so every {@code <vaadin-icon>} resolves on load.
+     */
+    static Component iconsetLoader() {
+        Icon loader = VaadinIcon.CHECK.create();
+        loader.getStyle().set("display", "none");
+        loader.getElement().setAttribute("aria-hidden", "true");
+        return loader;
     }
 
     // --- download status formatting ---

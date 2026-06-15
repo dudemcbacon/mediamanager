@@ -3,7 +3,6 @@ package report.butt.mediamanager.route;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
@@ -25,10 +24,6 @@ import report.butt.mediamanager.security.SecurityUtils;
  * navigation (Movies/TV, plus Admin/Users for admins) and a logout action in the navbar. {@code LoginView} opts out
  * with {@code autoLayout = false}.
  */
-// Validator-result cells render <vaadin-icon> from a LitRenderer template string (see RequestViewSupport),
-// which the optimized production bundle can't statically detect. Importing the iconset here keeps those icons
-// (check/close/minus, external-link) visible in production, not just dev mode.
-@JsModule("@vaadin/icons/vaadin-iconset.js")
 @Layout
 @PermitAll
 public class MainLayout extends AppLayout {
