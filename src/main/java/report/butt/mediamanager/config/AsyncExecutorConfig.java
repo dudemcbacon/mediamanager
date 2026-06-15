@@ -6,6 +6,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutorService;
 
 @Configuration
 public class AsyncExecutorConfig {
@@ -16,6 +17,13 @@ public class AsyncExecutorConfig {
      * one slow, VPN-fronted integration can't starve async UI work for every other user (the common pool is sized to
      * the CPU count and shared JVM-wide). Bounded so a burst of slow calls queues rather than spawning unbounded
      * threads; Spring shuts it down on context close.
+     *
+     * <p>Wrapped in a {@link DelegatingSecurityContextExecutorService} so the Spring Security context is propagated to
+     * the worker threads. The context is thread-local: it's present on the Vaadin UI thread that submits the task but
+     * absent on a plain pool thread, so {@code @PreAuthorize}-guarded controller calls (e.g.
+     * {@code MovieController.markAvailable}) would otherwise fail with {@code AuthenticationCredentialsNotFoundException}.
+     * The wrapper captures the context at submit time and restores the worker's previous context afterward, so it
+     * doesn't leak between pooled tasks.
      */
     @Bean(destroyMethod = "shutdown")
     ExecutorService uiTaskExecutor() {
@@ -29,6 +37,6 @@ public class AsyncExecutorConfig {
                 return thread;
             }
         };
-        return Executors.newFixedThreadPool(16, factory);
+        return new DelegatingSecurityContextExecutorService(Executors.newFixedThreadPool(16, factory));
     }
 }
