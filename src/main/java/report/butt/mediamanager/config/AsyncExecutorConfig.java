@@ -1,5 +1,6 @@
 package report.butt.mediamanager.config;
 
+import com.vaadin.flow.spring.security.VaadinAwareSecurityContextHolderStrategy;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -24,9 +25,17 @@ public class AsyncExecutorConfig {
      * {@code MovieController.markAvailable}) would otherwise fail with {@code AuthenticationCredentialsNotFoundException}.
      * The wrapper captures the context at submit time and restores the worker's previous context afterward, so it
      * doesn't leak between pooled tasks.
+     *
+     * <p>The wrapper freezes the {@link org.springframework.security.core.context.SecurityContextHolderStrategy} at
+     * construction time (see {@code AbstractDelegatingSecurityContextSupport}). With {@code @Push}, a context-menu
+     * action can arrive over the websocket, which never passes through Spring's {@code SecurityContextHolderFilter} —
+     * so the plain thread-local strategy is empty on the submitting UI thread and an empty context gets propagated.
+     * Vaadin's {@link VaadinAwareSecurityContextHolderStrategy} resolves the context from the {@code VaadinSession}
+     * instead, but only if the wrapper actually uses it. Injecting it (which also forces it to be created first) and
+     * setting it explicitly guarantees that, regardless of bean initialization order.
      */
     @Bean(destroyMethod = "shutdown")
-    ExecutorService uiTaskExecutor() {
+    ExecutorService uiTaskExecutor(VaadinAwareSecurityContextHolderStrategy securityContextHolderStrategy) {
         ThreadFactory factory = new ThreadFactory() {
             private final AtomicInteger counter = new AtomicInteger();
 
@@ -37,6 +46,8 @@ public class AsyncExecutorConfig {
                 return thread;
             }
         };
-        return new DelegatingSecurityContextExecutorService(Executors.newFixedThreadPool(16, factory));
+        var executor = new DelegatingSecurityContextExecutorService(Executors.newFixedThreadPool(16, factory));
+        executor.setSecurityContextHolderStrategy(securityContextHolderStrategy);
+        return executor;
     }
 }

@@ -13,8 +13,9 @@ plugins {
 
 apply plugin: 'com.diffplug.spotless'
 
-group = 'report.butt'
-version = '0.0.4'
+// group and version are sourced from gradle.properties (CI bumps the version there).
+group = property('group')
+version = property('version')
 
 // Generates META-INF/build-info.properties so a BuildProperties bean is available at runtime
 // (used by MainLayout's version footer and enriches the exposed /actuator/info endpoint).

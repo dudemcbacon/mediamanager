@@ -83,7 +83,7 @@ jobs:
         id: resolve
         run: |
           set -euo pipefail
-          current=$(grep -E "^version = " build.gradle | sed -E "s/^version = '(.*)'.*/\1/")
+          current=$(grep -E "^version=" gradle.properties | sed -E "s/^version=(.*)/\1/")
           echo "Current version: $current"
           sha="${{ github.sha }}"
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
@@ -97,10 +97,10 @@ jobs:
               newv="$base"
             fi
             echo "Releasing version: $newv"
-            sed -i -E "s/^version = '.*'/version = '$newv'/" build.gradle
+            sed -i -E "s/^version=.*/version=$newv/" gradle.properties
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "ci: release $newv [skip ci]" build.gradle
+            git commit -m "ci: release $newv [skip ci]" gradle.properties
             git push origin HEAD:main
             sha=$(git rev-parse HEAD)
             echo "version=$newv" >> "$GITHUB_OUTPUT"
