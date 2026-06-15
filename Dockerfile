@@ -22,11 +22,18 @@ RUN cp build/libs/*.jar app.jar
 FROM eclipse-temurin:25-jre
 WORKDIR /app
 
-RUN useradd --system --create-home --shell /usr/sbin/nologin app
-USER app
+# gosu lets the entrypoint drop from root to the "app" user after optionally
+# remapping it to a host-provided PUID/PGID (see docker-entrypoint.sh).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gosu \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --create-home --shell /usr/sbin/nologin app
 
 COPY --from=build --chown=app:app /workspace/app.jar /app/app.jar
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 8080
 ENV JAVA_OPTS=""
-ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
+# Starts as root so it can apply PUID/PGID, then execs the JVM as "app" via gosu.
+ENTRYPOINT ["docker-entrypoint.sh"]

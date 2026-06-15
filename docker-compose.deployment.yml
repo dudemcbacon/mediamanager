@@ -8,6 +8,10 @@ services:
       com.centurylinklabs.watchtower.enable: true
     ports:
       - '${APP_PORT:-12345}:8080'
+    # Set PUID/PGID in .env to run the JVM as a specific host uid/gid (the
+    # entrypoint remaps the "app" user); omit them to keep the image default.
+    # Set TZ (e.g. TZ=America/Los_Angeles) in .env to set the timezone; the JVM
+    # and OS-level timestamps both follow it. Omit it to default to UTC.
     env_file:
       - .env
 
