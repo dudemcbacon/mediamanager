@@ -14,7 +14,7 @@ plugins {
 apply plugin: 'com.diffplug.spotless'
 
 group = 'report.butt'
-version = '0.0.3'
+version = '0.0.4'
 
 // Generates META-INF/build-info.properties so a BuildProperties bean is available at runtime
 // (used by MainLayout's version footer and enriches the exposed /actuator/info endpoint).
