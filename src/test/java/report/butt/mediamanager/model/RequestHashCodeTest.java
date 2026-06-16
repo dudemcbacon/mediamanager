@@ -99,8 +99,36 @@ class RequestHashCodeTest {
         h = assertChanged(h, episode, () -> episode.setOmbiRequestStatus("Common.Available"));
         h = assertChanged(h, episode, () -> episode.setSonarrPath("/tv/show/s01e01.mkv"));
         h = assertChanged(h, episode, () -> episode.setPlexPath("/plex/show/s01e01.mkv"));
+        h = assertChanged(h, episode, () -> episode.setPlexMediaSize(123456L));
+        h = assertChanged(h, episode, () -> episode.setLocalFilePathAvailable(true));
+        h = assertChanged(h, episode, () -> episode.setLocalFileSize(123456L));
         assertChanged(
                 h, episode, () -> episode.setSonarrLastSearchTime(java.time.Instant.parse("2026-06-01T00:00:00Z")));
+    }
+
+    @Test
+    void movieRequestHashCoversEveryRefreshedField() {
+        MovieRequest movie = new MovieRequest("Title", 100, false, 5000, "Common.Approved");
+        movie.setId(1L);
+
+        int h = movie.hashCode();
+        h = assertChanged(h, movie, () -> movie.setTitle("New Title"));
+        h = assertChanged(h, movie, () -> movie.setTmdbid(200));
+        h = assertChanged(h, movie, () -> movie.setOmbiAvailable(true));
+        h = assertChanged(h, movie, () -> movie.setOmbiRequestStatus("Common.Available"));
+        h = assertChanged(h, movie, () -> movie.setRadarrRequestId(55));
+        h = assertChanged(h, movie, () -> movie.setRadarrHasFile(true));
+        h = assertChanged(h, movie, () -> movie.setRadarrMonitored(true));
+        h = assertChanged(h, movie, () -> movie.setRadarrIsAvailable(true));
+        h = assertChanged(h, movie, () -> movie.setRadarrPath("/movies/title"));
+        h = assertChanged(h, movie, () -> movie.setRadarrRootFolderPath("/movies"));
+        h = assertChanged(h, movie, () -> movie.setRadarrQualityProfile("HD-1080p"));
+        h = assertChanged(h, movie, () -> movie.setRadarrOriginalLanguage("English"));
+        h = assertChanged(
+                h, movie, () -> movie.setRadarrLastSearchTime(java.time.Instant.parse("2026-06-01T00:00:00Z")));
+        h = assertChanged(h, movie, () -> movie.setRadarrMovieFilePath("/movies/title/title.mkv"));
+        h = assertChanged(h, movie, () -> movie.setLocalFilePathAvailable(true));
+        assertChanged(h, movie, () -> movie.setLocalFileSize(123456L));
     }
 
     private static int assertChanged(int previousHash, Object entity, Runnable mutation) {

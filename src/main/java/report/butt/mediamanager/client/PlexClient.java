@@ -14,6 +14,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import report.butt.mediamanager.model.plex.EpisodeKey;
 import report.butt.mediamanager.model.plex.PlexDirectory;
+import report.butt.mediamanager.model.plex.PlexEpisodeData;
 import report.butt.mediamanager.model.plex.PlexGuid;
 import report.butt.mediamanager.model.plex.PlexMedia;
 import report.butt.mediamanager.model.plex.PlexMediaContainer;
@@ -432,7 +433,7 @@ public class PlexClient {
         return indexed;
     }
 
-    public Map<String, Map<EpisodeKey, String>> getAllEpisodesIndexedByShow() {
+    public Map<String, Map<EpisodeKey, PlexEpisodeData>> getAllEpisodesIndexedByShow() {
         if (tvSectionId == null) {
             log.warn("Plex tvSectionId is not cached; cannot bulk-fetch episodes");
             return Map.of();
@@ -462,7 +463,7 @@ public class PlexClient {
             return Map.of();
         }
 
-        Map<String, Map<EpisodeKey, String>> indexed = new HashMap<>();
+        Map<String, Map<EpisodeKey, PlexEpisodeData>> indexed = new HashMap<>();
         for (PlexMetadata episode : results) {
             String showRatingKey = episode.getGrandparentRatingKey();
             Integer seasonNumber = episode.getParentIndex();
@@ -470,12 +471,12 @@ public class PlexClient {
             if (showRatingKey == null || seasonNumber == null || episodeNumber == null) {
                 continue;
             }
-            String file = firstFile(episode);
-            if (file == null) {
+            PlexEpisodeData data = firstFile(episode);
+            if (data == null) {
                 continue;
             }
             indexed.computeIfAbsent(showRatingKey, k -> new HashMap<>())
-                    .putIfAbsent(new EpisodeKey(seasonNumber, episodeNumber), file);
+                    .putIfAbsent(new EpisodeKey(seasonNumber, episodeNumber), data);
         }
         log.info("Indexed Plex episodes for {} shows", indexed.size());
         return indexed;
@@ -490,7 +491,7 @@ public class PlexClient {
         return plexCacheService.store(tvCacheKey(tvdbId), body);
     }
 
-    private static String firstFile(PlexMetadata episode) {
+    private static PlexEpisodeData firstFile(PlexMetadata episode) {
         if (episode.getMedia() == null || episode.getMedia().isEmpty()) {
             return null;
         }
@@ -498,7 +499,11 @@ public class PlexClient {
         if (media.getPart() == null || media.getPart().isEmpty()) {
             return null;
         }
-        return media.getPart().get(0).getFile();
+        var part = media.getPart().get(0);
+        if (part.getFile() == null) {
+            return null;
+        }
+        return new PlexEpisodeData(part.getFile(), part.getSize());
     }
 
     public static String movieCacheKey(int tmdbId) {

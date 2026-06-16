@@ -19,6 +19,7 @@ import org.springframework.ui.ConcurrentModel;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
+import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.ombi.OmbiReprocessResponse;
@@ -27,6 +28,7 @@ import report.butt.mediamanager.model.radarr.RadarrHealthItem;
 import report.butt.mediamanager.model.radarr.RadarrQueue;
 import report.butt.mediamanager.model.radarr.RadarrQueueRecord;
 import report.butt.mediamanager.repository.MovieRequestRepository;
+import report.butt.mediamanager.service.FfprobeScanService;
 import report.butt.mediamanager.service.MovieRefreshService;
 import report.butt.mediamanager.service.RequestAdminService;
 import report.butt.mediamanager.service.ValidatorService;
@@ -42,6 +44,7 @@ class MovieControllerTest {
     private final MovieRefreshService movieRefreshService = mock(MovieRefreshService.class);
     private final ValidatorService validatorService = mock(ValidatorService.class);
     private final RequestAdminService requestAdminService = mock(RequestAdminService.class);
+    private final FfprobeScanService ffprobeScanService = mock(FfprobeScanService.class);
 
     private final MovieController controller = new MovieController(
             movieRequestRepository,
@@ -50,7 +53,8 @@ class MovieControllerTest {
             objectMapper,
             movieRefreshService,
             validatorService,
-            requestAdminService);
+            requestAdminService,
+            ffprobeScanService);
 
     // ---- getRadarrQueue ----
 
@@ -452,6 +456,23 @@ class MovieControllerTest {
         verify(radarrClient).getQueue();
         verify(radarrClient).searchMovies(List.of(42));
         verify(radarrClient, never()).deleteQueueItem(any());
+    }
+
+    // ---- scanWithFfprobe ----
+
+    @Test
+    void scanWithFfprobe_delegatesToService() {
+        controller.scanWithFfprobe(8L);
+
+        verify(ffprobeScanService).scanMovie(8L);
+    }
+
+    @Test
+    void getLatestFfprobeScan_delegatesToService() {
+        FfprobeScan scan = new FfprobeScan(8L, "MOVIE");
+        when(ffprobeScanService.getLatestMovieScan(8L)).thenReturn(Optional.of(scan));
+
+        assertEquals(Optional.of(scan), controller.getLatestFfprobeScan(8L));
     }
 
     // ---- helpers ----

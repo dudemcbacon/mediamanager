@@ -97,6 +97,62 @@ class EpisodeValidationRulesTest {
         assertFalse(new EpisodeSearchedRecently().validate(ep));
     }
 
+    // --- EpisodeLocalFileMatchesPlex ---
+
+    @Test
+    void episodeLocalFileMatchesPlex_passesWhenAvailableAndSizesMatch() {
+        TvEpisodeRequest ep = episode();
+        ep.setLocalFilePathAvailable(true);
+        ep.setLocalFileSize(1_000_000L);
+        ep.setPlexMediaSize(1_000_000L);
+        assertTrue(new EpisodeLocalFileMatchesPlex().validate(ep));
+    }
+
+    @Test
+    void episodeLocalFileMatchesPlex_failsWhenFileNotAvailable() {
+        TvEpisodeRequest ep = episode();
+        ep.setLocalFilePathAvailable(false);
+        ep.setLocalFileSize(1_000_000L);
+        ep.setPlexMediaSize(1_000_000L);
+        assertFalse(new EpisodeLocalFileMatchesPlex().validate(ep));
+    }
+
+    @Test
+    void episodeLocalFileMatchesPlex_failsWhenAvailabilityNull() {
+        TvEpisodeRequest ep = episode();
+        ep.setLocalFilePathAvailable(null);
+        ep.setLocalFileSize(1_000_000L);
+        ep.setPlexMediaSize(1_000_000L);
+        assertFalse(new EpisodeLocalFileMatchesPlex().validate(ep));
+    }
+
+    @Test
+    void episodeLocalFileMatchesPlex_failsWhenSizesDiffer() {
+        TvEpisodeRequest ep = episode();
+        ep.setLocalFilePathAvailable(true);
+        ep.setLocalFileSize(1_000_000L);
+        ep.setPlexMediaSize(999_999L);
+        assertFalse(new EpisodeLocalFileMatchesPlex().validate(ep));
+    }
+
+    @Test
+    void episodeLocalFileMatchesPlex_failsWhenLocalSizeNull() {
+        TvEpisodeRequest ep = episode();
+        ep.setLocalFilePathAvailable(true);
+        ep.setLocalFileSize(null);
+        ep.setPlexMediaSize(1_000_000L);
+        assertFalse(new EpisodeLocalFileMatchesPlex().validate(ep));
+    }
+
+    @Test
+    void episodeLocalFileMatchesPlex_failsWhenPlexSizeNull() {
+        TvEpisodeRequest ep = episode();
+        ep.setLocalFilePathAvailable(true);
+        ep.setLocalFileSize(1_000_000L);
+        ep.setPlexMediaSize(null);
+        assertFalse(new EpisodeLocalFileMatchesPlex().validate(ep));
+    }
+
     // --- helpers ---
 
     private static TvEpisodeRequest episode() {

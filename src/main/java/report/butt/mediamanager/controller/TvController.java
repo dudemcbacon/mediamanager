@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.SonarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
+import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.TvChildRequest;
 import report.butt.mediamanager.model.TvEpisodeRequest;
@@ -37,6 +39,7 @@ import report.butt.mediamanager.repository.TvChildRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
+import report.butt.mediamanager.service.FfprobeScanService;
 import report.butt.mediamanager.service.RequestAdminService;
 import report.butt.mediamanager.service.TvRefreshService;
 import report.butt.mediamanager.service.ValidatorService;
@@ -59,6 +62,7 @@ public class TvController {
     private final TvRefreshService tvRefreshService;
     private final ValidatorService validatorService;
     private final RequestAdminService requestAdminService;
+    private final FfprobeScanService ffprobeScanService;
 
     @Autowired
     public TvController(
@@ -71,7 +75,8 @@ public class TvController {
             ObjectMapper objectMapper,
             TvRefreshService tvRefreshService,
             ValidatorService validatorService,
-            RequestAdminService requestAdminService) {
+            RequestAdminService requestAdminService,
+            FfprobeScanService ffprobeScanService) {
         this.tvRequestRepository = tvRequestRepository;
         this.tvChildRequestRepository = tvChildRequestRepository;
         this.tvSeasonRequestRepository = tvSeasonRequestRepository;
@@ -82,6 +87,7 @@ public class TvController {
         this.tvRefreshService = tvRefreshService;
         this.validatorService = validatorService;
         this.requestAdminService = requestAdminService;
+        this.ffprobeScanService = ffprobeScanService;
     }
 
     @PostMapping("/tv/refresh-all")
@@ -388,6 +394,21 @@ public class TvController {
             log.warn("tv episode request {} missing series/season/episode info; skipping download deletion", episodeId);
         }
         searchEpisode(episodeId);
+    }
+
+    /**
+     * Runs an ffprobe scan against the episode's local file and stores the format + stream data. Used by the
+     * "Scan with FFprobe" context-menu action. ADMIN-only because it executes an ffprobe subprocess on the server.
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    public void scanWithFfprobe(Long episodeId) {
+        log.info("FFprobe scan request for tv episode request {}", episodeId);
+        ffprobeScanService.scanEpisode(episodeId);
+    }
+
+    /** The most recent stored ffprobe scan for a TV episode (read-only), used by "View FFprobe Results". */
+    public Optional<FfprobeScan> getLatestFfprobeScan(Long episodeId) {
+        return ffprobeScanService.getLatestEpisodeScan(episodeId);
     }
 
     /** Deletes (from the download client, with blocklist) every Sonarr queue item for the given episode. */

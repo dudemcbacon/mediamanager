@@ -52,6 +52,15 @@ public class TvEpisodeRequest {
     @Column(columnDefinition = "TEXT")
     private String plexPath;
 
+    /** Size in bytes of the episode's Plex media file, when known. */
+    private Long plexMediaSize;
+
+    /** Whether {@link #sonarrPath} resolves to an existing file on the local filesystem (prefix applied). */
+    private Boolean localFilePathAvailable;
+
+    /** Size in bytes of the local file, when {@link #localFilePathAvailable} is true; otherwise null. */
+    private Long localFileSize;
+
     private Instant sonarrLastSearchTime;
 
     @CreationTimestamp
@@ -156,6 +165,30 @@ public class TvEpisodeRequest {
         this.plexPath = plexPath;
     }
 
+    public Long getPlexMediaSize() {
+        return this.plexMediaSize;
+    }
+
+    public void setPlexMediaSize(Long plexMediaSize) {
+        this.plexMediaSize = plexMediaSize;
+    }
+
+    public Boolean getLocalFilePathAvailable() {
+        return this.localFilePathAvailable;
+    }
+
+    public void setLocalFilePathAvailable(Boolean localFilePathAvailable) {
+        this.localFilePathAvailable = localFilePathAvailable;
+    }
+
+    public Long getLocalFileSize() {
+        return this.localFileSize;
+    }
+
+    public void setLocalFileSize(Long localFileSize) {
+        this.localFileSize = localFileSize;
+    }
+
     public Instant getSonarrLastSearchTime() {
         return this.sonarrLastSearchTime;
     }
@@ -185,6 +218,9 @@ public class TvEpisodeRequest {
                 ombiRequestStatus,
                 sonarrPath,
                 plexPath,
+                plexMediaSize,
+                localFilePathAvailable,
+                localFileSize,
                 sonarrLastSearchTime);
     }
 

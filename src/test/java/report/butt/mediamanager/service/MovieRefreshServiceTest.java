@@ -1,5 +1,7 @@
 package report.butt.mediamanager.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -8,12 +10,17 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -25,6 +32,7 @@ import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.ombi.OmbiMovieRequest;
 import report.butt.mediamanager.model.radarr.Movie;
+import report.butt.mediamanager.model.radarr.Moviefile;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,7 +46,7 @@ class MovieRefreshServiceTest {
     private final PlexCacheService plexCacheService = mock(PlexCacheService.class);
 
     private final MovieRefreshService service =
-            new MovieRefreshService(repository, ombiClient, radarrClient, plexClient, plexCacheService);
+            new MovieRefreshService(repository, ombiClient, radarrClient, plexClient, plexCacheService, "");
 
     // --- refreshAll ---
 
@@ -188,7 +196,90 @@ class MovieRefreshServiceTest {
         verify(repository).save(existing);
     }
 
+    // --- local file status ---
+
+    @Test
+    void refreshOneRecordsLocalFileWhenItExists(@TempDir Path tempDir) throws IOException {
+        // localFileSystemPrefix (tempDir) + radarr path ("/movies/movie.mkv") must resolve to the real file.
+        Path moviesDir = Files.createDirectories(tempDir.resolve("movies"));
+        Files.write(moviesDir.resolve("movie.mkv"), new byte[] {1, 2, 3, 4, 5});
+
+        var prefixed = new MovieRefreshService(
+                repository, ombiClient, radarrClient, plexClient, plexCacheService, tempDir.toString());
+
+        MovieRequest existing = new MovieRequest("Some Movie", 500, false, null, "Common.ProcessingRequest");
+        existing.setId(2L);
+        Movie radarrMovie = radarrMovie(500, 77, "/movies/some-movie");
+        radarrMovie.setMovieFile(movieFile("/movies/movie.mkv"));
+
+        when(repository.findById(2L)).thenReturn(Optional.of(existing));
+        when(radarrClient.getMoviesByTmdbId(500)).thenReturn(List.of(radarrMovie));
+        when(radarrClient.getQualityProfilesById()).thenReturn(Map.of());
+        when(plexClient.getMovieByTmdbId(any(Integer.class), any(), any(Integer.class)))
+                .thenReturn(new MetadataResult(null, null));
+
+        prefixed.refreshOne(2L);
+
+        MovieRequest saved = captureSaved();
+        assertEquals(true, saved.getLocalFilePathAvailable());
+        assertEquals(5L, saved.getLocalFileSize());
+    }
+
+    @Test
+    void refreshOneRecordsLocalFileUnavailableWhenMissing(@TempDir Path tempDir) {
+        var prefixed = new MovieRefreshService(
+                repository, ombiClient, radarrClient, plexClient, plexCacheService, tempDir.toString());
+
+        MovieRequest existing = new MovieRequest("Some Movie", 500, false, null, "Common.ProcessingRequest");
+        existing.setId(2L);
+        Movie radarrMovie = radarrMovie(500, 77, "/movies/some-movie");
+        radarrMovie.setMovieFile(movieFile("/movies/does-not-exist.mkv"));
+
+        when(repository.findById(2L)).thenReturn(Optional.of(existing));
+        when(radarrClient.getMoviesByTmdbId(500)).thenReturn(List.of(radarrMovie));
+        when(radarrClient.getQualityProfilesById()).thenReturn(Map.of());
+        when(plexClient.getMovieByTmdbId(any(Integer.class), any(), any(Integer.class)))
+                .thenReturn(new MetadataResult(null, null));
+
+        prefixed.refreshOne(2L);
+
+        MovieRequest saved = captureSaved();
+        assertEquals(false, saved.getLocalFilePathAvailable());
+        assertNull(saved.getLocalFileSize());
+    }
+
+    @Test
+    void refreshOneMarksLocalFileUnavailableWhenRadarrReportsNoFile() {
+        MovieRequest existing = new MovieRequest("Some Movie", 500, false, null, "Common.ProcessingRequest");
+        existing.setId(2L);
+        Movie radarrMovie = radarrMovie(500, 77, "/movies/some-movie"); // no movie file
+
+        when(repository.findById(2L)).thenReturn(Optional.of(existing));
+        when(radarrClient.getMoviesByTmdbId(500)).thenReturn(List.of(radarrMovie));
+        when(radarrClient.getQualityProfilesById()).thenReturn(Map.of());
+        when(plexClient.getMovieByTmdbId(any(Integer.class), any(), any(Integer.class)))
+                .thenReturn(new MetadataResult(null, null));
+
+        service.refreshOne(2L);
+
+        MovieRequest saved = captureSaved();
+        assertEquals(false, saved.getLocalFilePathAvailable());
+        assertNull(saved.getLocalFileSize());
+    }
+
+    private MovieRequest captureSaved() {
+        ArgumentCaptor<MovieRequest> captor = ArgumentCaptor.forClass(MovieRequest.class);
+        verify(repository).save(captor.capture());
+        return captor.getValue();
+    }
+
     // --- fixtures ---
+
+    private static Moviefile movieFile(String path) {
+        Moviefile f = new Moviefile();
+        f.setPath(path);
+        return f;
+    }
 
     private static OmbiMovieRequest ombiMovie(Integer id, String title, Integer tmdbId) {
         OmbiMovieRequest m = new OmbiMovieRequest();

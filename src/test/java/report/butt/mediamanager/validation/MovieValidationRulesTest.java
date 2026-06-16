@@ -328,6 +328,62 @@ class MovieValidationRulesTest {
         assertFalse(new NotInTvFolder().validate(m));
     }
 
+    // --- LocalFileMatchesPlex ---
+
+    @Test
+    void localFileMatchesPlex_passesWhenAvailableAndSizesMatch() {
+        MovieRequest m = movie();
+        m.setLocalFilePathAvailable(true);
+        m.setLocalFileSize(1_000_000L);
+        m.setPlexMediaSize(1_000_000L);
+        assertTrue(new LocalFileMatchesPlex().validate(m));
+    }
+
+    @Test
+    void localFileMatchesPlex_failsWhenFileNotAvailable() {
+        MovieRequest m = movie();
+        m.setLocalFilePathAvailable(false);
+        m.setLocalFileSize(1_000_000L);
+        m.setPlexMediaSize(1_000_000L);
+        assertFalse(new LocalFileMatchesPlex().validate(m));
+    }
+
+    @Test
+    void localFileMatchesPlex_failsWhenAvailabilityIsNull() {
+        MovieRequest m = movie();
+        m.setLocalFilePathAvailable(null);
+        m.setLocalFileSize(1_000_000L);
+        m.setPlexMediaSize(1_000_000L);
+        assertFalse(new LocalFileMatchesPlex().validate(m));
+    }
+
+    @Test
+    void localFileMatchesPlex_failsWhenSizesDiffer() {
+        MovieRequest m = movie();
+        m.setLocalFilePathAvailable(true);
+        m.setLocalFileSize(1_000_000L);
+        m.setPlexMediaSize(999_999L);
+        assertFalse(new LocalFileMatchesPlex().validate(m));
+    }
+
+    @Test
+    void localFileMatchesPlex_failsWhenLocalSizeIsNull() {
+        MovieRequest m = movie();
+        m.setLocalFilePathAvailable(true);
+        m.setLocalFileSize(null);
+        m.setPlexMediaSize(1_000_000L);
+        assertFalse(new LocalFileMatchesPlex().validate(m));
+    }
+
+    @Test
+    void localFileMatchesPlex_failsWhenPlexSizeIsNull() {
+        MovieRequest m = movie();
+        m.setLocalFilePathAvailable(true);
+        m.setLocalFileSize(1_000_000L);
+        m.setPlexMediaSize(null);
+        assertFalse(new LocalFileMatchesPlex().validate(m));
+    }
+
     // --- ValidationRule metadata ---
 
     @Test

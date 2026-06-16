@@ -10,6 +10,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import report.butt.mediamanager.client.MetadataResult;
 import report.butt.mediamanager.client.OmbiClient;
@@ -24,6 +25,7 @@ import report.butt.mediamanager.model.plex.PlexPart;
 import report.butt.mediamanager.model.radarr.Movie;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.util.DateTimeUtils;
+import report.butt.mediamanager.util.LocalFileInspector;
 
 @Service
 public class MovieRefreshService {
@@ -36,17 +38,22 @@ public class MovieRefreshService {
     private final PlexClient plexClient;
     private final PlexCacheService plexCacheService;
 
+    /** Prepended to Radarr file paths before the local-filesystem existence/size check. Empty = check as-is. */
+    private final String localFileSystemPrefix;
+
     public MovieRefreshService(
             MovieRequestRepository repository,
             OmbiClient ombiClient,
             RadarrClient radarrClient,
             PlexClient plexClient,
-            PlexCacheService plexCacheService) {
+            PlexCacheService plexCacheService,
+            @Value("${mediamanager.local-file-system-prefix:}") String localFileSystemPrefix) {
         this.repository = repository;
         this.ombiClient = ombiClient;
         this.radarrClient = radarrClient;
         this.plexClient = plexClient;
         this.plexCacheService = plexCacheService;
+        this.localFileSystemPrefix = localFileSystemPrefix;
     }
 
     public void refreshAll() {
@@ -166,8 +173,21 @@ public class MovieRefreshService {
                     radarrMovie.getMovieFile() == null
                             ? null
                             : radarrMovie.getMovieFile().getPath());
+            applyLocalFileStatus(movieRequest);
             applyPlexUpdates(movieRequest, radarrMovie, plexByTmdb);
         }
+    }
+
+    /**
+     * Checks whether the Radarr-reported movie file exists on the local filesystem (with {@link #localFileSystemPrefix}
+     * prepended) and records availability plus size in bytes. A missing path, a non-existent file, or any I/O error
+     * leaves the request marked unavailable with no size.
+     */
+    private void applyLocalFileStatus(MovieRequest movieRequest) {
+        LocalFileInspector.Result result =
+                LocalFileInspector.inspect(localFileSystemPrefix, movieRequest.getRadarrMovieFilePath());
+        movieRequest.setLocalFilePathAvailable(result.available());
+        movieRequest.setLocalFileSize(result.sizeBytes());
     }
 
     private void applyPlexUpdates(MovieRequest movieRequest, Movie radarrMovie, Map<Integer, PlexMetadata> plexByTmdb) {

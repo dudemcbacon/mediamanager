@@ -26,6 +26,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import report.butt.mediamanager.model.plex.EpisodeKey;
+import report.butt.mediamanager.model.plex.PlexEpisodeData;
 import report.butt.mediamanager.model.plex.PlexDirectory;
 import report.butt.mediamanager.model.plex.PlexGuid;
 import report.butt.mediamanager.model.plex.PlexMedia;
@@ -350,10 +351,12 @@ class PlexClientTest {
         expectGet("/library/sections/2/all", json(metadataResponse(ep1, missingFile, missingKey)));
         client.cacheTvSectionId();
 
-        Map<String, Map<EpisodeKey, String>> indexed = client.getAllEpisodesIndexedByShow();
+        Map<String, Map<EpisodeKey, PlexEpisodeData>> indexed = client.getAllEpisodesIndexedByShow();
 
         assertEquals(1, indexed.size());
-        assertEquals("/tv/s01e01.mkv", indexed.get("show-1").get(new EpisodeKey(1, 1)));
+        PlexEpisodeData data = indexed.get("show-1").get(new EpisodeKey(1, 1));
+        assertEquals("/tv/s01e01.mkv", data.path());
+        assertEquals(1234L, data.size());
     }
 
     // --- static cache keys ---
@@ -441,6 +444,7 @@ class PlexClientTest {
         if (file != null) {
             PlexPart part = new PlexPart();
             part.setFile(file);
+            part.setSize(1234L);
             PlexMedia media = new PlexMedia();
             media.setPart(List.of(part));
             episode.setMedia(List.of(media));

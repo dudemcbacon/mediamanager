@@ -143,6 +143,20 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
                                 () -> tvController.deleteEpisodeDownloadAndSearch(episode.getId()));
                     }
                 }));
+        GridMenuItem<TvHierarchyRow> scanFfprobe =
+                contextMenu.addItem("Scan with FFprobe", e -> e.getItem().ifPresent(row -> {
+                    if (row instanceof EpisodeRow(TvEpisodeRequest episode)) {
+                        runAsync("Scanning with FFprobe…", () -> tvController.scanWithFfprobe(episode.getId()));
+                    }
+                }));
+        GridMenuItem<TvHierarchyRow> viewFfprobe =
+                contextMenu.addItem("View FFprobe Results", e -> e.getItem().ifPresent(row -> {
+                    if (row instanceof EpisodeRow(TvEpisodeRequest episode)) {
+                        RequestViewSupport.openFfprobeResultsDialog(
+                                "FFprobe results for \"" + titleText(row) + "\"",
+                                tvController.getLatestFfprobeScan(episode.getId()).orElse(null));
+                    }
+                }));
 
         contextMenu.setDynamicContentHandler(row -> {
             if (row == null) {
@@ -155,6 +169,14 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
             // Deleting a download mutates Sonarr/the download client, so it's ADMIN-only (matches MovieRequestView
             // and the server-side @PreAuthorize on TvController#deleteEpisodeDownloadAndSearch).
             deleteDownload.setVisible(row instanceof EpisodeRow && SecurityUtils.isAdmin());
+            // Running ffprobe spawns a server-side process, so it's ADMIN-only (matches the @PreAuthorize on
+            // TvController#scanWithFfprobe); only enable it when the episode has a Sonarr file to probe.
+            scanFfprobe.setVisible(row instanceof EpisodeRow && SecurityUtils.isAdmin());
+            viewFfprobe.setVisible(row instanceof EpisodeRow);
+            if (row instanceof EpisodeRow(TvEpisodeRequest episode)) {
+                scanFfprobe.setEnabled(
+                        episode.getSonarrPath() != null && !episode.getSonarrPath().isBlank());
+            }
             return true;
         });
     }

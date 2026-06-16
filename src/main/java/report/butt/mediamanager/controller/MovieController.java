@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
+import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.ombi.OmbiReprocessResponse;
@@ -25,6 +27,7 @@ import report.butt.mediamanager.model.radarr.RadarrHealthItem;
 import report.butt.mediamanager.model.radarr.RadarrQueue;
 import report.butt.mediamanager.model.radarr.RadarrQueueRecord;
 import report.butt.mediamanager.repository.MovieRequestRepository;
+import report.butt.mediamanager.service.FfprobeScanService;
 import report.butt.mediamanager.service.MovieRefreshService;
 import report.butt.mediamanager.service.RequestAdminService;
 import report.butt.mediamanager.service.ValidatorService;
@@ -44,6 +47,7 @@ public class MovieController {
     private final MovieRefreshService movieRefreshService;
     private final ValidatorService validatorService;
     private final RequestAdminService requestAdminService;
+    private final FfprobeScanService ffprobeScanService;
 
     @Autowired
     public MovieController(
@@ -53,7 +57,8 @@ public class MovieController {
             ObjectMapper objectMapper,
             MovieRefreshService movieRefreshService,
             ValidatorService validatorService,
-            RequestAdminService requestAdminService) {
+            RequestAdminService requestAdminService,
+            FfprobeScanService ffprobeScanService) {
         this.movieRequestRepository = movieRequestRepository;
         this.ombiClient = ombiClient;
         this.radarrClient = radarrClient;
@@ -61,6 +66,7 @@ public class MovieController {
         this.movieRefreshService = movieRefreshService;
         this.validatorService = validatorService;
         this.requestAdminService = requestAdminService;
+        this.ffprobeScanService = ffprobeScanService;
     }
 
     /** Radarr's current download queue, or null if Radarr can't be reached. */
@@ -285,6 +291,21 @@ public class MovieController {
                 command.getResult());
         movieRequest.setRadarrLastSearchTime(Instant.now());
         movieRequestRepository.save(movieRequest);
+    }
+
+    /**
+     * Runs an ffprobe scan against the movie's local file and stores the format + stream data. Used by the
+     * "Scan with FFprobe" context-menu action. ADMIN-only because it executes an ffprobe subprocess on the server.
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    public void scanWithFfprobe(Long id) {
+        log.info("FFprobe scan request for movie request {}", id);
+        ffprobeScanService.scanMovie(id);
+    }
+
+    /** The most recent stored ffprobe scan for a movie request (read-only), used by "View FFprobe Results". */
+    public Optional<FfprobeScan> getLatestFfprobeScan(Long id) {
+        return ffprobeScanService.getLatestMovieScan(id);
     }
 
     /** Deletes (from the download client, with blocklist) every Radarr queue item for the given movie. */

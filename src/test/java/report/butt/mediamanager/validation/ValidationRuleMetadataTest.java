@@ -30,7 +30,8 @@ class ValidationRuleMetadataTest {
                 new OmbiRadarrAlignment(),
                 new QualityProfileAnyOrAvailable(),
                 new SearchedRecently(),
-                new NotInTvFolder());
+                new NotInTvFolder(),
+                new LocalFileMatchesPlex());
 
         for (Validator<?> rule : movieValidators) {
             assertTrue(rule.sortOrder() > 0, rule.getClass().getSimpleName() + ".sortOrder()");
@@ -73,7 +74,8 @@ class ValidationRuleMetadataTest {
 
     @Test
     void allEpisodeValidatorsExposeConsistentMetadata() {
-        List<EpisodeValidator> episodeValidators = List.of(new EpisodePathsMatch(), new EpisodeSearchedRecently());
+        List<EpisodeValidator> episodeValidators =
+                List.of(new EpisodePathsMatch(), new EpisodeSearchedRecently(), new EpisodeLocalFileMatchesPlex());
 
         for (EpisodeValidator rule : episodeValidators) {
             assertTrue(rule.sortOrder() > 0, rule.getClass().getSimpleName() + ".sortOrder()");
@@ -97,7 +99,8 @@ class ValidationRuleMetadataTest {
                 new OmbiRadarrAlignment(),
                 new QualityProfileAnyOrAvailable(),
                 new SearchedRecently(),
-                new NotInTvFolder());
+                new NotInTvFolder(),
+                new LocalFileMatchesPlex());
 
         for (Validator<?> rule : movieValidators) {
             assertTrue(

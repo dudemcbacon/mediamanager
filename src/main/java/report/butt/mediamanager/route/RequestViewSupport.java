@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -32,6 +33,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
+import report.butt.mediamanager.model.FfprobeScan;
+import report.butt.mediamanager.model.FfprobeStream;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.Validation;
 import report.butt.mediamanager.model.deluge.DelugeTorrent;
@@ -539,5 +542,126 @@ final class RequestViewSupport {
             sb.append(i == 0 ? Character.toUpperCase(c) : c);
         }
         return sb.toString();
+    }
+
+    // --- ffprobe results (shared by MovieRequestView and the TV episode tree grid) ---
+
+    /**
+     * Shows an ffprobe scan's container {@code format} summary and a row per stream in a dialog. A null scan (the
+     * request has never been scanned) renders a hint instead. Callers load the scan with its streams eagerly fetched.
+     */
+    static void openFfprobeResultsDialog(String title, FfprobeScan scan) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(title);
+        dialog.setWidth("900px");
+        if (scan == null) {
+            dialog.add(new Span("No ffprobe scans yet — run \"Scan with FFprobe\" first."));
+        } else {
+            VerticalLayout body = new VerticalLayout(ffprobeSummary(scan), ffprobeStreamGrid(scan.getStreams()));
+            body.setPadding(false);
+            body.setSpacing(true);
+            dialog.add(body);
+        }
+        dialog.getFooter().add(new Button("Close", e -> dialog.close()));
+        dialog.open();
+    }
+
+    /** Container-level summary of a scan's {@code format} data. */
+    private static VerticalLayout ffprobeSummary(FfprobeScan scan) {
+        VerticalLayout summary = new VerticalLayout();
+        summary.setPadding(false);
+        summary.setSpacing(false);
+        String format = scan.getFormatLongName() != null ? scan.getFormatLongName() : scan.getFormatName();
+        summary.add(
+                ffprobeSummaryLine("Format", format),
+                ffprobeSummaryLine("Duration", formatDuration(scan.getDuration())),
+                ffprobeSummaryLine("Size", formatBytes(scan.getSize())),
+                ffprobeSummaryLine("Overall bit rate", formatBitRate(scan.getBitRate())),
+                ffprobeSummaryLine("Streams", scan.getNbStreams() == null ? null : scan.getNbStreams().toString()),
+                ffprobeSummaryLine("Scanned at", scan.getCreatedAt() == null ? null : scan.getCreatedAt().toString()));
+        return summary;
+    }
+
+    private static Span ffprobeSummaryLine(String label, String value) {
+        Span line = new Span();
+        Span key = new Span(label + ": ");
+        key.getStyle().set("color", "var(--vaadin-text-color-secondary)");
+        line.add(key, new Span(value == null || value.isBlank() ? "—" : value));
+        return line;
+    }
+
+    /** Per-stream table ({@code -show_streams}): index, type, codec, a type-specific detail string, and bit rate. */
+    private static Grid<FfprobeStream> ffprobeStreamGrid(List<FfprobeStream> streams) {
+        Grid<FfprobeStream> grid = new Grid<>(FfprobeStream.class, false);
+        grid.addColumn(FfprobeStream::getStreamIndex).setHeader("#").setAutoWidth(true);
+        grid.addColumn(FfprobeStream::getCodecType).setHeader("Type").setAutoWidth(true);
+        grid.addColumn(FfprobeStream::getCodecName)
+                .setHeader("Codec")
+                .setTooltipGenerator(FfprobeStream::getCodecLongName)
+                .setAutoWidth(true);
+        grid.addColumn(RequestViewSupport::ffprobeStreamDetails)
+                .setHeader("Details")
+                .setAutoWidth(true)
+                .setFlexGrow(1);
+        grid.addColumn(s -> formatBitRate(s.getBitRate())).setHeader("Bit rate").setAutoWidth(true);
+        grid.setItems(streams);
+        grid.setAllRowsVisible(true);
+        return grid;
+    }
+
+    /** Resolution/frame-rate for video streams, channels/sample-rate for audio, else a dash. */
+    private static String ffprobeStreamDetails(FfprobeStream s) {
+        List<String> parts = new ArrayList<>();
+        if (Objects.equals(s.getCodecType(), "video")) {
+            if (s.getWidth() != null && s.getHeight() != null) {
+                parts.add(s.getWidth() + "x" + s.getHeight());
+            }
+            if (s.getRFrameRate() != null) {
+                parts.add(s.getRFrameRate() + " fps");
+            }
+            if (s.getPixFmt() != null) {
+                parts.add(s.getPixFmt());
+            }
+        } else if (Objects.equals(s.getCodecType(), "audio")) {
+            if (s.getChannelLayout() != null) {
+                parts.add(s.getChannelLayout());
+            } else if (s.getChannels() != null) {
+                parts.add(s.getChannels() + " ch");
+            }
+            if (s.getSampleRate() != null) {
+                parts.add(s.getSampleRate() + " Hz");
+            }
+        }
+        return parts.isEmpty() ? "—" : String.join(", ", parts);
+    }
+
+    private static String formatDuration(Double seconds) {
+        if (seconds == null) {
+            return "—";
+        }
+        long total = Math.round(seconds);
+        return String.format("%d:%02d:%02d", total / 3600, (total % 3600) / 60, total % 60);
+    }
+
+    private static String formatBytes(Long bytes) {
+        if (bytes == null) {
+            return "—";
+        }
+        double gib = bytes / (1024.0 * 1024.0 * 1024.0);
+        if (gib >= 1.0) {
+            return String.format("%.2f GiB", gib);
+        }
+        return String.format("%.1f MiB", bytes / (1024.0 * 1024.0));
+    }
+
+    private static String formatBitRate(Long bitsPerSecond) {
+        if (bitsPerSecond == null || bitsPerSecond <= 0) {
+            return "—";
+        }
+        double mbps = bitsPerSecond / 1_000_000.0;
+        if (mbps >= 1.0) {
+            return String.format("%.2f Mb/s", mbps);
+        }
+        return String.format("%.0f kb/s", bitsPerSecond / 1000.0);
     }
 }

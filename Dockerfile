@@ -26,8 +26,9 @@ WORKDIR /app
 
 # gosu lets the entrypoint drop from root to the "app" user after optionally
 # remapping it to a host-provided PUID/PGID (see docker-entrypoint.sh).
+# ffmpeg provides the ffprobe binary used by the "Scan with FFprobe" action (FfprobeScanService).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gosu \
+    && apt-get install -y --no-install-recommends gosu ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --create-home --shell /usr/sbin/nologin app
 

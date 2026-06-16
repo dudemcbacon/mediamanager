@@ -19,6 +19,7 @@ import org.springframework.ui.ConcurrentModel;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.SonarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
+import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.TvChildRequest;
 import report.butt.mediamanager.model.TvEpisodeRequest;
@@ -34,6 +35,7 @@ import report.butt.mediamanager.repository.TvChildRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
+import report.butt.mediamanager.service.FfprobeScanService;
 import report.butt.mediamanager.service.RequestAdminService;
 import report.butt.mediamanager.service.TvRefreshService;
 import report.butt.mediamanager.service.ValidatorService;
@@ -52,6 +54,7 @@ class TvControllerTest {
     private final TvRefreshService tvRefreshService = mock(TvRefreshService.class);
     private final ValidatorService validatorService = mock(ValidatorService.class);
     private final RequestAdminService requestAdminService = mock(RequestAdminService.class);
+    private final FfprobeScanService ffprobeScanService = mock(FfprobeScanService.class);
 
     private final TvController controller = new TvController(
             tvRequestRepository,
@@ -63,7 +66,23 @@ class TvControllerTest {
             objectMapper,
             tvRefreshService,
             validatorService,
-            requestAdminService);
+            requestAdminService,
+            ffprobeScanService);
+
+    @Test
+    void scanWithFfprobe_delegatesToService() {
+        controller.scanWithFfprobe(8L);
+
+        verify(ffprobeScanService).scanEpisode(8L);
+    }
+
+    @Test
+    void getLatestFfprobeScan_delegatesToService() {
+        FfprobeScan scan = new FfprobeScan(8L, "EPISODE");
+        when(ffprobeScanService.getLatestEpisodeScan(8L)).thenReturn(Optional.of(scan));
+
+        assertEquals(Optional.of(scan), controller.getLatestFfprobeScan(8L));
+    }
 
     @Test
     void markAvailable_callsOmbiOncePerChildRequestId() {

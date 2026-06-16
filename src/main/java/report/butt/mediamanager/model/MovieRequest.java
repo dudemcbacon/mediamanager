@@ -38,6 +38,12 @@ public class MovieRequest extends Request {
     private String radarrOriginalLanguage;
     private String radarrQualityProfile;
 
+    /** Whether {@link #radarrMovieFilePath} resolves to an existing file on the local filesystem (prefix applied). */
+    private Boolean localFilePathAvailable;
+
+    /** Size in bytes of the local file, when {@link #localFilePathAvailable} is true; otherwise null. */
+    private Long localFileSize;
+
     MovieRequest() {}
 
     public MovieRequest(
@@ -145,6 +151,22 @@ public class MovieRequest extends Request {
         this.radarrQualityProfile = radarrQualityProfile;
     }
 
+    public Boolean getLocalFilePathAvailable() {
+        return this.localFilePathAvailable;
+    }
+
+    public void setLocalFilePathAvailable(Boolean localFilePathAvailable) {
+        this.localFilePathAvailable = localFilePathAvailable;
+    }
+
+    public Long getLocalFileSize() {
+        return this.localFileSize;
+    }
+
+    public void setLocalFileSize(Long localFileSize) {
+        this.localFileSize = localFileSize;
+    }
+
     @Override
     public boolean isAvailable() {
         return Boolean.TRUE.equals(this.radarrHasFile) && OMBI_AVAILABLE_STATUS.equals(getOmbiRequestStatus());
@@ -184,7 +206,9 @@ public class MovieRequest extends Request {
                 getRadarrRootFolderPath(),
                 getRadarrMovieFilePath(),
                 getRadarrOriginalLanguage(),
-                getRadarrQualityProfile());
+                getRadarrQualityProfile(),
+                getLocalFilePathAvailable(),
+                getLocalFileSize());
     }
 
     @Override

@@ -56,7 +56,8 @@ class TvRefreshServiceTest {
             ombiClient,
             sonarrClient,
             plexClient,
-            plexCacheService);
+            plexCacheService,
+            "");
 
     // --- refreshAll ---
 

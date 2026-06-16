@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -218,9 +219,13 @@ public class MovieRequestView extends VerticalLayout {
                                 mr,
                                 "Updating quality profile…",
                                 () -> movieController.setQualityProfileToAny(mr.getId()))));
+        GridMenuItem<MovieRequest> scanFfprobeItem = contextMenu.addItem("Scan with FFprobe", e -> e.getItem()
+                .ifPresent(mr ->
+                        runRowAction(mr, "Scanning with FFprobe…", () -> movieController.scanWithFfprobe(mr.getId()))));
         contextMenu.addItem("Mark as Stale", e -> e.getItem().ifPresent(this::openMarkStaleDialog));
         contextMenu.addItem("Add Note", e -> e.getItem().ifPresent(this::openAddNoteDialog));
         contextMenu.addItem("View Notes", e -> e.getItem().ifPresent(this::openViewNotesDialog));
+        contextMenu.addItem("View FFprobe Results", e -> e.getItem().ifPresent(this::openFfprobeResultsDialog));
         contextMenu.addItem("View Plex Query URL", e -> e.getItem().ifPresent(this::openPlexQueryUrlDialog));
         GridMenuItem<MovieRequest> viewOmbiItem =
                 contextMenu.addItem("View Ombi", e -> e.getItem().ifPresent(this::openOmbi));
@@ -236,12 +241,15 @@ public class MovieRequestView extends VerticalLayout {
         deleteDownloadItem.setVisible(admin);
         markAvailableItem.setVisible(admin);
         qualityProfileItem.setVisible(admin);
+        scanFfprobeItem.setVisible(admin);
         deleteRequestItem.setVisible(admin);
         contextMenu.setDynamicContentHandler(mr -> {
             if (mr == null) {
                 return false;
             }
             markAvailableItem.setEnabled(mr.getOmbiRequestId() != null);
+            scanFfprobeItem.setEnabled(
+                    mr.getRadarrMovieFilePath() != null && !mr.getRadarrMovieFilePath().isBlank());
             viewOmbiItem.setEnabled(ombiHref(mr) != null);
             viewPlexAppItem.setEnabled(plexAppHref(mr) != null);
             viewPlexJsonItem.setEnabled(plexHref(mr) != null);
@@ -694,6 +702,16 @@ public class MovieRequestView extends VerticalLayout {
 
     private void openViewNotesDialog(MovieRequest mr) {
         RequestViewSupport.openNotesDialog(mr.getTitle(), noteRepository.findByRequestOrderByCreatedAtDesc(mr));
+    }
+
+    /**
+     * Displays the most recent ffprobe scan for the movie. The scan's streams are eagerly fetched by the repository,
+     * so this read is safe to run on the UI thread; rendering is shared with the TV view via {@link RequestViewSupport}.
+     */
+    private void openFfprobeResultsDialog(MovieRequest mr) {
+        RequestViewSupport.openFfprobeResultsDialog(
+                "FFprobe results for \"" + mr.getTitle() + "\"",
+                movieController.getLatestFfprobeScan(mr.getId()).orElse(null));
     }
 
     private void openPlexQueryUrlDialog(MovieRequest mr) {

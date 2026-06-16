@@ -16,6 +16,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import report.butt.mediamanager.client.MetadataResult;
@@ -33,6 +34,7 @@ import report.butt.mediamanager.model.ombi.OmbiTvRequest;
 import report.butt.mediamanager.model.ombi.OmbiTvSearchResult;
 import report.butt.mediamanager.model.ombi.OmbiTvSeasonRequest;
 import report.butt.mediamanager.model.plex.EpisodeKey;
+import report.butt.mediamanager.model.plex.PlexEpisodeData;
 import report.butt.mediamanager.model.plex.PlexMedia;
 import report.butt.mediamanager.model.plex.PlexMetadata;
 import report.butt.mediamanager.model.plex.PlexPart;
@@ -44,6 +46,7 @@ import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
 import report.butt.mediamanager.util.DateTimeUtils;
+import report.butt.mediamanager.util.LocalFileInspector;
 
 @Service
 public class TvRefreshService {
@@ -64,6 +67,9 @@ public class TvRefreshService {
     private final PlexClient plexClient;
     private final PlexCacheService plexCacheService;
 
+    /** Prepended to Sonarr episode file paths before the local-filesystem existence/size check. Empty = check as-is. */
+    private final String localFileSystemPrefix;
+
     public TvRefreshService(
             TvRequestRepository repository,
             TvChildRequestRepository childRepository,
@@ -72,7 +78,8 @@ public class TvRefreshService {
             OmbiClient ombiClient,
             SonarrClient sonarrClient,
             PlexClient plexClient,
-            PlexCacheService plexCacheService) {
+            PlexCacheService plexCacheService,
+            @Value("${mediamanager.local-file-system-prefix:}") String localFileSystemPrefix) {
         this.repository = repository;
         this.childRepository = childRepository;
         this.seasonRepository = seasonRepository;
@@ -81,6 +88,7 @@ public class TvRefreshService {
         this.sonarrClient = sonarrClient;
         this.plexClient = plexClient;
         this.plexCacheService = plexCacheService;
+        this.localFileSystemPrefix = localFileSystemPrefix;
     }
 
     @Transactional
@@ -90,7 +98,7 @@ public class TvRefreshService {
         List<OmbiTvRequest> ombiTvRequests = ombiClient.getTvRequests();
         List<Series> sonarrSeries = sonarrClient.getAllSeries();
         Map<Integer, PlexMetadata> showsByTvdb = plexClient.getAllShowsIndexedByTvdb();
-        Map<String, Map<EpisodeKey, String>> episodesByShow = plexClient.getAllEpisodesIndexedByShow();
+        Map<String, Map<EpisodeKey, PlexEpisodeData>> episodesByShow = plexClient.getAllEpisodesIndexedByShow();
 
         Map<Integer, Series> sonarrByTvdb = sonarrSeries.stream()
                 .filter(s -> s.getTvdbId() != null)
@@ -239,8 +247,8 @@ public class TvRefreshService {
                 unchanged);
     }
 
-    private Map<EpisodeKey, String> resolveEpisodePaths(
-            TvRequest tvRequest, Map<String, Map<EpisodeKey, String>> episodesByShow) {
+    private Map<EpisodeKey, PlexEpisodeData> resolveEpisodePaths(
+            TvRequest tvRequest, Map<String, Map<EpisodeKey, PlexEpisodeData>> episodesByShow) {
         String ratingKey = tvRequest.getPlexMetadataId();
         if (ratingKey == null) {
             return Map.of();
@@ -320,7 +328,7 @@ public class TvRefreshService {
             Map<Integer, TvChildRequest> existingChildrenByOmbiId,
             Map<Long, Map<Integer, TvSeasonRequest>> seasonsByChild,
             Map<Long, Map<Integer, TvEpisodeRequest>> episodesBySeason,
-            Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, PlexEpisodeData> episodePaths,
             Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes,
             List<TvChildRequest> toSaveChildren,
             List<TvSeasonRequest> toSaveSeasons,
@@ -370,7 +378,7 @@ public class TvRefreshService {
             OmbiTvChildRequest ombiChild,
             Map<Integer, TvSeasonRequest> existingSeasons,
             Map<Long, Map<Integer, TvEpisodeRequest>> episodesBySeason,
-            Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, PlexEpisodeData> episodePaths,
             Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes,
             List<TvSeasonRequest> toSaveSeasons,
             List<TvEpisodeRequest> toSaveEpisodes) {
@@ -411,7 +419,7 @@ public class TvRefreshService {
             TvSeasonRequest season,
             OmbiTvSeasonRequest ombiSeason,
             Map<Integer, TvEpisodeRequest> existingEpisodes,
-            Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, PlexEpisodeData> episodePaths,
             Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes,
             List<TvEpisodeRequest> toSaveEpisodes) {
         if (ombiSeason.getEpisodes() == null) {
@@ -515,7 +523,7 @@ public class TvRefreshService {
         if (ombiTv.getChildRequests() == null) {
             return;
         }
-        Map<EpisodeKey, String> episodePaths = loadEpisodePaths(tvRequest);
+        Map<EpisodeKey, PlexEpisodeData> episodePaths = loadEpisodePaths(tvRequest);
         Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes = resolveSonarrEpisodes(series);
         ombiTv.getChildRequests().forEach(ombiChild -> {
             TvChildRequest child = childRepository
@@ -533,23 +541,23 @@ public class TvRefreshService {
         });
     }
 
-    private Map<EpisodeKey, String> loadEpisodePaths(TvRequest tvRequest) {
+    private Map<EpisodeKey, PlexEpisodeData> loadEpisodePaths(TvRequest tvRequest) {
         String plexMetadataId = tvRequest.getPlexMetadataId();
         if (plexMetadataId == null) {
             return Map.of();
         }
         try {
             List<PlexMetadata> grandchildren = plexClient.getShowGrandchildren(plexMetadataId);
-            Map<EpisodeKey, String> result = new HashMap<>();
+            Map<EpisodeKey, PlexEpisodeData> result = new HashMap<>();
             for (PlexMetadata episode : grandchildren) {
                 Integer seasonNumber = episode.getParentIndex();
                 Integer episodeNumber = episode.getIndex();
                 if (seasonNumber == null || episodeNumber == null) {
                     continue;
                 }
-                String file = firstFile(episode);
-                if (file != null) {
-                    result.put(new EpisodeKey(seasonNumber, episodeNumber), file);
+                PlexEpisodeData data = firstFile(episode);
+                if (data != null) {
+                    result.put(new EpisodeKey(seasonNumber, episodeNumber), data);
                 }
             }
             return result;
@@ -559,7 +567,7 @@ public class TvRefreshService {
         }
     }
 
-    private static String firstFile(PlexMetadata episode) {
+    private static PlexEpisodeData firstFile(PlexMetadata episode) {
         if (episode.getMedia() == null || episode.getMedia().isEmpty()) {
             return null;
         }
@@ -567,7 +575,11 @@ public class TvRefreshService {
         if (media.getPart() == null || media.getPart().isEmpty()) {
             return null;
         }
-        return media.getPart().get(0).getFile();
+        PlexPart part = media.getPart().get(0);
+        if (part.getFile() == null) {
+            return null;
+        }
+        return new PlexEpisodeData(part.getFile(), part.getSize());
     }
 
     private void applyChildUpdates(
@@ -589,7 +601,7 @@ public class TvRefreshService {
     private void refreshSeasons(
             TvChildRequest child,
             OmbiTvChildRequest ombiChild,
-            Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, PlexEpisodeData> episodePaths,
             Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes) {
         if (ombiChild.getSeasonRequests() == null) {
             return;
@@ -621,7 +633,7 @@ public class TvRefreshService {
     private void refreshEpisodes(
             TvSeasonRequest season,
             OmbiTvSeasonRequest ombiSeason,
-            Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, PlexEpisodeData> episodePaths,
             Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes) {
         if (ombiSeason.getEpisodes() == null) {
             return;
@@ -639,7 +651,7 @@ public class TvRefreshService {
             TvEpisodeRequest episode,
             TvSeasonRequest season,
             OmbiTvEpisode ombiEpisode,
-            Map<EpisodeKey, String> episodePaths,
+            Map<EpisodeKey, PlexEpisodeData> episodePaths,
             Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes) {
         episode.setTvSeasonRequest(season);
         episode.setOmbiEpisodeId(ombiEpisode.getId());
@@ -651,9 +663,10 @@ public class TvRefreshService {
         episode.setOmbiRequestStatus(ombiEpisode.getRequestStatus());
         if (season.getOmbiSeasonNumber() != null && ombiEpisode.getEpisodeNumber() != null) {
             EpisodeKey key = new EpisodeKey(season.getOmbiSeasonNumber(), ombiEpisode.getEpisodeNumber());
-            String plexPath = episodePaths.get(key);
-            if (plexPath != null) {
-                episode.setPlexPath(plexPath);
+            PlexEpisodeData plexData = episodePaths.get(key);
+            if (plexData != null) {
+                episode.setPlexPath(plexData.path());
+                episode.setPlexMediaSize(plexData.size());
             }
             SonarrEpisodeData sonarrData = sonarrEpisodes.get(key);
             if (sonarrData != null) {
@@ -665,6 +678,11 @@ public class TvRefreshService {
                 }
             }
         }
+        // Check the episode's (possibly just-updated) Sonarr file against the local filesystem.
+        LocalFileInspector.Result localFile =
+                LocalFileInspector.inspect(localFileSystemPrefix, episode.getSonarrPath());
+        episode.setLocalFilePathAvailable(localFile.available());
+        episode.setLocalFileSize(localFile.sizeBytes());
     }
 
     private void backfillTotalSeasons(OmbiTvRequest ombiTv) {
