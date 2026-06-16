@@ -9,6 +9,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.data.provider.hierarchy.TreeData;
 import com.vaadin.flow.data.provider.hierarchy.TreeDataProvider;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.data.renderer.LitRenderer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,13 +41,14 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     /** A queued episode's Sonarr protocol joined to its Deluge torrent or SABnzbd slot (either may be null). */
     record EpisodeDownload(String protocol, DelugeTorrent torrent, SabnzbdSlot slot) {}
 
-    // Resolved once at construction (using each episode's known season number) so the Type/Progress/Peers
-    // renderers never touch the lazy TvSeasonRequest association off the UI/transaction.
+    // Resolved at construction and replaced in {@link #applyDownloadStatus} when the parent's poll lands fresh queue
+    // data, so the Type/Progress/Peers renderers never touch the lazy TvSeasonRequest association off the UI thread.
     private final Map<Long, EpisodeDownload> downloadByEpisodeId = new HashMap<>();
     // Type badges roll up: a season carries the protocols of its downloading episodes, a child the
     // protocols of its downloading seasons. Progress/Peers stay episode-only.
     private final Map<Long, Set<String>> protocolsBySeasonId = new HashMap<>();
     private final Map<Long, Set<String>> protocolsByChildId = new HashMap<>();
+    private final List<TvChildRequest> children;
     private final Executor uiTaskExecutor;
 
     TvHierarchyTreeGrid(
@@ -56,6 +58,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
             Map<EpisodeKey, EpisodeDownload> episodeDownloads,
             TvController tvController,
             Executor uiTaskExecutor) {
+        this.children = children;
         this.uiTaskExecutor = uiTaskExecutor;
         setSizeFull();
 
@@ -94,7 +97,26 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
                     .setAutoWidth(true);
         }
 
+        // Click an episode (a leaf row) to expand a field dump, mirroring the movie grid's row details. Parent rows
+        // (child/season) expand their children via the hierarchy toggle instead, so they carry no details.
+        setItemDetailsRenderer(new ComponentRenderer<>(TvHierarchyTreeGrid::rowDetails));
+        setDetailsVisibleOnClick(true);
+
         addSearchContextMenu(tvController);
+    }
+
+    private static final List<String> EPISODE_DETAIL_PRIORITY = List.of("id", "ombiEpisodeNumber", "ombiTitle");
+
+    /** Row-details content: a {@link TvEpisodeRequest} field dump for episode rows, nothing for child/season rows. */
+    private static Component rowDetails(TvHierarchyRow row) {
+        return switch (row) {
+            case EpisodeRow(TvEpisodeRequest episode) ->
+                // Skip the lazy tvSeasonRequest back-reference — these rows are detached, so navigating it would throw.
+                RequestViewSupport.fieldDump(
+                        TvEpisodeRequest.class, episode, EPISODE_DETAIL_PRIORITY, Set.of("tvSeasonRequest"));
+            case ChildRow ignored -> new Span();
+            case SeasonRow ignored -> new Span();
+        };
     }
 
     /**
@@ -184,6 +206,25 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     /** Runs a blocking Sonarr search/delete off the UI thread so the detail grid doesn't freeze. */
     private void runAsync(String workingMessage, Runnable action) {
         getUI().ifPresent(ui -> RequestViewSupport.runAsync(ui, log, workingMessage, action, null, uiTaskExecutor));
+    }
+
+    /**
+     * Re-applies fresh download status from a parent-driven poll without rebuilding the tree, so the Type/Progress/Peers
+     * cells refresh in place — the user's expansion state and the parent grid's open detail panel are preserved (a
+     * full {@code dataProvider.refreshAll()} on the parent grid would discard both).
+     */
+    void applyDownloadStatus(Map<EpisodeKey, EpisodeDownload> episodeDownloads) {
+        downloadByEpisodeId.clear();
+        protocolsBySeasonId.clear();
+        protocolsByChildId.clear();
+        for (TvChildRequest child : children) {
+            for (TvSeasonRequest season : child.getSeasonRequests()) {
+                for (TvEpisodeRequest episode : season.getEpisodeRequests()) {
+                    indexDownload(child, season, episode, episodeDownloads);
+                }
+            }
+        }
+        getDataProvider().refreshAll();
     }
 
     /**

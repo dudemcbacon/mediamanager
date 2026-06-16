@@ -5,11 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import report.butt.mediamanager.model.MovieRequest;
-import report.butt.mediamanager.route.AdminView.RequesterCount;
+import report.butt.mediamanager.route.StatsView.RequesterCount;
 
-class AdminViewLeaderboardTest {
+class StatsViewLeaderboardTest {
 
     private static MovieRequest requestedBy(String username) {
         MovieRequest movie = new MovieRequest("Movie", 1, false, 1, "Common.ProcessingRequest");
@@ -27,8 +28,9 @@ class AdminViewLeaderboardTest {
 
     @Test
     void countsPerUserSortedDescending() {
-        List<RequesterCount> board = AdminView.leaderboard(
-                List.of(requestedBy("alice"), requestedBy("alice"), requestedBy("alice"), requestedBy("bob")));
+        List<RequesterCount> board = StatsView.leaderboard(
+                List.of(requestedBy("alice"), requestedBy("alice"), requestedBy("alice"), requestedBy("bob")),
+                Map.of());
 
         assertEquals(2, board.size());
         assertEquals("alice", board.get(0).username());
@@ -39,8 +41,8 @@ class AdminViewLeaderboardTest {
 
     @Test
     void blankOrNullUsernamesBucketIntoUnknown() {
-        List<RequesterCount> board =
-                AdminView.leaderboard(List.of(requestedBy(null), requestedBy("  "), requestedBy("carol")));
+        List<RequesterCount> board = StatsView.leaderboard(
+                List.of(requestedBy(null), requestedBy("  "), requestedBy("carol")), Map.of());
 
         assertEquals(2, board.size());
         assertEquals("unknown", board.get(0).username()); // 2 anonymous requests → top
@@ -50,14 +52,19 @@ class AdminViewLeaderboardTest {
 
     @Test
     void emptyInputYieldsEmptyLeaderboard() {
-        assertTrue(AdminView.leaderboard(List.of()).isEmpty());
+        assertTrue(StatsView.leaderboard(List.of(), Map.of()).isEmpty());
     }
 
     @Test
     void computesAvailablePercentage() {
         // alice: 4 requests, 1 available → 25%.
-        List<RequesterCount> board = AdminView.leaderboard(List.of(
-                availableRequestedBy("alice"), requestedBy("alice"), requestedBy("alice"), requestedBy("alice")));
+        List<RequesterCount> board = StatsView.leaderboard(
+                List.of(
+                        availableRequestedBy("alice"),
+                        requestedBy("alice"),
+                        requestedBy("alice"),
+                        requestedBy("alice")),
+                Map.of());
 
         assertEquals(1, board.size());
         assertEquals(4, board.get(0).count());
@@ -71,6 +78,31 @@ class AdminViewLeaderboardTest {
         for (int i = 0; i < 12; i++) {
             many.add(requestedBy("user-" + i));
         }
-        assertEquals(10, AdminView.leaderboard(many).size());
+        assertEquals(10, StatsView.leaderboard(many, Map.of()).size());
+    }
+
+    @Test
+    void bytesLookedUpByNormalizedUserKey() {
+        // bytesByUser keys are pre-normalized: blank/null users roll up to "unknown".
+        Map<String, Long> bytes = Map.of("alice", 5_000L, "unknown", 2_000L);
+        List<RequesterCount> board = StatsView.leaderboard(
+                List.of(requestedBy("alice"), requestedBy("alice"), requestedBy(null), requestedBy("bob")), bytes);
+
+        // alice: 5000, unknown: 2000, bob: 0 (no entry).
+        assertEquals(5_000L, board.stream()
+                .filter(r -> "alice".equals(r.username()))
+                .findFirst()
+                .orElseThrow()
+                .bytes());
+        assertEquals(2_000L, board.stream()
+                .filter(r -> "unknown".equals(r.username()))
+                .findFirst()
+                .orElseThrow()
+                .bytes());
+        assertEquals(0L, board.stream()
+                .filter(r -> "bob".equals(r.username()))
+                .findFirst()
+                .orElseThrow()
+                .bytes());
     }
 }

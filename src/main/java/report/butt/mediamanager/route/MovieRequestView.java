@@ -297,21 +297,17 @@ public class MovieRequestView extends VerticalLayout {
         HorizontalLayout statsRow = new HorizontalLayout(radarrQueueCard, radarrHealthCard);
         statsRow.setAlignItems(FlexComponent.Alignment.CENTER);
         statsRow.getStyle().set("flex-wrap", "wrap");
-        HorizontalLayout toolbar = new HorizontalLayout(
-                searchField,
-                refreshAll,
-                validateAll,
-                searchAll,
-                testNotifications,
-                showValidCheckbox,
-                showStaleCheckbox,
-                showWithNotesCheckbox,
-                totalLabel);
+        HorizontalLayout toolbar =
+                new HorizontalLayout(searchField, refreshAll, validateAll, searchAll, testNotifications, totalLabel);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
         // Many controls in one row: let them wrap instead of overflowing on narrow screens.
         toolbar.getStyle().set("flex-wrap", "wrap");
+        HorizontalLayout filterRow =
+                new HorizontalLayout(showValidCheckbox, showStaleCheckbox, showWithNotesCheckbox);
+        filterRow.setAlignItems(FlexComponent.Alignment.CENTER);
+        filterRow.getStyle().set("flex-wrap", "wrap");
 
-        add(statsRow, toolbar, grid, RequestViewSupport.iconsetLoader());
+        add(statsRow, toolbar, filterRow, grid, RequestViewSupport.iconsetLoader());
         setFlexGrow(1, grid);
     }
 

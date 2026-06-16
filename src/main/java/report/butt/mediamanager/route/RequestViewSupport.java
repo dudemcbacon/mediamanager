@@ -15,6 +15,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.shared.Tooltip;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.renderer.LitRenderer;
@@ -494,6 +495,16 @@ final class RequestViewSupport {
      * then case-insensitively by name, with humanized labels.
      */
     static FormLayout fieldDump(Class<?> type, Object instance, List<String> priorityFields) {
+        return fieldDump(type, instance, priorityFields, Set.of());
+    }
+
+    /**
+     * As {@link #fieldDump(Class, Object, List)}, but skips fields named in {@code excludedFields}. Use this to omit
+     * lazy JPA associations (e.g. a child entity's back-reference to its parent), which would otherwise be navigated by
+     * {@code String.valueOf(...)} and fail on a detached entity.
+     */
+    static FormLayout fieldDump(
+            Class<?> type, Object instance, List<String> priorityFields, Set<String> excludedFields) {
         FormLayout layout = new FormLayout();
         layout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
@@ -501,7 +512,9 @@ final class RequestViewSupport {
                 new FormLayout.ResponsiveStep("900px", 3));
 
         List<Field> fields = collectFields(type).stream()
-                .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
+                .filter(f -> !Modifier.isStatic(f.getModifiers())
+                        && !f.isSynthetic()
+                        && !excludedFields.contains(f.getName()))
                 .sorted(Comparator.<Field>comparingInt(f -> {
                             int idx = priorityFields.indexOf(f.getName());
                             return idx == -1 ? Integer.MAX_VALUE : idx;
@@ -643,11 +656,15 @@ final class RequestViewSupport {
         return String.format("%d:%02d:%02d", total / 3600, (total % 3600) / 60, total % 60);
     }
 
-    private static String formatBytes(Long bytes) {
-        if (bytes == null) {
+    /** Human-friendly byte size: TiB above 1024 GiB, GiB above 1 GiB, otherwise MiB. Null/non-positive → "—". */
+    static String formatBytes(Long bytes) {
+        if (bytes == null || bytes <= 0) {
             return "—";
         }
         double gib = bytes / (1024.0 * 1024.0 * 1024.0);
+        if (gib >= 1024.0) {
+            return String.format("%.2f TiB", gib / 1024.0);
+        }
         if (gib >= 1.0) {
             return String.format("%.2f GiB", gib);
         }
@@ -663,5 +680,55 @@ final class RequestViewSupport {
             return String.format("%.2f Mb/s", mbps);
         }
         return String.format("%.0f kb/s", bitsPerSecond / 1000.0);
+    }
+
+    // --- dashboard helpers (shared by StatsView and NotificationsView) ---
+
+    /** A grid sized to its content (no inner scrollbar), full width — for stacking several grids on a dashboard. */
+    static <T> Grid<T> compactGrid() {
+        Grid<T> grid = new Grid<>();
+        grid.setAllRowsVisible(true);
+        grid.setWidthFull();
+        return grid;
+    }
+
+    static ProgressBar indeterminateBar() {
+        ProgressBar bar = new ProgressBar();
+        bar.setIndeterminate(true);
+        return bar;
+    }
+
+    /** A titled section (header with a live count + grid) whose data arrives asynchronously. */
+    static final class Section<T> {
+
+        private final String title;
+        private final Span header;
+        private final Grid<T> grid;
+
+        Section(String title, Grid<T> grid) {
+            this.title = title;
+            this.header = coloredLabel(title, "var(--vaadin-text-color)");
+            this.grid = grid;
+        }
+
+        Grid<T> grid() {
+            return grid;
+        }
+
+        Component layout(Component... betweenHeaderAndGrid) {
+            VerticalLayout layout = new VerticalLayout();
+            layout.setPadding(false);
+            layout.setSpacing(false);
+            layout.setWidthFull();
+            layout.add(header);
+            layout.add(betweenHeaderAndGrid);
+            layout.add(grid);
+            return layout;
+        }
+
+        void set(List<T> items) {
+            header.setText(title + " (" + items.size() + ")");
+            grid.setItems(items);
+        }
     }
 }

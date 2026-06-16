@@ -126,6 +126,12 @@ public class TvRequestView extends VerticalLayout {
     private final Map<QueueKey, DelugeTorrent> torrentByEpisode = new HashMap<>();
     private final Map<QueueKey, SabnzbdSlot> slotByEpisode = new HashMap<>();
     private final Map<Integer, Set<String>> protocolsBySeriesId = new HashMap<>();
+    /**
+     * Currently-rendered detail trees keyed by TvRequest id. Maintained via attach/detach listeners on each tree so the
+     * background poll can push fresh download status into them in place — refreshing the parent grid would discard the
+     * detail's {@link ComponentRenderer} output and collapse the panel.
+     */
+    private final Map<Long, TvHierarchyTreeGrid> openDetailTrees = new HashMap<>();
     private final AtomicBoolean downloadLoadInFlight = new AtomicBoolean(false);
     private final AtomicBoolean statsLoadInFlight = new AtomicBoolean(false);
     private final AtomicBoolean gridLoadInFlight = new AtomicBoolean(false);
@@ -344,15 +350,16 @@ public class TvRequestView extends VerticalLayout {
                 searchAllSeasons,
                 searchAllEpisodes,
                 testNotifications,
-                showValidCheckbox,
-                showStaleCheckbox,
-                showWithNotesCheckbox,
                 totalLabel);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
         // Many controls in one row: let them wrap instead of overflowing on narrow screens.
         toolbar.getStyle().set("flex-wrap", "wrap");
+        HorizontalLayout filterRow =
+                new HorizontalLayout(showValidCheckbox, showStaleCheckbox, showWithNotesCheckbox);
+        filterRow.setAlignItems(FlexComponent.Alignment.CENTER);
+        filterRow.getStyle().set("flex-wrap", "wrap");
 
-        add(statsRow, toolbar, grid, RequestViewSupport.iconsetLoader());
+        add(statsRow, toolbar, filterRow, grid, RequestViewSupport.iconsetLoader());
         setFlexGrow(1, grid);
     }
 
@@ -688,10 +695,30 @@ public class TvRequestView extends VerticalLayout {
                         }
                     } finally {
                         downloadLoadInFlight.set(false);
-                        // Refresh the main grid so an expanded detail's tree picks up the joined progress/peers.
-                        grid.getDataProvider().refreshAll();
+                        // Push the joined progress/peers into any open detail trees in place. Refreshing the main grid
+                        // would re-render the row-details ComponentRenderer and collapse whatever the user expanded.
+                        refreshOpenDetailTrees();
                     }
                 }));
+    }
+
+    /** Pushes the freshly polled download status into every currently-open detail tree without rebuilding the panel. */
+    private void refreshOpenDetailTrees() {
+        if (openDetailTrees.isEmpty()) {
+            return;
+        }
+        Map<Long, TvRequest> bySeriesIdRequest = new HashMap<>();
+        for (TvRequest r : allRequests) {
+            if (r.getId() != null) {
+                bySeriesIdRequest.put(r.getId(), r);
+            }
+        }
+        for (Map.Entry<Long, TvHierarchyTreeGrid> entry : openDetailTrees.entrySet()) {
+            TvRequest mr = bySeriesIdRequest.get(entry.getKey());
+            if (mr != null) {
+                entry.getValue().applyDownloadStatus(episodeDownloadsForSeries(mr.getSonarrSeriesId()));
+            }
+        }
     }
 
     private record DownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {}
@@ -997,10 +1024,21 @@ public class TvRequestView extends VerticalLayout {
         List<TvChildRequest> children = tvHierarchyService.loadHierarchy(mr);
         Map<EpisodeKey, TvHierarchyTreeGrid.EpisodeDownload> downloads =
                 episodeDownloadsForSeries(mr.getSonarrSeriesId());
-        com.vaadin.flow.component.Component hierarchy = children.isEmpty()
-                ? TvHierarchyTreeGrid.placeholderWhenEmpty()
-                : new TvHierarchyTreeGrid(
-                        children, episodeValidators, latestEpisodeValidations, downloads, tvController, uiTaskExecutor);
+        com.vaadin.flow.component.Component hierarchy;
+        if (children.isEmpty()) {
+            hierarchy = TvHierarchyTreeGrid.placeholderWhenEmpty();
+        } else {
+            TvHierarchyTreeGrid treeGrid = new TvHierarchyTreeGrid(
+                    children, episodeValidators, latestEpisodeValidations, downloads, tvController, uiTaskExecutor);
+            // Register while the panel is mounted so the background poll can update it in place; the detach listener
+            // clears the entry when the user closes the panel or the parent grid is reloaded.
+            Long requestId = mr.getId();
+            if (requestId != null) {
+                treeGrid.addAttachListener(e -> openDetailTrees.put(requestId, treeGrid));
+                treeGrid.addDetachListener(e -> openDetailTrees.remove(requestId, treeGrid));
+            }
+            hierarchy = treeGrid;
+        }
 
         VerticalLayout layout = new VerticalLayout(fields, hierarchy);
         layout.setWidthFull();

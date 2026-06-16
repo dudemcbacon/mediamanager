@@ -5,6 +5,7 @@ import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.Hr;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -44,7 +45,11 @@ public class MainLayout extends AppLayout {
         nav.addItem(new SideNavItem("Movies", MovieRequestView.class));
         nav.addItem(new SideNavItem("TV", TvRequestView.class));
         if (SecurityUtils.isAdmin()) {
-            nav.addItem(new SideNavItem("Admin", AdminView.class));
+            Hr separator = new Hr();
+            separator.getStyle().set("margin", "var(--vaadin-padding-s) 0");
+            nav.getElement().appendChild(separator.getElement());
+            nav.addItem(new SideNavItem("Notifications", NotificationsView.class));
+            nav.addItem(new SideNavItem("Stats", StatsView.class));
             nav.addItem(new SideNavItem("Users", UserAdminView.class));
         }
         addToDrawer(nav);
