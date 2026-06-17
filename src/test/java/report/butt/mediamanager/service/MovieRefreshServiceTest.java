@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.jobrunr.scheduling.JobRequestScheduler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -44,9 +45,18 @@ class MovieRefreshServiceTest {
     private final RadarrClient radarrClient = mock(RadarrClient.class);
     private final PlexClient plexClient = mock(PlexClient.class);
     private final PlexCacheService plexCacheService = mock(PlexCacheService.class);
+    private final JobRequestScheduler jobRequestScheduler = mock(JobRequestScheduler.class);
+    private final FfprobeScanService ffprobeScanService = mock(FfprobeScanService.class);
 
-    private final MovieRefreshService service =
-            new MovieRefreshService(repository, ombiClient, radarrClient, plexClient, plexCacheService, "");
+    private final MovieRefreshService service = new MovieRefreshService(
+            repository,
+            ombiClient,
+            radarrClient,
+            plexClient,
+            plexCacheService,
+            "",
+            jobRequestScheduler,
+            ffprobeScanService);
 
     // --- refreshAll ---
 
@@ -205,7 +215,14 @@ class MovieRefreshServiceTest {
         Files.write(moviesDir.resolve("movie.mkv"), new byte[] {1, 2, 3, 4, 5});
 
         var prefixed = new MovieRefreshService(
-                repository, ombiClient, radarrClient, plexClient, plexCacheService, tempDir.toString());
+                repository,
+                ombiClient,
+                radarrClient,
+                plexClient,
+                plexCacheService,
+                tempDir.toString(),
+                jobRequestScheduler,
+                ffprobeScanService);
 
         MovieRequest existing = new MovieRequest("Some Movie", 500, false, null, "Common.ProcessingRequest");
         existing.setId(2L);
@@ -228,7 +245,14 @@ class MovieRefreshServiceTest {
     @Test
     void refreshOneRecordsLocalFileUnavailableWhenMissing(@TempDir Path tempDir) {
         var prefixed = new MovieRefreshService(
-                repository, ombiClient, radarrClient, plexClient, plexCacheService, tempDir.toString());
+                repository,
+                ombiClient,
+                radarrClient,
+                plexClient,
+                plexCacheService,
+                tempDir.toString(),
+                jobRequestScheduler,
+                ffprobeScanService);
 
         MovieRequest existing = new MovieRequest("Some Movie", 500, false, null, "Common.ProcessingRequest");
         existing.setId(2L);

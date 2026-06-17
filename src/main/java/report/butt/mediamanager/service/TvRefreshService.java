@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jobrunr.scheduling.JobRequestScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +26,7 @@ import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.SonarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
+import report.butt.mediamanager.job.FfprobeScanJobRequest;
 import report.butt.mediamanager.model.TvChildRequest;
 import report.butt.mediamanager.model.TvEpisodeRequest;
 import report.butt.mediamanager.model.TvRequest;
@@ -71,6 +73,9 @@ public class TvRefreshService {
     /** Prepended to Sonarr episode file paths before the local-filesystem existence/size check. Empty = check as-is. */
     private final String localFileSystemPrefix;
 
+    private final JobRequestScheduler jobRequestScheduler;
+    private final FfprobeScanService ffprobeScanService;
+
     public TvRefreshService(
             TvRequestRepository repository,
             TvChildRequestRepository childRepository,
@@ -80,7 +85,9 @@ public class TvRefreshService {
             SonarrClient sonarrClient,
             PlexClient plexClient,
             PlexCacheService plexCacheService,
-            @Value("${mediamanager.local-file-system-prefix:}") String localFileSystemPrefix) {
+            @Value("${mediamanager.local-file-system-prefix:}") String localFileSystemPrefix,
+            JobRequestScheduler jobRequestScheduler,
+            FfprobeScanService ffprobeScanService) {
         this.repository = repository;
         this.childRepository = childRepository;
         this.seasonRepository = seasonRepository;
@@ -90,6 +97,8 @@ public class TvRefreshService {
         this.plexClient = plexClient;
         this.plexCacheService = plexCacheService;
         this.localFileSystemPrefix = localFileSystemPrefix;
+        this.jobRequestScheduler = jobRequestScheduler;
+        this.ffprobeScanService = ffprobeScanService;
     }
 
     @Transactional
@@ -247,6 +256,26 @@ public class TvRefreshService {
                 toSaveSeasons.size(),
                 toSaveEpisodes.size(),
                 unchanged);
+
+        queueMissingEpisodeScans();
+    }
+
+    /** Queues an ffprobe scan for the given TV episode request. */
+    private void queueEpisodeScan(Long episodeId) {
+        jobRequestScheduler.enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.EPISODE, episodeId));
+    }
+
+    /**
+     * Bulk-refresh follow-up: queues a scan for every episode that has a local file but no ffprobe scan yet, so a full
+     * refresh backfills missing scans without re-scanning the whole library each run.
+     */
+    private void queueMissingEpisodeScans() {
+        var scanned = ffprobeScanService.scannedEpisodeRequestIds();
+        for (Long episodeId : episodeRepository.findAllScannableEpisodeIds()) {
+            if (!scanned.contains(episodeId)) {
+                queueEpisodeScan(episodeId);
+            }
+        }
     }
 
     private Map<EpisodeKey, PlexEpisodeData> resolveEpisodePaths(
@@ -474,6 +503,9 @@ public class TvRefreshService {
             refreshChildren(tvRequest, ombiTv, series);
         }
         log.info("Refreshed {} ({})", id, tvRequest.getTitle());
+        for (Long episodeId : episodeRepository.findScannableEpisodeIdsByTvRequestId(id)) {
+            queueEpisodeScan(episodeId);
+        }
     }
 
     private void applyUpdates(

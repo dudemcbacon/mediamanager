@@ -48,4 +48,8 @@ public interface TvEpisodeRequestRepository extends JpaRepository<TvEpisodeReque
             WHERE tr.id = :tvRequestId AND e.sonarrPath IS NOT NULL AND e.sonarrPath <> ''
             """)
     List<Long> findScannableEpisodeIdsByTvRequestId(@Param("tvRequestId") Long tvRequestId);
+
+    /** Ids of every episode in the library that has a local file path (so it can be ffprobe-scanned). */
+    @Query("SELECT e.id FROM TvEpisodeRequest e WHERE e.sonarrPath IS NOT NULL AND e.sonarrPath <> ''")
+    List<Long> findAllScannableEpisodeIds();
 }

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.jobrunr.scheduling.JobRequestScheduler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -47,6 +48,8 @@ class TvRefreshServiceTest {
     private final SonarrClient sonarrClient = mock(SonarrClient.class);
     private final PlexClient plexClient = mock(PlexClient.class);
     private final PlexCacheService plexCacheService = mock(PlexCacheService.class);
+    private final JobRequestScheduler jobRequestScheduler = mock(JobRequestScheduler.class);
+    private final FfprobeScanService ffprobeScanService = mock(FfprobeScanService.class);
 
     private final TvRefreshService service = new TvRefreshService(
             repository,
@@ -57,7 +60,9 @@ class TvRefreshServiceTest {
             sonarrClient,
             plexClient,
             plexCacheService,
-            "");
+            "",
+            jobRequestScheduler,
+            ffprobeScanService);
 
     // --- refreshAll ---
 

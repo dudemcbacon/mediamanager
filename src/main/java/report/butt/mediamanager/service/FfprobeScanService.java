@@ -3,8 +3,10 @@ package report.butt.mediamanager.service;
 import com.newrelic.api.agent.Trace;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import net.bramp.ffmpeg.FFprobe;
 import net.bramp.ffmpeg.probe.FFmpegFormat;
 import net.bramp.ffmpeg.probe.FFmpegProbeResult;
@@ -119,6 +121,16 @@ public class FfprobeScanService {
     public Optional<FfprobeScan> getLatestEpisodeScan(Long episodeId) {
         return ffprobeScanRepository.findFirstByRequestIdAndRequestTypeOrderByCreatedAtDesc(
                 episodeId, EPISODE_REQUEST_TYPE);
+    }
+
+    /** Movie-request ids that already have at least one ffprobe scan (used to skip re-scanning during bulk refresh). */
+    public Set<Long> scannedMovieRequestIds() {
+        return new HashSet<>(ffprobeScanRepository.findDistinctRequestIdsByRequestType(MOVIE_REQUEST_TYPE));
+    }
+
+    /** TV-episode ids that already have at least one ffprobe scan (used to skip re-scanning during bulk refresh). */
+    public Set<Long> scannedEpisodeRequestIds() {
+        return new HashSet<>(ffprobeScanRepository.findDistinctRequestIdsByRequestType(EPISODE_REQUEST_TYPE));
     }
 
     /** Runs the equivalent of {@code ffprobe -v quiet -print_format json -show_format -show_streams <path>}. */

@@ -9,6 +9,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jobrunr.scheduling.JobRequestScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +19,7 @@ import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
+import report.butt.mediamanager.job.FfprobeScanJobRequest;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.ombi.OmbiMovieRequest;
 import report.butt.mediamanager.model.plex.PlexMedia;
@@ -42,19 +44,26 @@ public class MovieRefreshService {
     /** Prepended to Radarr file paths before the local-filesystem existence/size check. Empty = check as-is. */
     private final String localFileSystemPrefix;
 
+    private final JobRequestScheduler jobRequestScheduler;
+    private final FfprobeScanService ffprobeScanService;
+
     public MovieRefreshService(
             MovieRequestRepository repository,
             OmbiClient ombiClient,
             RadarrClient radarrClient,
             PlexClient plexClient,
             PlexCacheService plexCacheService,
-            @Value("${mediamanager.local-file-system-prefix:}") String localFileSystemPrefix) {
+            @Value("${mediamanager.local-file-system-prefix:}") String localFileSystemPrefix,
+            JobRequestScheduler jobRequestScheduler,
+            FfprobeScanService ffprobeScanService) {
         this.repository = repository;
         this.ombiClient = ombiClient;
         this.radarrClient = radarrClient;
         this.plexClient = plexClient;
         this.plexCacheService = plexCacheService;
         this.localFileSystemPrefix = localFileSystemPrefix;
+        this.jobRequestScheduler = jobRequestScheduler;
+        this.ffprobeScanService = ffprobeScanService;
     }
 
     @Trace
@@ -112,6 +121,26 @@ public class MovieRefreshService {
         log.info("Refresh complete: {} saved, {} unchanged", toSave.size(), unchanged);
 
         plexCacheService.cleanExcept("movie-", validCacheKeys);
+
+        queueMissingMovieScans();
+    }
+
+    /** Queues an ffprobe scan for the given movie request. */
+    private void queueMovieScan(Long movieRequestId) {
+        jobRequestScheduler.enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.MOVIE, movieRequestId));
+    }
+
+    /**
+     * Bulk-refresh follow-up: queues a scan for every movie that has a local file but no ffprobe scan yet, so a full
+     * refresh backfills missing scans without re-scanning the whole library each run.
+     */
+    private void queueMissingMovieScans() {
+        var scanned = ffprobeScanService.scannedMovieRequestIds();
+        for (Long movieRequestId : repository.findScannableMovieRequestIds()) {
+            if (!scanned.contains(movieRequestId)) {
+                queueMovieScan(movieRequestId);
+            }
+        }
     }
 
     public void refreshOne(Long id) {
@@ -136,6 +165,10 @@ public class MovieRefreshService {
 
         applyUpdates(movieRequest, ombiMovie, radarrMovie, null, radarrClient.getQualityProfilesById());
         repository.save(movieRequest);
+        var filePath = movieRequest.getRadarrMovieFilePath();
+        if (filePath != null && !filePath.isBlank()) {
+            queueMovieScan(id);
+        }
         log.info("Refreshed {} ({})", id, movieRequest.getTitle());
     }
 
