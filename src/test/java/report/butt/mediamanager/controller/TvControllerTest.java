@@ -14,11 +14,13 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import org.jobrunr.scheduling.JobRequestScheduler;
 import org.junit.jupiter.api.Test;
 import org.springframework.ui.ConcurrentModel;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.SonarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
+import report.butt.mediamanager.job.FfprobeScanJobRequest;
 import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.TvChildRequest;
@@ -55,6 +57,7 @@ class TvControllerTest {
     private final ValidatorService validatorService = mock(ValidatorService.class);
     private final RequestAdminService requestAdminService = mock(RequestAdminService.class);
     private final FfprobeScanService ffprobeScanService = mock(FfprobeScanService.class);
+    private final JobRequestScheduler jobRequestScheduler = mock(JobRequestScheduler.class);
 
     private final TvController controller = new TvController(
             tvRequestRepository,
@@ -67,13 +70,37 @@ class TvControllerTest {
             tvRefreshService,
             validatorService,
             requestAdminService,
-            ffprobeScanService);
+            ffprobeScanService,
+            jobRequestScheduler);
 
     @Test
-    void scanWithFfprobe_delegatesToService() {
+    void scanWithFfprobe_enqueuesJob() {
         controller.scanWithFfprobe(8L);
 
-        verify(ffprobeScanService).scanEpisode(8L);
+        verify(jobRequestScheduler).enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.EPISODE, 8L));
+        verify(ffprobeScanService, never()).scanEpisode(any());
+    }
+
+    @Test
+    void scanSeriesWithFfprobe_enqueuesAJobPerScannableEpisodeAndReturnsTheCount() {
+        when(tvEpisodeRequestRepository.findScannableEpisodeIdsByTvRequestId(5L)).thenReturn(List.of(11L, 12L, 13L));
+
+        int queued = controller.scanSeriesWithFfprobe(5L);
+
+        assertEquals(3, queued);
+        verify(jobRequestScheduler).enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.EPISODE, 11L));
+        verify(jobRequestScheduler).enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.EPISODE, 12L));
+        verify(jobRequestScheduler).enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.EPISODE, 13L));
+    }
+
+    @Test
+    void scanSeriesWithFfprobe_withNoScannableEpisodes_enqueuesNothing() {
+        when(tvEpisodeRequestRepository.findScannableEpisodeIdsByTvRequestId(5L)).thenReturn(List.of());
+
+        int queued = controller.scanSeriesWithFfprobe(5L);
+
+        assertEquals(0, queued);
+        verifyNoMoreInteractions(jobRequestScheduler);
     }
 
     @Test

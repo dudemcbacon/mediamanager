@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import report.butt.mediamanager.model.TvEpisodeRequest;
 
 @NullMarked
@@ -33,4 +34,18 @@ public interface TvEpisodeRequestRepository extends JpaRepository<TvEpisodeReque
             GROUP BY tr.ombiUserName
             """)
     List<Object[]> sumLocalFileSizeByTvRequestOmbiUserName();
+
+    /**
+     * Ids of every episode under the given show that has a local file path, i.e. can be ffprobe-scanned. Used to fan
+     * out one scan job per episode for a whole series. Joins TvEpisodeRequest → season → child → parent show.
+     */
+    @Query("""
+            SELECT e.id
+            FROM TvEpisodeRequest e
+              JOIN e.tvSeasonRequest s
+              JOIN s.tvChildRequest c
+              JOIN c.parent tr
+            WHERE tr.id = :tvRequestId AND e.sonarrPath IS NOT NULL AND e.sonarrPath <> ''
+            """)
+    List<Long> findScannableEpisodeIdsByTvRequestId(@Param("tvRequestId") Long tvRequestId);
 }

@@ -50,9 +50,20 @@ java {
 	}
 }
 
+configurations {
+    // Resolves the New Relic Java agent jar so bootRun can attach it via -javaagent (opt-in; see bootRun).
+    // Deliberately NOT on the compile/runtime classpath: the agent attaches to the JVM, it isn't a library
+    // the app code links against.
+    newrelicAgent {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
 bootRun {
     jvmArgs = ['-XX:HotswapAgent=fatjar', '-XX:+AllowEnhancedClassRedefinition']
     def envFile = rootProject.file('.env')
+    boolean envHasNrLicense = false
     if (envFile.exists()) {
         envFile.eachLine { line ->
             def trimmed = line.trim()
@@ -66,6 +77,23 @@ bootRun {
                 value = value.substring(1, value.length() - 1)
             }
             environment key, value
+            // A non-empty NEW_RELIC_LICENSE_KEY in .env should be enough to enable the agent below —
+            // System.getenv() only sees the shell, not .env, so track it here while we parse the file.
+            if (key == 'NEW_RELIC_LICENSE_KEY' && !value.isEmpty()) {
+                envHasNrLicense = true
+            }
+        }
+    }
+
+    // Attach the New Relic Java agent to local runs when opted in: set NEW_RELIC_LICENSE_KEY (in .env or
+    // your shell), or pass -PnewrelicAgent. Config is read from ./newrelic.yml (NEW_RELIC_* env vars override
+    // it). Production attaches the agent via the Dockerfile/entrypoint instead. The agent jar is resolved in
+    // doFirst (execution time) so it isn't resolved during configuration — before the repositories block is
+    // evaluated.
+    if (project.hasProperty('newrelicAgent') || System.getenv('NEW_RELIC_LICENSE_KEY') || envHasNrLicense) {
+        doFirst {
+            jvmArgs "-javaagent:${configurations.newrelicAgent.singleFile}",
+                    "-Dnewrelic.config.file=${rootProject.file('newrelic.yml')}"
         }
     }
 }
@@ -85,6 +113,8 @@ dependencies {
 	implementation libs.commons.lang3
 	implementation libs.ffmpeg.cli.wrapper
 	implementation libs.jackson.databind.v2
+	implementation libs.jobrunr.spring.boot.starter
+	implementation libs.newrelic.api
 	implementation libs.spring.boot.starter.actuator
 	implementation libs.spring.boot.starter.data.jpa
 	implementation libs.spring.boot.starter.mail
@@ -104,6 +134,8 @@ dependencies {
 	testRuntimeOnly libs.junit.platform.launcher
 
 	errorprone libs.google.error.prone.core
+
+	newrelicAgent(libs.newrelic.agent) { transitive = false }
 }
 
 vaadin {

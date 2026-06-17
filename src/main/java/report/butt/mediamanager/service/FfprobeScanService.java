@@ -1,5 +1,6 @@
 package report.butt.mediamanager.service;
 
+import com.newrelic.api.agent.Trace;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Locale;
@@ -65,6 +66,7 @@ public class FfprobeScanService {
      * request is missing, {@link IllegalStateException} if it has no file path or ffprobe reports an error, and
      * {@link UncheckedIOException} if ffprobe can't be run.
      */
+    @Trace
     public FfprobeScan scanMovie(Long movieRequestId) {
         MovieRequest movieRequest = movieRequestRepository
                 .findById(movieRequestId)
@@ -81,6 +83,7 @@ public class FfprobeScanService {
      * Probes the TV episode's local file (its Sonarr path) and persists the result. Same failure modes as
      * {@link #scanMovie}.
      */
+    @Trace
     public FfprobeScan scanEpisode(Long episodeId) {
         TvEpisodeRequest episode = tvEpisodeRequestRepository
                 .findById(episodeId)

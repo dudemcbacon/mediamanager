@@ -1,0 +1,43 @@
+# New Relic Java agent configuration for mediamanager.
+#
+# This file ships inside the Docker image next to newrelic.jar (where the agent auto-discovers it) and
+# is used for local `bootRun` via -Dnewrelic.config.file. It is intentionally minimal and contains NO
+# secrets: supply the license key (and optionally override the app name) through environment variables,
+# which take precedence over anything set here:
+#
+#   NEW_RELIC_LICENSE_KEY   Required for the agent to report. The container entrypoint only attaches the
+#                           agent when this is set; bootRun attaches it when this is set or -PnewrelicAgent.
+#   NEW_RELIC_APP_NAME      Defaults to "mediamanager" below.
+#
+# Any setting below can be overridden by a NEW_RELIC_<UPPER_SNAKE_CASE> env var (e.g. log_level ->
+# NEW_RELIC_LOG_LEVEL).
+
+common: &default_settings
+  # Left blank on purpose so no key is committed; set NEW_RELIC_LICENSE_KEY instead.
+  license_key: ''
+  app_name: mediamanager
+
+  # Log to stdout so the container's normal log stream captures agent output (no writable log dir needed).
+  log_level: info
+  log_file_name: STDOUT
+
+  # Distributed tracing + application log forwarding.
+  distributed_tracing:
+    enabled: true
+  application_logging:
+    enabled: true
+    forwarding:
+      enabled: true
+    local_decorating:
+      enabled: false
+
+  # NOTE (2026-06): this app runs Spring Boot 4 / Spring Framework 7, which the agent does not yet
+  # instrument. JVM (GC/memory/threads), JDBC (Postgres) queries, and servlet-level web transactions are
+  # still captured, but Spring controller transaction naming and RestClient external spans are limited
+  # until New Relic adds Spring 7 support.
+
+production:
+  <<: *default_settings
+
+development:
+  <<: *default_settings

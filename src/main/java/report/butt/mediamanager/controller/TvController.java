@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import org.jobrunr.scheduling.JobRequestScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.SonarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
+import report.butt.mediamanager.job.FfprobeScanJobRequest;
 import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.TvChildRequest;
@@ -63,6 +65,7 @@ public class TvController {
     private final ValidatorService validatorService;
     private final RequestAdminService requestAdminService;
     private final FfprobeScanService ffprobeScanService;
+    private final JobRequestScheduler jobRequestScheduler;
 
     @Autowired
     public TvController(
@@ -76,7 +79,8 @@ public class TvController {
             TvRefreshService tvRefreshService,
             ValidatorService validatorService,
             RequestAdminService requestAdminService,
-            FfprobeScanService ffprobeScanService) {
+            FfprobeScanService ffprobeScanService,
+            JobRequestScheduler jobRequestScheduler) {
         this.tvRequestRepository = tvRequestRepository;
         this.tvChildRequestRepository = tvChildRequestRepository;
         this.tvSeasonRequestRepository = tvSeasonRequestRepository;
@@ -88,6 +92,7 @@ public class TvController {
         this.validatorService = validatorService;
         this.requestAdminService = requestAdminService;
         this.ffprobeScanService = ffprobeScanService;
+        this.jobRequestScheduler = jobRequestScheduler;
     }
 
     @PostMapping("/tv/refresh-all")
@@ -397,13 +402,29 @@ public class TvController {
     }
 
     /**
-     * Runs an ffprobe scan against the episode's local file and stores the format + stream data. Used by the
-     * "Scan with FFprobe" context-menu action. ADMIN-only because it executes an ffprobe subprocess on the server.
+     * Queues a JobRunr job that ffprobe-scans the episode's local file (run asynchronously on a background worker,
+     * concurrency capped by {@code jobrunr.background-job-server.worker-count}) and stores the format + stream data.
+     * Used by the "Scan with FFprobe" context-menu action. ADMIN-only because it ultimately executes an ffprobe
+     * subprocess on the server.
      */
     @PreAuthorize("hasRole('ADMIN')")
     public void scanWithFfprobe(Long episodeId) {
-        log.info("FFprobe scan request for tv episode request {}", episodeId);
-        ffprobeScanService.scanEpisode(episodeId);
+        log.info("Queuing FFprobe scan for tv episode request {}", episodeId);
+        jobRequestScheduler.enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.EPISODE, episodeId));
+    }
+
+    /**
+     * Queues an ffprobe scan (one JobRunr job per episode that has a local file) for every episode in the series and
+     * returns how many were queued. ADMIN-only because each job ultimately runs an ffprobe subprocess on the server.
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    public int scanSeriesWithFfprobe(Long tvRequestId) {
+        var episodeIds = tvEpisodeRequestRepository.findScannableEpisodeIdsByTvRequestId(tvRequestId);
+        log.info("Queuing FFprobe scans for {} episode(s) of tv request {}", episodeIds.size(), tvRequestId);
+        for (Long episodeId : episodeIds) {
+            jobRequestScheduler.enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.EPISODE, episodeId));
+        }
+        return episodeIds.size();
     }
 
     /** The most recent stored ffprobe scan for a TV episode (read-only), used by "View FFprobe Results". */

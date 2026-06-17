@@ -1,5 +1,6 @@
 package report.butt.mediamanager.service;
 
+import com.newrelic.api.agent.Trace;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -56,6 +57,7 @@ public class MovieRefreshService {
         this.localFileSystemPrefix = localFileSystemPrefix;
     }
 
+    @Trace
     public void refreshAll() {
         List<OmbiMovieRequest> ombiMovies = ombiClient.getMovies();
         List<Movie> radarrMovies = radarrClient.getMovies();

@@ -5,6 +5,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.badge.Badge;
 import com.vaadin.flow.component.badge.BadgeVariant;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.card.Card;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -530,11 +531,72 @@ final class RequestViewSupport {
             } catch (IllegalAccessException e) {
                 value = "<inaccessible>";
             }
-            Span valueSpan = new Span(value == null ? "—" : String.valueOf(value));
-            layout.addFormItem(valueSpan, humanizeFieldName(field.getName()));
+            String text = value == null ? "" : String.valueOf(value);
+            layout.addFormItem(fieldValueCell(text), humanizeFieldName(field.getName()));
         }
 
         return layout;
+    }
+
+    /**
+     * A field-dump value cell: the value text plus a small "copy to clipboard" button so the (often long) paths, ids,
+     * and URLs can be grabbed without manually selecting them. A blank value renders as a plain dash with no button.
+     */
+    private static Component fieldValueCell(String text) {
+        if (text.isBlank()) {
+            return new Span("—");
+        }
+
+        Span valueSpan = new Span(text);
+        valueSpan.getStyle().set("flex-grow", "1").set("min-width", "0").set("word-break", "break-word");
+
+        Button copy = new Button(VaadinIcon.COPY_O.create());
+        copy.addThemeVariants(ButtonVariant.SMALL, ButtonVariant.TERTIARY);
+        copy.setAriaLabel("Copy to clipboard");
+        Tooltip.forComponent(copy).setText("Copy");
+        copy.getStyle().set("flex-shrink", "0");
+        copy.addClickListener(e -> copyToClipboard(copy, text));
+
+        HorizontalLayout cell = new HorizontalLayout(valueSpan, copy);
+        cell.setSpacing(false);
+        cell.setWidthFull();
+        cell.getStyle().set("gap", "0.25rem").set("align-items", "baseline");
+        return cell;
+    }
+
+    // Copies $0 to the clipboard via the async Clipboard API, falling back to a hidden-textarea execCommand copy for
+    // plain-HTTP LAN access (where navigator.clipboard is unavailable). Always resolves to a boolean success flag.
+    private static final String COPY_TO_CLIPBOARD_JS =
+            """
+            const text = $0;
+            const fallback = () => {
+              const ta = document.createElement('textarea');
+              ta.value = text;
+              ta.style.position = 'fixed';
+              ta.style.opacity = '0';
+              document.body.appendChild(ta);
+              ta.focus();
+              ta.select();
+              let ok = false;
+              try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+              document.body.removeChild(ta);
+              return ok;
+            };
+            if (navigator.clipboard && window.isSecureContext) {
+              return navigator.clipboard.writeText(text).then(() => true, () => fallback());
+            }
+            return fallback();
+            """;
+
+    /** Copies {@code text} to the clipboard client-side and shows a brief confirmation (or failure) toast. */
+    private static void copyToClipboard(Button source, String text) {
+        source.getElement().executeJs(COPY_TO_CLIPBOARD_JS, text).then(Boolean.class, copied -> {
+            boolean ok = copied != null && copied;
+            Notification toast = new Notification(ok ? "Copied" : "Copy failed");
+            toast.setDuration(1500);
+            toast.setPosition(Notification.Position.BOTTOM_START);
+            toast.open();
+        });
     }
 
     private static List<Field> collectFields(Class<?> type) {

@@ -21,6 +21,16 @@ RUN --mount=type=cache,target=/root/.gradle \
 
 RUN cp build/libs/*.jar app.jar
 
+# New Relic Java agent: fetched from Maven Central here in the build stage and copied into the runtime
+# image below. Attached via -javaagent only when NEW_RELIC_LICENSE_KEY is set (see docker-entrypoint.sh).
+# Keep this version in sync with the `newrelic-agent` version in gradle/libs.versions.toml.
+ARG NEW_RELIC_AGENT_VERSION=9.3.0
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && curl -fsSL -o newrelic.jar \
+        "https://repo1.maven.org/maven2/com/newrelic/agent/java/newrelic-agent/${NEW_RELIC_AGENT_VERSION}/newrelic-agent-${NEW_RELIC_AGENT_VERSION}.jar" \
+    && rm -rf /var/lib/apt/lists/*
+
 FROM eclipse-temurin:25-jre
 WORKDIR /app
 
@@ -33,6 +43,10 @@ RUN apt-get update \
     && useradd --system --create-home --shell /usr/sbin/nologin app
 
 COPY --from=build --chown=app:app /workspace/app.jar /app/app.jar
+# New Relic agent jar (from the build stage) + its config. newrelic.yml sits next to the jar so the agent
+# auto-discovers it; NEW_RELIC_* env vars (e.g. NEW_RELIC_LICENSE_KEY) override values in the yml.
+COPY --from=build --chown=app:app /workspace/newrelic.jar /app/newrelic/newrelic.jar
+COPY --chown=app:app newrelic.yml /app/newrelic/newrelic.yml
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 

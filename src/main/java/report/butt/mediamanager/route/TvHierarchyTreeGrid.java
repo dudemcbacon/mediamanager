@@ -6,6 +6,7 @@ import com.vaadin.flow.component.grid.contextmenu.GridMenuItem;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.data.provider.hierarchy.TreeData;
 import com.vaadin.flow.data.provider.hierarchy.TreeDataProvider;
@@ -100,7 +101,17 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         // Click an episode (a leaf row) to expand a field dump, mirroring the movie grid's row details. Parent rows
         // (child/season) expand their children via the hierarchy toggle instead, so they carry no details.
         setItemDetailsRenderer(new ComponentRenderer<>(TvHierarchyTreeGrid::rowDetails));
-        setDetailsVisibleOnClick(true);
+        // Toggle details ourselves rather than via setDetailsVisibleOnClick(true): the built-in click handling ties the
+        // open detail to the grid's activeItem, and the parent poll's refreshAll() (see applyDownloadStatus) resets
+        // activeItem — which makes the grid connector fire setDetailsVisible(null) and collapse the expanded field dump
+        // every few seconds. Toggling manually keeps the open state in the server-side details manager, where it
+        // survives refreshAll(). Clicks on the details panel itself or on focusable cell content don't fire item-click.
+        addItemClickListener(e -> {
+            TvHierarchyRow row = e.getItem();
+            if (row instanceof EpisodeRow) {
+                setDetailsVisible(row, !isDetailsVisible(row));
+            }
+        });
 
         addSearchContextMenu(tvController);
     }
@@ -168,7 +179,8 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         GridMenuItem<TvHierarchyRow> scanFfprobe =
                 contextMenu.addItem("Scan with FFprobe", e -> e.getItem().ifPresent(row -> {
                     if (row instanceof EpisodeRow(TvEpisodeRequest episode)) {
-                        runAsync("Scanning with FFprobe…", () -> tvController.scanWithFfprobe(episode.getId()));
+                        tvController.scanWithFfprobe(episode.getId());
+                        Notification.show("FFprobe scan queued.");
                     }
                 }));
         GridMenuItem<TvHierarchyRow> viewFfprobe =

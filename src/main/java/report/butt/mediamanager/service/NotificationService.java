@@ -1,5 +1,6 @@
 package report.butt.mediamanager.service;
 
+import com.newrelic.api.agent.Trace;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -113,6 +114,7 @@ public class NotificationService {
      * Runs the detection once and, if anything turned up, sends one summary email. Always returns per-category counts
      * so callers (e.g. the "Test Notifications" button) can report what happened even when no mail was sent.
      */
+    @Trace
     public NotificationResult runCheck() {
         NotificationSnapshot snapshot = snapshot();
         Map<Category, Integer> counts = snapshot.counts();

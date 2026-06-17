@@ -14,11 +14,13 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import org.jobrunr.scheduling.JobRequestScheduler;
 import org.junit.jupiter.api.Test;
 import org.springframework.ui.ConcurrentModel;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
+import report.butt.mediamanager.job.FfprobeScanJobRequest;
 import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.Note;
@@ -45,6 +47,7 @@ class MovieControllerTest {
     private final ValidatorService validatorService = mock(ValidatorService.class);
     private final RequestAdminService requestAdminService = mock(RequestAdminService.class);
     private final FfprobeScanService ffprobeScanService = mock(FfprobeScanService.class);
+    private final JobRequestScheduler jobRequestScheduler = mock(JobRequestScheduler.class);
 
     private final MovieController controller = new MovieController(
             movieRequestRepository,
@@ -54,7 +57,8 @@ class MovieControllerTest {
             movieRefreshService,
             validatorService,
             requestAdminService,
-            ffprobeScanService);
+            ffprobeScanService,
+            jobRequestScheduler);
 
     // ---- getRadarrQueue ----
 
@@ -461,10 +465,11 @@ class MovieControllerTest {
     // ---- scanWithFfprobe ----
 
     @Test
-    void scanWithFfprobe_delegatesToService() {
+    void scanWithFfprobe_enqueuesJob() {
         controller.scanWithFfprobe(8L);
 
-        verify(ffprobeScanService).scanMovie(8L);
+        verify(jobRequestScheduler).enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.MOVIE, 8L));
+        verify(ffprobeScanService, never()).scanMovie(any());
     }
 
     @Test

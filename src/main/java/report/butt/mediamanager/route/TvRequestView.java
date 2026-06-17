@@ -253,6 +253,8 @@ public class TvRequestView extends VerticalLayout {
         contextMenu.addItem("Search All Episodes", e -> e.getItem()
                 .ifPresent(mr -> runRowAction(
                         mr, "Searching all episodes…", () -> tvController.searchAllEpisodesForRequest(mr.getId()))));
+        GridMenuItem<TvRequest> scanFfprobeItem =
+                contextMenu.addItem("Scan with FFprobe", e -> e.getItem().ifPresent(this::queueSeriesFfprobeScan));
         GridMenuItem<TvRequest> markAvailableItem = contextMenu.addItem("Mark Available", e -> e.getItem()
                 .ifPresent(mr -> runRowAction(mr, "Marking available…", () -> {
                     tvController.markAvailable(mr.getId());
@@ -282,6 +284,7 @@ public class TvRequestView extends VerticalLayout {
         // USER tier may view, refresh, search, validate, and annotate; mutating Ombi/Sonarr or deleting is ADMIN-only.
         markAvailableItem.setVisible(admin);
         qualityProfileItem.setVisible(admin);
+        scanFfprobeItem.setVisible(admin);
         deleteRequestItem.setVisible(admin);
         contextMenu.setDynamicContentHandler(mr -> {
             if (mr == null) {
@@ -377,6 +380,29 @@ public class TvRequestView extends VerticalLayout {
                 () -> {
                     refreshRow(mr.getId());
                     triggerStatsLoad(true);
+                },
+                uiTaskExecutor));
+    }
+
+    /**
+     * Queues an ffprobe scan for every episode in the series that has a local file (one JobRunr job each), off the UI
+     * thread since a large show means many enqueues, then reports how many were queued.
+     */
+    private void queueSeriesFfprobeScan(TvRequest mr) {
+        int[] queued = {-1};
+        getUI().ifPresent(ui -> RequestViewSupport.runAsync(
+                ui,
+                log,
+                "Queuing FFprobe scans…",
+                () -> queued[0] = tvController.scanSeriesWithFfprobe(mr.getId()),
+                () -> {
+                    if (queued[0] < 0) {
+                        return; // the scan failed to queue; runAsync already surfaced the error
+                    }
+                    Notification.show(
+                            queued[0] == 0
+                                    ? "No episodes with a local file to scan for \"" + mr.getTitle() + "\"."
+                                    : "Queued " + queued[0] + " FFprobe scan(s) for \"" + mr.getTitle() + "\".");
                 },
                 uiTaskExecutor));
     }

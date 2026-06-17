@@ -10,7 +10,11 @@ import report.butt.mediamanager.client.PlexClient;
             "mediamanager.bootstrap.username=test",
             // Must differ from the username: AppUserBootstrap rejects equal bootstrap creds on a clean DB (CI).
             "mediamanager.bootstrap.password=test-admin-pw",
-            "mediamanager.validate-required-config=false"
+            "mediamanager.validate-required-config=false",
+            // JobRunr's background server + dashboard are runtime concerns, not part of this wiring smoke test;
+            // disabling them keeps the test from starting worker threads or binding the dashboard port.
+            "jobrunr.background-job-server.enabled=false",
+            "jobrunr.dashboard.enabled=false"
         })
 class MediamanagerApplicationTests {
 

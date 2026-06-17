@@ -220,8 +220,10 @@ public class MovieRequestView extends VerticalLayout {
                                 "Updating quality profile…",
                                 () -> movieController.setQualityProfileToAny(mr.getId()))));
         GridMenuItem<MovieRequest> scanFfprobeItem = contextMenu.addItem("Scan with FFprobe", e -> e.getItem()
-                .ifPresent(mr ->
-                        runRowAction(mr, "Scanning with FFprobe…", () -> movieController.scanWithFfprobe(mr.getId()))));
+                .ifPresent(mr -> {
+                    movieController.scanWithFfprobe(mr.getId());
+                    Notification.show("FFprobe scan queued for \"" + mr.getTitle() + "\".");
+                }));
         contextMenu.addItem("Mark as Stale", e -> e.getItem().ifPresent(this::openMarkStaleDialog));
         contextMenu.addItem("Add Note", e -> e.getItem().ifPresent(this::openAddNoteDialog));
         contextMenu.addItem("View Notes", e -> e.getItem().ifPresent(this::openViewNotesDialog));

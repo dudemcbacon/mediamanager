@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import org.jobrunr.scheduling.JobRequestScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
+import report.butt.mediamanager.job.FfprobeScanJobRequest;
 import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.Note;
@@ -48,6 +50,7 @@ public class MovieController {
     private final ValidatorService validatorService;
     private final RequestAdminService requestAdminService;
     private final FfprobeScanService ffprobeScanService;
+    private final JobRequestScheduler jobRequestScheduler;
 
     @Autowired
     public MovieController(
@@ -58,7 +61,8 @@ public class MovieController {
             MovieRefreshService movieRefreshService,
             ValidatorService validatorService,
             RequestAdminService requestAdminService,
-            FfprobeScanService ffprobeScanService) {
+            FfprobeScanService ffprobeScanService,
+            JobRequestScheduler jobRequestScheduler) {
         this.movieRequestRepository = movieRequestRepository;
         this.ombiClient = ombiClient;
         this.radarrClient = radarrClient;
@@ -67,6 +71,7 @@ public class MovieController {
         this.validatorService = validatorService;
         this.requestAdminService = requestAdminService;
         this.ffprobeScanService = ffprobeScanService;
+        this.jobRequestScheduler = jobRequestScheduler;
     }
 
     /** Radarr's current download queue, or null if Radarr can't be reached. */
@@ -294,13 +299,15 @@ public class MovieController {
     }
 
     /**
-     * Runs an ffprobe scan against the movie's local file and stores the format + stream data. Used by the
-     * "Scan with FFprobe" context-menu action. ADMIN-only because it executes an ffprobe subprocess on the server.
+     * Queues a JobRunr job that ffprobe-scans the movie's local file (run asynchronously on a background worker,
+     * concurrency capped by {@code jobrunr.background-job-server.worker-count}) and stores the format + stream data.
+     * Used by the "Scan with FFprobe" context-menu action. ADMIN-only because it ultimately executes an ffprobe
+     * subprocess on the server.
      */
     @PreAuthorize("hasRole('ADMIN')")
     public void scanWithFfprobe(Long id) {
-        log.info("FFprobe scan request for movie request {}", id);
-        ffprobeScanService.scanMovie(id);
+        log.info("Queuing FFprobe scan for movie request {}", id);
+        jobRequestScheduler.enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.MOVIE, id));
     }
 
     /** The most recent stored ffprobe scan for a movie request (read-only), used by "View FFprobe Results". */

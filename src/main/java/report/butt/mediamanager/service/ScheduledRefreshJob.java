@@ -1,5 +1,6 @@
 package report.butt.mediamanager.service;
 
+import com.newrelic.api.agent.Trace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +32,7 @@ public class ScheduledRefreshJob {
     }
 
     @Scheduled(cron = "0 0 * * * *")
+    @Trace(dispatcher = true)
     public void refreshAndValidate() {
         log.info("Hourly refresh-and-validate job starting");
         movieRefreshService.refreshAll();
@@ -41,6 +43,7 @@ public class ScheduledRefreshJob {
     }
 
     @Scheduled(cron = "${notifications.cron}")
+    @Trace(dispatcher = true)
     public void runNotifications() {
         if (!notificationsEnabled) {
             log.info("Daily notification job skipped (notifications.enabled=false)");

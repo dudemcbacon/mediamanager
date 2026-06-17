@@ -1,5 +1,6 @@
 package report.butt.mediamanager.service;
 
+import com.newrelic.api.agent.Trace;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -66,6 +67,7 @@ public class ValidatorService {
      * instead of a read and a write per (movie × validator).
      */
     @Transactional
+    @Trace
     public void validateAllMovies() {
         List<MovieRequest> movies = movieRequestRepository.findAll();
         Map<Long, Map<String, Validation>> existingByRequestId = new HashMap<>();
@@ -88,6 +90,7 @@ public class ValidatorService {
      * validator).
      */
     @Transactional
+    @Trace
     public void validateAllTv() {
         List<TvRequest> tvRequests = tvRequestRepository.findAll();
         Map<Long, List<TvEpisodeRequest>> episodesByRequestId = tvHierarchyService.loadEpisodesByRequestId();

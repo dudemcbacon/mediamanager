@@ -1,5 +1,6 @@
 package report.butt.mediamanager.service;
 
+import com.newrelic.api.agent.Trace;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -92,6 +93,7 @@ public class TvRefreshService {
     }
 
     @Transactional
+    @Trace
     public void refreshAll() {
         // Phase 1 — Fetch: four external calls plus four flat preload queries, all independent of
         // the show count.

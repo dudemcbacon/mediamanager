@@ -34,4 +34,13 @@ fi
 chown -R app:app /app /home/app
 
 export HOME=/home/app
-exec gosu app sh -c 'exec java $JAVA_OPTS -jar /app/app.jar'
+
+# Attach the New Relic Java agent only when a license key is provided (e.g. NEW_RELIC_LICENSE_KEY via the
+# compose env_file). Without a key the agent would only emit connection errors, so skip it otherwise.
+# newrelic.yml lives next to the jar in /app/newrelic and is auto-discovered; NEW_RELIC_* env vars override it.
+NR_AGENT=""
+if [ -n "${NEW_RELIC_LICENSE_KEY:-}" ] && [ -f /app/newrelic/newrelic.jar ]; then
+    NR_AGENT="-javaagent:/app/newrelic/newrelic.jar"
+fi
+export NR_AGENT
+exec gosu app sh -c 'exec java $NR_AGENT $JAVA_OPTS -jar /app/app.jar'
