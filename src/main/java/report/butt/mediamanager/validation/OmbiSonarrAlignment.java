@@ -1,5 +1,6 @@
 package report.butt.mediamanager.validation;
 
+import java.util.Objects;
 import org.springframework.stereotype.Component;
 import report.butt.mediamanager.model.RequestType;
 import report.butt.mediamanager.model.TvRequest;
@@ -13,7 +14,7 @@ public class OmbiSonarrAlignment implements Validator<TvRequest> {
         if (fileCount == null || episodeCount == null || episodeCount <= 0) {
             return false;
         }
-        return fileCount >= episodeCount && "Common.Available".equals(request.getOmbiRequestStatus());
+        return fileCount >= episodeCount && Objects.equals(request.getOmbiRequestStatus(), "Common.Available");
     }
 
     @Override

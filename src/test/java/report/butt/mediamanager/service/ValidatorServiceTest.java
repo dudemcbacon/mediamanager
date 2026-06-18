@@ -13,10 +13,12 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import report.butt.mediamanager.model.MovieRequest;
+import report.butt.mediamanager.model.Request;
 import report.butt.mediamanager.model.RequestType;
 import report.butt.mediamanager.model.TvEpisodeRequest;
 import report.butt.mediamanager.model.TvRequest;
@@ -139,8 +141,6 @@ class ValidatorServiceTest {
     // names ("AlwaysTrueMovieValidator", "AlwaysTrueTvValidator", "AlwaysTrueEpisodeValidator") must
     // match exactly what we put into any pre-seeded Validation rows.
     private static final String MOVIE_VALIDATOR_NAME = "AlwaysTrueMovieValidator";
-    private static final String TV_VALIDATOR_NAME = "AlwaysTrueTvValidator";
-    private static final String EP_VALIDATOR_NAME = "AlwaysTrueEpisodeValidator";
 
     @Test
     void validateRequestCreatesNewValidationWhenNoneExist() {
@@ -159,7 +159,7 @@ class ValidatorServiceTest {
     @Test
     void validateRequestReusesExistingValidationWhenResultUnchanged() {
         // AlwaysTrueMovieValidator.validate() always returns true; pre-seed a row with the same result
-        Validation existing = new Validation(MOVIE_VALIDATOR_NAME, true, movie("Film"));
+        var existing = new Validation(MOVIE_VALIDATOR_NAME, true, movie("Film"));
         when(validationRepository.findByRequest(any())).thenReturn(List.of(existing));
 
         ValidatorService service = buildService(List.of(movieValidator), List.of());
@@ -174,7 +174,7 @@ class ValidatorServiceTest {
     @Test
     void validateRequestUpdatesExistingWhenResultChanges() {
         // Pre-seed a row with result=false; AlwaysTrueMovieValidator returns true → result changed
-        Validation existing = new Validation(MOVIE_VALIDATOR_NAME, false, movie("Film"));
+        var existing = new Validation(MOVIE_VALIDATOR_NAME, false, movie("Film"));
         when(validationRepository.findByRequest(any())).thenReturn(List.of(existing));
 
         ValidatorService service = buildService(List.of(movieValidator), List.of());
@@ -216,7 +216,7 @@ class ValidatorServiceTest {
         // AlwaysTrueMovieValidator always returns true. Pre-seed a row with result=true for the same movie.
         MovieRequest m = movie("M");
         m.setId(1L);
-        Validation existing = new Validation(MOVIE_VALIDATOR_NAME, true, m);
+        var existing = new Validation(MOVIE_VALIDATOR_NAME, true, m);
         when(validationRepository.findAll()).thenReturn(List.of(existing));
         when(movieRequestRepository.findAll()).thenReturn(List.of(m));
 
@@ -256,7 +256,7 @@ class ValidatorServiceTest {
         service.validateWithEpisodes(show);
 
         // Both request and episode validators ran → saveAll called at least once
-        verify(validationRepository, org.mockito.Mockito.atLeast(1)).saveAll(anyList());
+        verify(validationRepository, Mockito.atLeast(1)).saveAll(anyList());
     }
 
     @Test
@@ -272,8 +272,7 @@ class ValidatorServiceTest {
     // --- helpers ---
 
     private ValidatorService buildService(
-            List<Validator<? extends report.butt.mediamanager.model.Request>> validators,
-            List<EpisodeValidator> episodeValidators) {
+            List<Validator<? extends Request>> validators, List<EpisodeValidator> episodeValidators) {
         return new ValidatorService(
                 validators,
                 episodeValidators,
@@ -284,7 +283,7 @@ class ValidatorServiceTest {
     }
 
     private static MovieRequest movie(String title) {
-        MovieRequest m = new MovieRequest(title, 1, false, 1, "Common.ProcessingRequest");
+        var m = new MovieRequest(title, 1, false, 1, "Common.ProcessingRequest");
         return m;
     }
 

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +34,7 @@ final class QualityProfiles {
     }
 
     /** Resolves a cached quality profile id by its (exact) name, or null if none matches. */
-    static Integer idByName(Map<Integer, String> profilesById, String name) {
+    static @Nullable Integer idByName(Map<Integer, String> profilesById, String name) {
         return profilesById.entrySet().stream()
                 .filter(e -> e.getValue() != null && e.getValue().equals(name))
                 .map(Map.Entry::getKey)

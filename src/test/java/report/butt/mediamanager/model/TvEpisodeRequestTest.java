@@ -1,5 +1,6 @@
 package report.butt.mediamanager.model;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,11 +11,11 @@ import org.junit.jupiter.api.Test;
 class TvEpisodeRequestTest {
 
     private static TvSeasonRequest season() {
-        TvRequest parent = new TvRequest("Show", 100, false, 5, "S");
+        var parent = new TvRequest("Show", 100, false, 5, "S");
         parent.setId(1L);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 100, false, 6, "S");
+        var child = new TvChildRequest(parent, "Show", 100, false, 6, "S");
         child.setId(2L);
-        TvSeasonRequest s = new TvSeasonRequest(child, 7, 1, false);
+        var s = new TvSeasonRequest(child, 7, 1, false);
         s.setId(3L);
         return s;
     }
@@ -22,28 +23,28 @@ class TvEpisodeRequestTest {
     @Test
     void constructor_setsFields() {
         TvSeasonRequest s = season();
-        TvEpisodeRequest ep = new TvEpisodeRequest(s, 8000, 1);
+        var ep = new TvEpisodeRequest(s, 8000, 1);
 
-        assert ep.getTvSeasonRequest() == s;
-        assert ep.getOmbiEpisodeId() == 8000;
-        assert ep.getOmbiEpisodeNumber() == 1;
+        assertEquals(s, ep.getTvSeasonRequest());
+        assertEquals(8000, ep.getOmbiEpisodeId());
+        assertEquals(1, ep.getOmbiEpisodeNumber());
     }
 
     @Test
     void setters_roundTrip() {
-        TvEpisodeRequest ep = new TvEpisodeRequest(season(), 8000, 1);
+        var ep = new TvEpisodeRequest(season(), 8000, 1);
 
         ep.setId(4L);
-        assert ep.getId() == 4L;
+        assertEquals(4L, ep.getId());
 
         ep.setOmbiEpisodeId(9000);
-        assert ep.getOmbiEpisodeId() == 9000;
+        assertEquals(9000, ep.getOmbiEpisodeId());
 
         ep.setOmbiEpisodeNumber(2);
-        assert ep.getOmbiEpisodeNumber() == 2;
+        assertEquals(2, ep.getOmbiEpisodeNumber());
 
         ep.setOmbiTitle("Pilot");
-        assert "Pilot".equals(ep.getOmbiTitle());
+        assertEquals("Pilot", ep.getOmbiTitle());
 
         ep.setOmbiAvailable(true);
         assertTrue(ep.getOmbiAvailable());
@@ -55,47 +56,47 @@ class TvEpisodeRequestTest {
         assertTrue(ep.getOmbiRequested());
 
         ep.setOmbiRequestStatus("Common.Available");
-        assert "Common.Available".equals(ep.getOmbiRequestStatus());
+        assertEquals("Common.Available", ep.getOmbiRequestStatus());
 
         ep.setSonarrPath("/tv/show/s01e01.mkv");
-        assert "/tv/show/s01e01.mkv".equals(ep.getSonarrPath());
+        assertEquals("/tv/show/s01e01.mkv", ep.getSonarrPath());
 
         ep.setPlexPath("/plex/show/s01e01.mkv");
-        assert "/plex/show/s01e01.mkv".equals(ep.getPlexPath());
+        assertEquals("/plex/show/s01e01.mkv", ep.getPlexPath());
 
         Instant t = Instant.parse("2024-06-01T00:00:00Z");
         ep.setSonarrLastSearchTime(t);
-        assert ep.getSonarrLastSearchTime().equals(t);
+        assertEquals(t, ep.getSonarrLastSearchTime());
 
         TvSeasonRequest s2 = season();
         ep.setTvSeasonRequest(s2);
-        assert ep.getTvSeasonRequest() == s2;
+        assertEquals(s2, ep.getTvSeasonRequest());
     }
 
     @Test
     void hashCode_isStable() {
-        TvEpisodeRequest ep = new TvEpisodeRequest(season(), 8000, 1);
+        var ep = new TvEpisodeRequest(season(), 8000, 1);
         int h1 = ep.hashCode();
         int h2 = ep.hashCode();
-        assert h1 == h2;
+        assertEquals(h2, h1);
     }
 
     @Test
     void toString_isNonNull() {
-        TvEpisodeRequest ep = new TvEpisodeRequest(season(), 8000, 1);
+        var ep = new TvEpisodeRequest(season(), 8000, 1);
         assertNotNull(ep.toString());
     }
 
     @Test
     void toString_withNullSeason_doesNotThrow() {
-        TvEpisodeRequest ep = new TvEpisodeRequest(season(), 8000, 1);
+        var ep = new TvEpisodeRequest(season(), 8000, 1);
         ep.setTvSeasonRequest(null);
         assertNotNull(ep.toString());
     }
 
     @Test
     void timestamps_nullBeforePersist() {
-        TvEpisodeRequest ep = new TvEpisodeRequest(season(), 8000, 1);
+        var ep = new TvEpisodeRequest(season(), 8000, 1);
         assertNull(ep.getCreatedAt());
         assertNull(ep.getUpdatedAt());
     }

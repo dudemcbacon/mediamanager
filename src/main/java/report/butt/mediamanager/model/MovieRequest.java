@@ -169,7 +169,8 @@ public class MovieRequest extends Request {
 
     @Override
     public boolean isAvailable() {
-        return Boolean.TRUE.equals(this.radarrHasFile) && OMBI_AVAILABLE_STATUS.equals(getOmbiRequestStatus());
+        return Objects.equals(this.radarrHasFile, true)
+                && Objects.equals(getOmbiRequestStatus(), OMBI_AVAILABLE_STATUS);
     }
 
     @Override

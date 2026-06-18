@@ -1,5 +1,6 @@
 package report.butt.mediamanager.model;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class MovieRequestTest {
 
     private static MovieRequest available() {
-        MovieRequest m = new MovieRequest("Inception", 27205, false, 1, "Common.ProcessingRequest");
+        var m = new MovieRequest("Inception", 27205, false, 1, "Common.ProcessingRequest");
         m.setRadarrHasFile(true);
         m.setOmbiRequestStatus("Common.Available");
         return m;
@@ -54,7 +55,7 @@ class MovieRequestTest {
         MovieRequest m = available();
         int h1 = m.hashCode();
         int h2 = m.hashCode();
-        assert h1 == h2;
+        assertEquals(h2, h1);
     }
 
     @Test
@@ -64,15 +65,15 @@ class MovieRequestTest {
 
     @Test
     void settersAndGetters_roundTrip() {
-        MovieRequest m = new MovieRequest("Title", 100, true, 42, "Common.Available");
+        var m = new MovieRequest("Title", 100, true, 42, "Common.Available");
         m.setTmdbid(200);
-        assert m.getTmdbid() == 200;
+        assertEquals(200, m.getTmdbid());
 
         m.setPlexTmdbid(300);
-        assert m.getPlexTmdbid() == 300;
+        assertEquals(300, m.getPlexTmdbid());
 
         m.setRadarrRequestId(400);
-        assert m.getRadarrRequestId() == 400;
+        assertEquals(400, m.getRadarrRequestId());
 
         m.setRadarrMonitored(true);
         assertTrue(m.getRadarrMonitored());
@@ -82,77 +83,77 @@ class MovieRequestTest {
 
         Instant now = Instant.now();
         m.setRadarrLastSearchTime(now);
-        assert m.getRadarrLastSearchTime().equals(now);
+        assertEquals(now, m.getRadarrLastSearchTime());
 
         m.setRadarrPath("/movies/title");
-        assert "/movies/title".equals(m.getRadarrPath());
+        assertEquals("/movies/title", m.getRadarrPath());
 
         m.setRadarrRootFolderPath("/movies");
-        assert "/movies".equals(m.getRadarrRootFolderPath());
+        assertEquals("/movies", m.getRadarrRootFolderPath());
 
         m.setRadarrMovieFilePath("/movies/title/title.mkv");
-        assert "/movies/title/title.mkv".equals(m.getRadarrMovieFilePath());
+        assertEquals("/movies/title/title.mkv", m.getRadarrMovieFilePath());
 
         m.setRadarrOriginalLanguage("English");
-        assert "English".equals(m.getRadarrOriginalLanguage());
+        assertEquals("English", m.getRadarrOriginalLanguage());
 
         m.setRadarrQualityProfile("HD-1080p");
-        assert "HD-1080p".equals(m.getRadarrQualityProfile());
+        assertEquals("HD-1080p", m.getRadarrQualityProfile());
     }
 
     @Test
     void requestBaseSettersAndGetters_roundTrip() {
-        MovieRequest m = new MovieRequest("T", 1, false, 1, "Common.ProcessingRequest");
+        var m = new MovieRequest("T", 1, false, 1, "Common.ProcessingRequest");
         m.setId(99L);
-        assert m.getId() == 99L;
+        assertEquals(99L, m.getId());
 
         m.setTitle("New Title");
-        assert "New Title".equals(m.getTitle());
+        assertEquals("New Title", m.getTitle());
 
         m.setOmbiAvailable(true);
         assertTrue(m.getOmbiAvailable());
 
         m.setOmbiRequestId(10);
-        assert m.getOmbiRequestId() == 10;
+        assertEquals(10, m.getOmbiRequestId());
 
         m.setOmbiUserName("alice");
-        assert "alice".equals(m.getOmbiUserName());
+        assertEquals("alice", m.getOmbiUserName());
 
         Instant date = Instant.parse("2024-01-01T00:00:00Z");
         m.setOmbiRequestedDate(date);
-        assert m.getOmbiRequestedDate().equals(date);
+        assertEquals(date, m.getOmbiRequestedDate());
 
         m.setStale(true);
         assertTrue(m.getStale());
 
         m.setStaleReason("Too old");
-        assert "Too old".equals(m.getStaleReason());
+        assertEquals("Too old", m.getStaleReason());
 
         m.setMarkedStaleAt(date);
-        assert m.getMarkedStaleAt().equals(date);
+        assertEquals(date, m.getMarkedStaleAt());
 
         m.setPlexMetadataUrl("/plex/123");
-        assert "/plex/123".equals(m.getPlexMetadataUrl());
+        assertEquals("/plex/123", m.getPlexMetadataUrl());
 
         m.setPlexMetadataId("meta-1");
-        assert "meta-1".equals(m.getPlexMetadataId());
+        assertEquals("meta-1", m.getPlexMetadataId());
 
         m.setPlexAddedAt(1000L);
-        assert m.getPlexAddedAt() == 1000L;
+        assertEquals(1000L, m.getPlexAddedAt());
 
         m.setPlexUpdatedAt(2000L);
-        assert m.getPlexUpdatedAt() == 2000L;
+        assertEquals(2000L, m.getPlexUpdatedAt());
 
         m.setPlexMediaId(55);
-        assert m.getPlexMediaId() == 55;
+        assertEquals(55, m.getPlexMediaId());
 
         m.setPlexMediaFilename("/media/file.mkv");
-        assert "/media/file.mkv".equals(m.getPlexMediaFilename());
+        assertEquals("/media/file.mkv", m.getPlexMediaFilename());
 
         m.setPlexMediaSize(123456L);
-        assert m.getPlexMediaSize() == 123456L;
+        assertEquals(123456L, m.getPlexMediaSize());
 
         m.setPlexMediaDuration(7200L);
-        assert m.getPlexMediaDuration() == 7200L;
+        assertEquals(7200L, m.getPlexMediaDuration());
     }
 }

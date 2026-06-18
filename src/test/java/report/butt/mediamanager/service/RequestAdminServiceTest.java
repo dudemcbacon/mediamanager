@@ -18,6 +18,8 @@ import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.repository.NoteRepository;
 import report.butt.mediamanager.repository.ValidationRepository;
 
+// Safe: the only unchecked conversion is the raw mock(JpaRepository.class) assigned to the parameterized
+// `repo` field below; a Mockito mock holds no real generic state, so it can't cause heap pollution.
 @SuppressWarnings("unchecked")
 class RequestAdminServiceTest {
 
@@ -54,7 +56,7 @@ class RequestAdminServiceTest {
         MovieRequest movie = movie("Note Movie");
         movie.setId(2L);
         when(repo.findById(2L)).thenReturn(Optional.of(movie));
-        Note savedNote = new Note("my note", movie);
+        var savedNote = new Note("my note", movie);
         when(noteRepository.save(any(Note.class))).thenReturn(savedNote);
 
         Note result = service.addNote(repo, 2L, "my note");

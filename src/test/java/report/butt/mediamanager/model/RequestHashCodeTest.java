@@ -2,6 +2,8 @@ package report.butt.mediamanager.model;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
+import com.google.errorprone.annotations.Var;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -15,10 +17,10 @@ class RequestHashCodeTest {
 
     @Test
     void tvRequestHashCoversEveryRefreshedField() {
-        TvRequest tv = new TvRequest("Title", 100, false, 5000, "Common.Approved");
+        var tv = new TvRequest("Title", 100, false, 5000, "Common.Approved");
         tv.setId(1L);
 
-        int h = tv.hashCode();
+        @Var int h = tv.hashCode();
         h = assertChanged(h, tv, () -> tv.setTitle("New Title"));
         h = assertChanged(h, tv, () -> tv.setTvdbId(200));
         h = assertChanged(h, tv, () -> tv.setOmbiAvailable(true));
@@ -49,12 +51,12 @@ class RequestHashCodeTest {
 
     @Test
     void tvChildRequestHashCoversEveryRefreshedField() {
-        TvRequest parent = new TvRequest("Parent", 100, false, 5000, "Common.Approved");
+        var parent = new TvRequest("Parent", 100, false, 5000, "Common.Approved");
         parent.setId(1L);
-        TvChildRequest child = new TvChildRequest(parent, "Child", 100, false, 6000, "Common.Approved");
+        var child = new TvChildRequest(parent, "Child", 100, false, 6000, "Common.Approved");
         child.setId(2L);
 
-        int h = child.hashCode();
+        @Var int h = child.hashCode();
         h = assertChanged(h, child, () -> child.setOmbiParentRequestId(5001));
         h = assertChanged(h, child, () -> child.setTitle("New Child"));
         h = assertChanged(h, child, () -> child.setOmbiAvailable(true));
@@ -65,14 +67,14 @@ class RequestHashCodeTest {
 
     @Test
     void tvSeasonRequestHashCoversEveryRefreshedField() {
-        TvRequest parent = new TvRequest("Parent", 100, false, 5000, "Common.Approved");
+        var parent = new TvRequest("Parent", 100, false, 5000, "Common.Approved");
         parent.setId(1L);
-        TvChildRequest child = new TvChildRequest(parent, "Child", 100, false, 6000, "Common.Approved");
+        var child = new TvChildRequest(parent, "Child", 100, false, 6000, "Common.Approved");
         child.setId(2L);
-        TvSeasonRequest season = new TvSeasonRequest(child, 7000, 1, false);
+        var season = new TvSeasonRequest(child, 7000, 1, false);
         season.setId(3L);
 
-        int h = season.hashCode();
+        @Var int h = season.hashCode();
         h = assertChanged(h, season, () -> season.setOmbiSeasonRequestId(7001));
         h = assertChanged(h, season, () -> season.setOmbiSeasonNumber(2));
         assertChanged(h, season, () -> season.setOmbiSeasonAvailable(true));
@@ -80,16 +82,16 @@ class RequestHashCodeTest {
 
     @Test
     void tvEpisodeRequestHashCoversEveryRefreshedField() {
-        TvRequest parent = new TvRequest("Parent", 100, false, 5000, "Common.Approved");
+        var parent = new TvRequest("Parent", 100, false, 5000, "Common.Approved");
         parent.setId(1L);
-        TvChildRequest child = new TvChildRequest(parent, "Child", 100, false, 6000, "Common.Approved");
+        var child = new TvChildRequest(parent, "Child", 100, false, 6000, "Common.Approved");
         child.setId(2L);
-        TvSeasonRequest season = new TvSeasonRequest(child, 7000, 1, false);
+        var season = new TvSeasonRequest(child, 7000, 1, false);
         season.setId(3L);
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 8000, 1);
+        var episode = new TvEpisodeRequest(season, 8000, 1);
         episode.setId(4L);
 
-        int h = episode.hashCode();
+        @Var int h = episode.hashCode();
         h = assertChanged(h, episode, () -> episode.setOmbiEpisodeId(8001));
         h = assertChanged(h, episode, () -> episode.setOmbiEpisodeNumber(2));
         h = assertChanged(h, episode, () -> episode.setOmbiTitle("Pilot"));
@@ -102,16 +104,15 @@ class RequestHashCodeTest {
         h = assertChanged(h, episode, () -> episode.setPlexMediaSize(123456L));
         h = assertChanged(h, episode, () -> episode.setLocalFilePathAvailable(true));
         h = assertChanged(h, episode, () -> episode.setLocalFileSize(123456L));
-        assertChanged(
-                h, episode, () -> episode.setSonarrLastSearchTime(java.time.Instant.parse("2026-06-01T00:00:00Z")));
+        assertChanged(h, episode, () -> episode.setSonarrLastSearchTime(Instant.parse("2026-06-01T00:00:00Z")));
     }
 
     @Test
     void movieRequestHashCoversEveryRefreshedField() {
-        MovieRequest movie = new MovieRequest("Title", 100, false, 5000, "Common.Approved");
+        var movie = new MovieRequest("Title", 100, false, 5000, "Common.Approved");
         movie.setId(1L);
 
-        int h = movie.hashCode();
+        @Var int h = movie.hashCode();
         h = assertChanged(h, movie, () -> movie.setTitle("New Title"));
         h = assertChanged(h, movie, () -> movie.setTmdbid(200));
         h = assertChanged(h, movie, () -> movie.setOmbiAvailable(true));
@@ -124,8 +125,7 @@ class RequestHashCodeTest {
         h = assertChanged(h, movie, () -> movie.setRadarrRootFolderPath("/movies"));
         h = assertChanged(h, movie, () -> movie.setRadarrQualityProfile("HD-1080p"));
         h = assertChanged(h, movie, () -> movie.setRadarrOriginalLanguage("English"));
-        h = assertChanged(
-                h, movie, () -> movie.setRadarrLastSearchTime(java.time.Instant.parse("2026-06-01T00:00:00Z")));
+        h = assertChanged(h, movie, () -> movie.setRadarrLastSearchTime(Instant.parse("2026-06-01T00:00:00Z")));
         h = assertChanged(h, movie, () -> movie.setRadarrMovieFilePath("/movies/title/title.mkv"));
         h = assertChanged(h, movie, () -> movie.setLocalFilePathAvailable(true));
         assertChanged(h, movie, () -> movie.setLocalFileSize(123456L));

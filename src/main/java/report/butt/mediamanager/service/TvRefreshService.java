@@ -1,5 +1,6 @@
 package report.butt.mediamanager.service;
 
+import com.google.errorprone.annotations.Var;
 import com.newrelic.api.agent.Trace;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -76,6 +78,8 @@ public class TvRefreshService {
     private final JobRequestScheduler jobRequestScheduler;
     private final FfprobeScanService ffprobeScanService;
 
+    // Spring constructor injection; the parameter count reflects injected collaborators, not a design smell.
+    @SuppressWarnings("TooManyParameters")
     public TvRefreshService(
             TvRequestRepository repository,
             TvChildRequestRepository childRepository,
@@ -190,7 +194,7 @@ public class TvRefreshService {
         List<TvSeasonRequest> toSaveSeasons = new ArrayList<>();
         List<TvEpisodeRequest> toSaveEpisodes = new ArrayList<>();
         Set<String> validCacheKeys = new HashSet<>();
-        int unchanged = 0;
+        @Var int unchanged = 0;
 
         for (OmbiTvRequest ombiTv : ombiTvRequests) {
             OmbiTvChildRequest firstChild = firstChild(ombiTv);
@@ -278,7 +282,7 @@ public class TvRefreshService {
         }
     }
 
-    private Map<EpisodeKey, PlexEpisodeData> resolveEpisodePaths(
+    private static Map<EpisodeKey, PlexEpisodeData> resolveEpisodePaths(
             TvRequest tvRequest, Map<String, Map<EpisodeKey, PlexEpisodeData>> episodesByShow) {
         String ratingKey = tvRequest.getPlexMetadataId();
         if (ratingKey == null) {
@@ -343,7 +347,7 @@ public class TvRefreshService {
                         new SonarrEpisodeData(path, lastSearchTime));
             }
             return result;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Sonarr episode lookup failed for seriesId {}", series.getId(), e);
             return Map.of();
         }
@@ -367,7 +371,7 @@ public class TvRefreshService {
         if (ombiTv.getChildRequests() == null) {
             return 0;
         }
-        int unchanged = 0;
+        @Var int unchanged = 0;
         for (OmbiTvChildRequest ombiChild : ombiTv.getChildRequests()) {
             TvChildRequest existingChild = existingChildrenByOmbiId.get(ombiChild.getId());
             TvChildRequest child = existingChild != null
@@ -416,7 +420,7 @@ public class TvRefreshService {
         if (ombiChild.getSeasonRequests() == null) {
             return 0;
         }
-        int unchanged = 0;
+        @Var int unchanged = 0;
         for (OmbiTvSeasonRequest ombiSeason : ombiChild.getSeasonRequests()) {
             boolean allEpisodesAvailable = allEpisodesAvailable(ombiSeason);
             TvSeasonRequest existingSeason =
@@ -441,44 +445,14 @@ public class TvRefreshService {
                     ? Map.of()
                     : episodesBySeason.getOrDefault(existingSeason.getId(), Map.of());
             unchanged +=
-                    refreshEpisodes(season, ombiSeason, existingEpisodes, episodePaths, sonarrEpisodes, toSaveEpisodes);
-        }
-        return unchanged;
-    }
-
-    private int refreshEpisodes(
-            TvSeasonRequest season,
-            OmbiTvSeasonRequest ombiSeason,
-            Map<Integer, TvEpisodeRequest> existingEpisodes,
-            Map<EpisodeKey, PlexEpisodeData> episodePaths,
-            Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes,
-            List<TvEpisodeRequest> toSaveEpisodes) {
-        if (ombiSeason.getEpisodes() == null) {
-            return 0;
-        }
-        int unchanged = 0;
-        for (OmbiTvEpisode ombiEpisode : ombiSeason.getEpisodes()) {
-            TvEpisodeRequest existingEpisode = ombiEpisode.getEpisodeNumber() == null
-                    ? null
-                    : existingEpisodes.get(ombiEpisode.getEpisodeNumber());
-            TvEpisodeRequest episode = existingEpisode != null
-                    ? existingEpisode
-                    : new TvEpisodeRequest(season, ombiEpisode.getId(), ombiEpisode.getEpisodeNumber());
-
-            Integer beforeHash = existingEpisode == null ? null : episode.hashCode();
-            applyEpisodeUpdates(episode, season, ombiEpisode, episodePaths, sonarrEpisodes);
-            if (beforeHash == null || beforeHash != episode.hashCode()) {
-                toSaveEpisodes.add(episode);
-            } else {
-                unchanged++;
-            }
+                    refreshEpisodes(season, ombiSeason, episodePaths, sonarrEpisodes, existingEpisodes, toSaveEpisodes);
         }
         return unchanged;
     }
 
     @Transactional
     public void refreshOne(Long id) {
-        TvRequest tvRequest = repository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
+        @Var TvRequest tvRequest = repository.findById(id).orElseThrow(() -> new RequestNotFoundException(id));
 
         Integer ombiRequestId = tvRequest.getOmbiRequestId();
         OmbiTvRequest ombiTv = ombiRequestId == null
@@ -489,7 +463,7 @@ public class TvRefreshService {
                         .orElse(null);
 
         Integer tvdbId = ombiTv != null ? ombiTv.getTvDbId() : null;
-        Series series = null;
+        @Var Series series = null;
         if (tvdbId != null) {
             List<Series> sonarrSeries = sonarrClient.getSeriesByTvdbId(tvdbId);
             if (!sonarrSeries.isEmpty()) {
@@ -512,7 +486,7 @@ public class TvRefreshService {
             TvRequest tvRequest,
             OmbiTvRequest ombiTv,
             Series series,
-            Map<Integer, PlexMetadata> showsByTvdb,
+            @Nullable Map<Integer, PlexMetadata> showsByTvdb,
             Map<Integer, String> qualityProfilesById) {
         if (ombiTv != null) {
             backfillTotalSeasons(ombiTv);
@@ -595,13 +569,13 @@ public class TvRefreshService {
                 }
             }
             return result;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Plex grandchildren lookup failed for plexMetadataId {}", plexMetadataId, e);
             return Map.of();
         }
     }
 
-    private static PlexEpisodeData firstFile(PlexMetadata episode) {
+    private static @Nullable PlexEpisodeData firstFile(PlexMetadata episode) {
         if (episode.getMedia() == null || episode.getMedia().isEmpty()) {
             return null;
         }
@@ -616,7 +590,7 @@ public class TvRefreshService {
         return new PlexEpisodeData(part.getFile(), part.getSize());
     }
 
-    private void applyChildUpdates(
+    private static void applyChildUpdates(
             TvChildRequest child, TvRequest tvRequest, OmbiTvRequest ombiTv, OmbiTvChildRequest ombiChild) {
         String ombiUserName = ombiChild.getRequestedUser() == null
                 ? null
@@ -661,7 +635,37 @@ public class TvRefreshService {
         if (episodes == null || episodes.isEmpty()) {
             return true;
         }
-        return episodes.stream().allMatch(episode -> Boolean.TRUE.equals(episode.getAvailable()));
+        return episodes.stream().allMatch(episode -> Objects.equals(episode.getAvailable(), true));
+    }
+
+    private int refreshEpisodes(
+            TvSeasonRequest season,
+            OmbiTvSeasonRequest ombiSeason,
+            Map<EpisodeKey, PlexEpisodeData> episodePaths,
+            Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes,
+            Map<Integer, TvEpisodeRequest> existingEpisodes,
+            List<TvEpisodeRequest> toSaveEpisodes) {
+        if (ombiSeason.getEpisodes() == null) {
+            return 0;
+        }
+        @Var int unchanged = 0;
+        for (OmbiTvEpisode ombiEpisode : ombiSeason.getEpisodes()) {
+            TvEpisodeRequest existingEpisode = ombiEpisode.getEpisodeNumber() == null
+                    ? null
+                    : existingEpisodes.get(ombiEpisode.getEpisodeNumber());
+            TvEpisodeRequest episode = existingEpisode != null
+                    ? existingEpisode
+                    : new TvEpisodeRequest(season, ombiEpisode.getId(), ombiEpisode.getEpisodeNumber());
+
+            Integer beforeHash = existingEpisode == null ? null : episode.hashCode();
+            applyEpisodeUpdates(episode, season, ombiEpisode, episodePaths, sonarrEpisodes);
+            if (beforeHash == null || beforeHash != episode.hashCode()) {
+                toSaveEpisodes.add(episode);
+            } else {
+                unchanged++;
+            }
+        }
+        return unchanged;
     }
 
     private void refreshEpisodes(
@@ -696,7 +700,7 @@ public class TvRefreshService {
         episode.setOmbiRequested(ombiEpisode.getRequested());
         episode.setOmbiRequestStatus(ombiEpisode.getRequestStatus());
         if (season.getOmbiSeasonNumber() != null && ombiEpisode.getEpisodeNumber() != null) {
-            EpisodeKey key = new EpisodeKey(season.getOmbiSeasonNumber(), ombiEpisode.getEpisodeNumber());
+            var key = new EpisodeKey(season.getOmbiSeasonNumber(), ombiEpisode.getEpisodeNumber());
             PlexEpisodeData plexData = episodePaths.get(key);
             if (plexData != null) {
                 episode.setPlexPath(plexData.path());
@@ -728,7 +732,7 @@ public class TvRefreshService {
             if (search != null && search.getSeasonRequests() != null) {
                 ombiTv.setTotalSeasons(search.getSeasonRequests().size());
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             // The Ombi search endpoint can return a 500 (e.g. when its upstream metadata provider
             // returns a gzip body Ombi fails to parse). This is external and unfixable here, and
             // totalSeasons is best-effort enrichment, so log concisely and continue rather than
@@ -740,7 +744,7 @@ public class TvRefreshService {
         }
     }
 
-    private OmbiTvChildRequest firstChild(OmbiTvRequest ombiTv) {
+    private static @Nullable OmbiTvChildRequest firstChild(OmbiTvRequest ombiTv) {
         if (ombiTv == null
                 || ombiTv.getChildRequests() == null
                 || ombiTv.getChildRequests().isEmpty()) {
@@ -788,7 +792,7 @@ public class TvRefreshService {
             } else {
                 log.info("No Plex match found for tvdbId {}", series.getTvdbId());
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Plex lookup failed for tvdbId {}", series.getTvdbId(), e);
         }
     }

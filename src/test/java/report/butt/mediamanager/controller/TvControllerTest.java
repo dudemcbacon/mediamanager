@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.ui.ConcurrentModel;
 import report.butt.mediamanager.client.OmbiClient;
@@ -83,7 +84,8 @@ class TvControllerTest {
 
     @Test
     void scanSeriesWithFfprobe_enqueuesAJobPerScannableEpisodeAndReturnsTheCount() {
-        when(tvEpisodeRequestRepository.findScannableEpisodeIdsByTvRequestId(5L)).thenReturn(List.of(11L, 12L, 13L));
+        when(tvEpisodeRequestRepository.findScannableEpisodeIdsByTvRequestId(5L))
+                .thenReturn(List.of(11L, 12L, 13L));
 
         int queued = controller.scanSeriesWithFfprobe(5L);
 
@@ -95,7 +97,8 @@ class TvControllerTest {
 
     @Test
     void scanSeriesWithFfprobe_withNoScannableEpisodes_enqueuesNothing() {
-        when(tvEpisodeRequestRepository.findScannableEpisodeIdsByTvRequestId(5L)).thenReturn(List.of());
+        when(tvEpisodeRequestRepository.findScannableEpisodeIdsByTvRequestId(5L))
+                .thenReturn(List.of());
 
         int queued = controller.scanSeriesWithFfprobe(5L);
 
@@ -105,7 +108,7 @@ class TvControllerTest {
 
     @Test
     void getLatestFfprobeScan_delegatesToService() {
-        FfprobeScan scan = new FfprobeScan(8L, "EPISODE");
+        var scan = new FfprobeScan(8L, "EPISODE");
         when(ffprobeScanService.getLatestEpisodeScan(8L)).thenReturn(Optional.of(scan));
 
         assertEquals(Optional.of(scan), controller.getLatestFfprobeScan(8L));
@@ -113,10 +116,10 @@ class TvControllerTest {
 
     @Test
     void markAvailable_callsOmbiOncePerChildRequestId() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
+        var parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
         parent.setId(7L);
-        TvChildRequest childA = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
-        TvChildRequest childB = new TvChildRequest(parent, "Show", 1, false, 202, "Common.Approved");
+        var childA = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
+        var childB = new TvChildRequest(parent, "Show", 1, false, 202, "Common.Approved");
 
         when(tvRequestRepository.findById(7L)).thenReturn(Optional.of(parent));
         when(tvChildRequestRepository.findByParentOrderByIdAsc(parent)).thenReturn(List.of(childA, childB));
@@ -132,10 +135,10 @@ class TvControllerTest {
 
     @Test
     void searchSeason_triggersSeasonSearchForThatSeason() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
+        var parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
+        var season = new TvSeasonRequest(child, 1, 2, false);
         season.setId(20L);
 
         when(tvSeasonRequestRepository.findById(20L)).thenReturn(Optional.of(season));
@@ -149,9 +152,9 @@ class TvControllerTest {
 
     @Test
     void searchAllSeasonsForChild_triggersSeasonSearchPerSeason() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
+        var parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
         child.setId(10L);
         child.setSeasonRequests(
                 List.of(new TvSeasonRequest(child, 1, 1, false), new TvSeasonRequest(child, 2, 2, false)));
@@ -169,11 +172,11 @@ class TvControllerTest {
 
     @Test
     void searchEpisode_resolvesSonarrEpisodeIdAndTriggersEpisodeSearch() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
+        var parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
+        var season = new TvSeasonRequest(child, 1, 2, false);
+        var episode = new TvEpisodeRequest(season, 100, 3);
         episode.setId(30L);
 
         when(tvEpisodeRequestRepository.findById(30L)).thenReturn(Optional.of(episode));
@@ -189,10 +192,10 @@ class TvControllerTest {
 
     @Test
     void searchEpisode_withoutSonarrSeriesId_doesNotCallSonarr() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        var parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
+        var season = new TvSeasonRequest(child, 1, 2, false);
+        var episode = new TvEpisodeRequest(season, 100, 3);
         episode.setId(31L);
 
         when(tvEpisodeRequestRepository.findById(31L)).thenReturn(Optional.of(episode));
@@ -204,11 +207,11 @@ class TvControllerTest {
 
     @Test
     void deleteEpisodeDownloadAndSearch_deletesMatchingQueueItemThenSearches() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
+        var parent = new TvRequest("Show", 1, false, 100, "Common.Approved");
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "Common.Approved");
+        var season = new TvSeasonRequest(child, 1, 2, false);
+        var episode = new TvEpisodeRequest(season, 100, 3);
         episode.setId(30L);
 
         when(tvEpisodeRequestRepository.findById(30L)).thenReturn(Optional.of(episode));
@@ -230,7 +233,7 @@ class TvControllerTest {
 
     @Test
     void getSonarrQueue_returnsQueueOnSuccess() {
-        SonarrQueue queue = new SonarrQueue();
+        var queue = new SonarrQueue();
         when(sonarrClient.getQueue()).thenReturn(queue);
 
         assertNotNull(controller.getSonarrQueue());
@@ -247,7 +250,7 @@ class TvControllerTest {
 
     @Test
     void getSonarrHealth_returnsListOnSuccess() {
-        List<SonarrHealthItem> health = List.of(new SonarrHealthItem());
+        var health = List.of(new SonarrHealthItem());
         when(sonarrClient.getHealth()).thenReturn(health);
 
         assertEquals(health, controller.getSonarrHealth());
@@ -294,9 +297,9 @@ class TvControllerTest {
 
     @Test
     void tv_addsTvRequestsAttributeAndReturnsView() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         when(tvRequestRepository.findAll()).thenReturn(List.of(tv));
-        ConcurrentModel model = new ConcurrentModel();
+        var model = new ConcurrentModel();
 
         String view = controller.tv(model);
 
@@ -308,7 +311,7 @@ class TvControllerTest {
 
     @Test
     void search_stampsLastSearchedAndRedirects() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         tv.setSonarrSeriesId(55);
         when(tvRequestRepository.findAll()).thenReturn(List.of(tv));
         when(sonarrClient.searchSeries(List.of(55))).thenReturn(new SonarrCommand());
@@ -337,7 +340,7 @@ class TvControllerTest {
 
     @Test
     void setQualityProfileToAny_withNullSonarrId_redirectsWithoutChangingProfile() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         when(tvRequestRepository.findById(1L)).thenReturn(Optional.of(tv));
 
         assertEquals("redirect:/tv", controller.setQualityProfileToAny(1L));
@@ -346,7 +349,7 @@ class TvControllerTest {
 
     @Test
     void setQualityProfileToAny_withNullProfileId_redirectsWithoutUpdating() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         tv.setSonarrSeriesId(55);
         when(tvRequestRepository.findById(1L)).thenReturn(Optional.of(tv));
         when(sonarrClient.getQualityProfileIdByName("Any")).thenReturn(null);
@@ -357,7 +360,7 @@ class TvControllerTest {
 
     @Test
     void setQualityProfileToAny_withValidProfile_updatesAndRefreshes() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         tv.setId(3L);
         tv.setSonarrSeriesId(55);
         when(tvRequestRepository.findById(3L)).thenReturn(Optional.of(tv));
@@ -372,7 +375,7 @@ class TvControllerTest {
 
     @Test
     void validate_foundRequest_callsValidateWithEpisodesAndRedirects() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         when(tvRequestRepository.findById(1L)).thenReturn(Optional.of(tv));
 
         assertEquals("redirect:/tv", controller.validate(1L));
@@ -398,7 +401,7 @@ class TvControllerTest {
 
     @Test
     void searchOne_withNullSonarrId_redirectsWithoutSearch() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         when(tvRequestRepository.findById(1L)).thenReturn(Optional.of(tv));
 
         assertEquals("redirect:/tv", controller.searchOne(1L));
@@ -407,7 +410,7 @@ class TvControllerTest {
 
     @Test
     void searchOne_withSonarrId_triggersSearchAndStampsTime() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         tv.setId(2L);
         tv.setSonarrSeriesId(55);
         when(tvRequestRepository.findById(2L)).thenReturn(Optional.of(tv));
@@ -431,7 +434,7 @@ class TvControllerTest {
     @Test
     void searchAllSeries_withNoUnavailableSeries_redirectsWithoutSearch() {
         // A fully-available show (sonarr counts equal) should be skipped
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "Common.Available");
+        var tv = new TvRequest("Show", 1, false, 1, "Common.Available");
         tv.setSonarrSeriesId(55);
         tv.setSonarrEpisodeFileCount(5);
         tv.setSonarrEpisodeCount(5);
@@ -443,7 +446,7 @@ class TvControllerTest {
 
     @Test
     void searchAllSeries_withUnavailableSeries_triggersSearchAndStampsTime() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         tv.setSonarrSeriesId(55);
         when(tvRequestRepository.findAll()).thenReturn(List.of(tv));
         when(sonarrClient.searchSeries(List.of(55))).thenReturn(new SonarrCommand());
@@ -458,7 +461,7 @@ class TvControllerTest {
 
     @Test
     void searchAllSeasons_withNoSonarrId_skipsRequest() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         tv.setId(1L);
         when(tvRequestRepository.findAll()).thenReturn(List.of(tv));
 
@@ -469,11 +472,11 @@ class TvControllerTest {
 
     @Test
     void searchAllSeasons_withAvailableSeason_skipsSearch() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setId(1L);
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, true); // available
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, true); // available
 
         when(tvRequestRepository.findAll()).thenReturn(List.of(parent));
         when(tvChildRequestRepository.findByParentOrderByIdAsc(parent)).thenReturn(List.of(child));
@@ -486,11 +489,11 @@ class TvControllerTest {
 
     @Test
     void searchAllSeasons_withUnavailableSeason_triggersSeasonSearch() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setId(1L);
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false); // not available
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, false); // not available
 
         when(tvRequestRepository.findAll()).thenReturn(List.of(parent));
         when(tvChildRequestRepository.findByParentOrderByIdAsc(parent)).thenReturn(List.of(child));
@@ -506,7 +509,7 @@ class TvControllerTest {
 
     @Test
     void searchAllEpisodes_withNoSonarrId_skipsRequest() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         tv.setId(1L);
         when(tvRequestRepository.findAll()).thenReturn(List.of(tv));
 
@@ -517,12 +520,12 @@ class TvControllerTest {
 
     @Test
     void searchAllEpisodes_withUnavailableEpisode_triggersEpisodeSearch() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setId(1L);
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, false);
+        var episode = new TvEpisodeRequest(season, 100, 3);
         episode.setOmbiAvailable(false);
         season.setEpisodeRequests(List.of(episode));
         child.setSeasonRequests(List.of(season));
@@ -541,11 +544,11 @@ class TvControllerTest {
 
     @Test
     void searchAllSeasonsForRequest_triggersSeasonSearchForAllSeasons() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setId(1L);
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, false);
         child.setSeasonRequests(List.of(season));
 
         when(tvRequestRepository.findById(1L)).thenReturn(Optional.of(parent));
@@ -568,12 +571,12 @@ class TvControllerTest {
 
     @Test
     void searchAllEpisodesForRequest_triggersEpisodeSearch() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setId(1L);
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, false);
+        var episode = new TvEpisodeRequest(season, 100, 3);
         season.setEpisodeRequests(List.of(episode));
         child.setSeasonRequests(List.of(season));
 
@@ -591,12 +594,12 @@ class TvControllerTest {
 
     @Test
     void searchAllEpisodesForChild_triggersEpisodeSearch() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
         child.setId(10L);
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        var season = new TvSeasonRequest(child, 1, 2, false);
+        var episode = new TvEpisodeRequest(season, 100, 3);
         season.setEpisodeRequests(List.of(episode));
         child.setSeasonRequests(List.of(season));
 
@@ -613,12 +616,12 @@ class TvControllerTest {
 
     @Test
     void searchAllEpisodesForSeason_triggersEpisodeSearch() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, false);
         season.setId(20L);
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        var episode = new TvEpisodeRequest(season, 100, 3);
         season.setEpisodeRequests(List.of(episode));
 
         when(tvSeasonRequestRepository.findById(20L)).thenReturn(Optional.of(season));
@@ -641,7 +644,7 @@ class TvControllerTest {
 
     @Test
     void searchSeries_withNullEntries_deduplicatesAndCallsSonarr() {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "s");
+        var tv = new TvRequest("Show", 1, false, 1, "s");
         tv.setSonarrSeriesId(55);
         when(tvRequestRepository.findAll()).thenReturn(List.of(tv));
         when(sonarrClient.searchSeries(List.of(55))).thenReturn(new SonarrCommand());
@@ -663,7 +666,7 @@ class TvControllerTest {
 
     @Test
     void markAvailable_withNoChildren_redirectsWithoutCallingOmbi() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setId(7L);
         when(tvRequestRepository.findById(7L)).thenReturn(Optional.of(parent));
         when(tvChildRequestRepository.findByParentOrderByIdAsc(parent)).thenReturn(List.of());
@@ -674,9 +677,9 @@ class TvControllerTest {
 
     @Test
     void markAvailable_withChildHavingNullOmbiId_skipsChild() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setId(7L);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
         child.setOmbiRequestId(null);
         when(tvRequestRepository.findById(7L)).thenReturn(Optional.of(parent));
         when(tvChildRequestRepository.findByParentOrderByIdAsc(parent)).thenReturn(List.of(child));
@@ -687,9 +690,9 @@ class TvControllerTest {
 
     @Test
     void markAvailable_jacksonExceptionOnLogging_stillRedirects() throws Exception {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setId(7L);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
         when(tvRequestRepository.findById(7L)).thenReturn(Optional.of(parent));
         when(tvChildRequestRepository.findByParentOrderByIdAsc(parent)).thenReturn(List.of(child));
         when(ombiClient.markTvAvailable(201)).thenReturn(new OmbiReprocessResponse());
@@ -710,7 +713,7 @@ class TvControllerTest {
 
     @Test
     void addNote_delegatesToAdminServiceAndReturnsNote() {
-        Note note = new Note("text", null);
+        var note = new Note("text", null);
         when(requestAdminService.addNote(tvRequestRepository, 1L, "text")).thenReturn(note);
 
         Note result = controller.addNote(1L, "text");
@@ -731,11 +734,11 @@ class TvControllerTest {
     @Test
     void searchAllSeasonsForRequest_withNullSonarrSeriesId_skipsSearch() {
         // TvRequest with null sonarrSeriesId → searchSeasons logs warn and returns
-        TvRequest tv = new TvRequest("Show", 1, false, 100, "s");
+        var tv = new TvRequest("Show", 1, false, 100, "s");
         tv.setId(1L);
         // sonarrSeriesId is null by default
-        TvChildRequest child = new TvChildRequest(tv, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
+        var child = new TvChildRequest(tv, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, false);
         child.setSeasonRequests(List.of(season));
 
         when(tvRequestRepository.findById(1L)).thenReturn(Optional.of(tv));
@@ -749,11 +752,11 @@ class TvControllerTest {
     @Test
     void searchAllEpisodesForRequest_withEmptyEpisodes_skipsSearch() {
         // Seasons with no episodes → episodeKeysOfSeasons returns empty set → searchEpisodes logs and returns
-        TvRequest tv = new TvRequest("Show", 1, false, 100, "s");
+        var tv = new TvRequest("Show", 1, false, 100, "s");
         tv.setId(1L);
         tv.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(tv, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
+        var child = new TvChildRequest(tv, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, false);
         season.setEpisodeRequests(List.of()); // no episodes
         child.setSeasonRequests(List.of(season));
 
@@ -768,12 +771,12 @@ class TvControllerTest {
     @Test
     void searchAllEpisodesForRequest_withNullSonarrSeriesId_skipsSearch() {
         // TvRequest with null sonarrSeriesId → searchEpisodes logs warn and returns
-        TvRequest tv = new TvRequest("Show", 1, false, 100, "s");
+        var tv = new TvRequest("Show", 1, false, 100, "s");
         tv.setId(1L);
         // sonarrSeriesId is null
-        TvChildRequest child = new TvChildRequest(tv, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        var child = new TvChildRequest(tv, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, false);
+        var episode = new TvEpisodeRequest(season, 100, 3);
         season.setEpisodeRequests(List.of(episode));
         child.setSeasonRequests(List.of(season));
 
@@ -788,13 +791,13 @@ class TvControllerTest {
     @Test
     void searchAllEpisodesForSeason_withNullSeasonNumber_skipsEpisode() {
         // episode with no season → episodeKeysOfEpisodes skips it → empty keys → no search
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, false);
         season.setId(20L);
         // episode with null tvSeasonRequest → seasonNumber = null → skipped
-        TvEpisodeRequest episode = new TvEpisodeRequest(null, 100, 3);
+        var episode = new TvEpisodeRequest(null, 100, 3);
         season.setEpisodeRequests(List.of(episode));
 
         when(tvSeasonRequestRepository.findById(20L)).thenReturn(Optional.of(season));
@@ -807,12 +810,12 @@ class TvControllerTest {
     @Test
     void searchAllEpisodes_withSeasonHavingNullSeasonNumber_skipsEpisodes() {
         // Season with null ombiSeasonNumber → unavailableEpisodeKeys skips it
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setId(1L);
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, null, false); // null season number
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, null, false); // null season number
+        var episode = new TvEpisodeRequest(season, 100, 3);
         season.setEpisodeRequests(List.of(episode));
         child.setSeasonRequests(List.of(season));
 
@@ -887,9 +890,9 @@ class TvControllerTest {
     @Test
     void searchAllSeasonsForChild_withNullSeriesId_skipsSearch() {
         // parent has no sonarrSeriesId → seriesId = null → searchSeasons logs and returns
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         // sonarrSeriesId is null by default
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
         child.setId(99L);
         child.setSeasonRequests(List.of(new TvSeasonRequest(child, 1, 2, false)));
 
@@ -906,14 +909,14 @@ class TvControllerTest {
     @Test
     void deleteEpisodeDownloadAndSearch_missingSonarrInfo_skipsDeleteButStillSearches() {
         // episode with no season (null tvSeasonRequest) → seriesId = null
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, false);
+        var episode = new TvEpisodeRequest(season, 100, 3);
         episode.setId(40L);
         // Override season so seriesId lookup returns null by clearing the parent chain
-        TvEpisodeRequest episodeNoSeason = new TvEpisodeRequest(null, 100, 3);
+        var episodeNoSeason = new TvEpisodeRequest(null, 100, 3);
         episodeNoSeason.setId(40L);
 
         when(tvEpisodeRequestRepository.findById(40L)).thenReturn(Optional.of(episodeNoSeason));
@@ -928,11 +931,11 @@ class TvControllerTest {
 
     @Test
     void deleteEpisodeDownloadAndSearch_queueFetchThrows_skipsDeleteAndStillSearches() {
-        TvRequest parent = new TvRequest("Show", 1, false, 100, "s");
+        var parent = new TvRequest("Show", 1, false, 100, "s");
         parent.setSonarrSeriesId(55);
-        TvChildRequest child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
-        TvSeasonRequest season = new TvSeasonRequest(child, 1, 2, false);
-        TvEpisodeRequest episode = new TvEpisodeRequest(season, 100, 3);
+        var child = new TvChildRequest(parent, "Show", 1, false, 201, "s");
+        var season = new TvSeasonRequest(child, 1, 2, false);
+        var episode = new TvEpisodeRequest(season, 100, 3);
         episode.setId(30L);
 
         when(tvEpisodeRequestRepository.findById(30L)).thenReturn(Optional.of(episode));
@@ -951,15 +954,15 @@ class TvControllerTest {
 
     /** A TvRequest matching the searchMissing filter. */
     private static TvRequest processingTvWithEpisodes(Integer sonarrSeriesId) {
-        TvRequest tv = new TvRequest("Show", 1, false, 1, "Common.ProcessingRequest");
+        var tv = new TvRequest("Show", 1, false, 1, "Common.ProcessingRequest");
         tv.setSonarrSeriesId(sonarrSeriesId);
         tv.setSonarrEpisodeFileCount(1);
         tv.setSonarrTotalEpisodeCount(5);
         return tv;
     }
 
-    private static Episode sonarrEpisode(Integer id, Integer seasonNumber, Integer episodeNumber) {
-        Episode episode = new Episode();
+    private static Episode sonarrEpisode(@Nullable Integer id, Integer seasonNumber, Integer episodeNumber) {
+        var episode = new Episode();
         episode.setId(id);
         episode.setSeasonNumber(seasonNumber);
         episode.setEpisodeNumber(episodeNumber);
@@ -967,7 +970,7 @@ class TvControllerTest {
     }
 
     private static SonarrQueueRecord queueRecord(Integer id, Integer seriesId, Integer season, Integer episodeNumber) {
-        SonarrQueueRecord record = new SonarrQueueRecord();
+        var record = new SonarrQueueRecord();
         record.setId(id);
         record.setSeriesId(seriesId);
         record.setSeasonNumber(season);
@@ -976,7 +979,7 @@ class TvControllerTest {
     }
 
     private static SonarrQueue queueOf(SonarrQueueRecord... records) {
-        SonarrQueue queue = new SonarrQueue();
+        var queue = new SonarrQueue();
         queue.setRecords(List.of(records));
         return queue;
     }

@@ -2,6 +2,7 @@ package report.butt.mediamanager.validation;
 
 import java.time.Duration;
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 
 /** Small logic helpers shared by the Movie/TV/episode variants of otherwise independent rules. */
 final class ValidationSupport {
@@ -12,7 +13,7 @@ final class ValidationSupport {
     private ValidationSupport() {}
 
     /** Strips a leading {@code /mnt} mount prefix so Plex and Radarr/Sonarr paths compare equal. */
-    static String stripMnt(String path) {
+    static @Nullable String stripMnt(String path) {
         if (path == null) {
             return null;
         }

@@ -49,7 +49,7 @@ public class RadarrClient {
                     .body(new ParameterizedTypeReference<List<QualityProfile>>() {});
             this.qualityProfilesById =
                     QualityProfiles.index(profiles, QualityProfile::getId, QualityProfile::getName, "Radarr");
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to cache Radarr quality profiles; names will be unavailable", e);
         }
     }

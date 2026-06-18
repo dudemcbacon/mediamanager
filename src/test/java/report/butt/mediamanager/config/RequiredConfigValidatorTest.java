@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.mock.env.MockEnvironment;
@@ -28,14 +29,14 @@ class RequiredConfigValidatorTest {
     }
 
     private static MockEnvironment environmentWithAllKeys() {
-        MockEnvironment environment = new MockEnvironment();
+        var environment = new MockEnvironment();
         RequiredConfigValidator.REQUIRED_KEYS.forEach(key -> environment.setProperty(key, "value"));
         return environment;
     }
 
     @Test
     void passesWhenEveryRequiredKeyIsPresent() {
-        RequiredConfigValidator validator = new RequiredConfigValidator(environmentWithAllKeys());
+        var validator = new RequiredConfigValidator(environmentWithAllKeys());
         assertDoesNotThrow(validator::validate);
     }
 
@@ -43,7 +44,7 @@ class RequiredConfigValidatorTest {
     void failsWhenAKeyIsBlank() {
         MockEnvironment environment = environmentWithAllKeys();
         environment.setProperty("ombi.url", "   ");
-        RequiredConfigValidator validator = new RequiredConfigValidator(environment);
+        var validator = new RequiredConfigValidator(environment);
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, validator::validate);
         assertTrue(ex.getMessage().contains("ombi.url"), ex.getMessage());
@@ -51,11 +52,11 @@ class RequiredConfigValidatorTest {
 
     @Test
     void failsWhenAKeyIsMissingEntirely() {
-        MockEnvironment environment = new MockEnvironment();
+        var environment = new MockEnvironment();
         RequiredConfigValidator.REQUIRED_KEYS.stream()
-                .filter(key -> !"plex.token".equals(key))
+                .filter(key -> !Objects.equals(key, "plex.token"))
                 .forEach(key -> environment.setProperty(key, "value"));
-        RequiredConfigValidator validator = new RequiredConfigValidator(environment);
+        var validator = new RequiredConfigValidator(environment);
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, validator::validate);
         assertTrue(ex.getMessage().contains("plex.token"), ex.getMessage());
@@ -66,7 +67,7 @@ class RequiredConfigValidatorTest {
         MockEnvironment environment = environmentWithAllKeys();
         environment.setProperty("spring.mail.host", "");
         environment.setProperty("notifications.to", "");
-        RequiredConfigValidator validator = new RequiredConfigValidator(environment);
+        var validator = new RequiredConfigValidator(environment);
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, validator::validate);
         assertTrue(ex.getMessage().contains("spring.mail.host"), ex.getMessage());

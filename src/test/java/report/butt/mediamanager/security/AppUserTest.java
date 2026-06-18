@@ -1,6 +1,7 @@
 package report.butt.mediamanager.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,7 +11,7 @@ class AppUserTest {
 
     @Test
     void constructor_setsFieldsAndEnabledTrue() {
-        AppUser user = new AppUser("alice", "hashedPwd", "ADMIN");
+        var user = new AppUser("alice", "hashedPwd", "ADMIN");
 
         assertEquals("alice", user.getUsername());
         assertEquals("hashedPwd", user.getPasswordHash());
@@ -20,7 +21,7 @@ class AppUserTest {
 
     @Test
     void setters_roundTrip() {
-        AppUser user = new AppUser("alice", "hash", "ADMIN");
+        var user = new AppUser("alice", "hash", "ADMIN");
 
         user.setUsername("bob");
         assertEquals("bob", user.getUsername());
@@ -32,18 +33,18 @@ class AppUserTest {
         assertEquals("USER", user.getRole());
 
         user.setEnabled(false);
-        assert !user.isEnabled();
+        assertFalse(user.isEnabled());
     }
 
     @Test
     void id_nullBeforePersist() {
-        AppUser user = new AppUser("alice", "hash", "ADMIN");
+        var user = new AppUser("alice", "hash", "ADMIN");
         assertNull(user.getId());
     }
 
     @Test
     void timestamps_nullBeforePersist() {
-        AppUser user = new AppUser("alice", "hash", "ADMIN");
+        var user = new AppUser("alice", "hash", "ADMIN");
         assertNull(user.getCreatedAt());
         assertNull(user.getUpdatedAt());
     }

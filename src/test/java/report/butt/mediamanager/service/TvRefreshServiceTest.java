@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.jobrunr.scheduling.JobRequestScheduler;
@@ -20,6 +21,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import report.butt.mediamanager.client.MetadataResult;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.SonarrClient;
@@ -156,7 +158,7 @@ class TvRefreshServiceTest {
         ombiTv.setTotalSeasons(1);
         ombiTv.setExternalProviderId(null); // backfillTotalSeasons won't run (totalSeasons != 0)
 
-        TvRequest existing = new TvRequest("Existing Show", 800, null, 1, null);
+        var existing = new TvRequest("Existing Show", 800, null, 1, null);
         existing.setId(10L);
         // Pre-set every field that applyUpdates will overwrite with the exact same values
         existing.setTitle("Existing Show");
@@ -267,7 +269,7 @@ class TvRefreshServiceTest {
         ArgumentCaptor<List<TvSeasonRequest>> captor = ArgumentCaptor.forClass(List.class);
         verify(seasonRepository).saveAll(captor.capture());
         assertTrue(
-                captor.getValue().stream().allMatch(s -> Boolean.TRUE.equals(s.getOmbiSeasonAvailable())),
+                captor.getValue().stream().allMatch(s -> Objects.equals(s.getOmbiSeasonAvailable(), true)),
                 "A season with no episodes should be marked available");
     }
 
@@ -282,7 +284,7 @@ class TvRefreshServiceTest {
 
     @Test
     void refreshOneWithNullOmbiIdSkipsOmbiLookup() {
-        TvRequest existing = new TvRequest("Orphan Show", 900, false, null, "Common.ProcessingRequest");
+        var existing = new TvRequest("Orphan Show", 900, false, null, "Common.ProcessingRequest");
         existing.setId(1L);
         when(repository.findById(1L)).thenReturn(Optional.of(existing));
         when(sonarrClient.getQualityProfilesById()).thenReturn(Map.of());
@@ -295,7 +297,7 @@ class TvRefreshServiceTest {
 
     @Test
     void refreshOneWithOmbiIdNotFoundInOmbiResponse() {
-        TvRequest existing = new TvRequest("Orphan Show", 1000, false, 50, "Common.ProcessingRequest");
+        var existing = new TvRequest("Orphan Show", 1000, false, 50, "Common.ProcessingRequest");
         existing.setId(2L);
         when(repository.findById(2L)).thenReturn(Optional.of(existing));
         when(ombiClient.getTvRequests()).thenReturn(List.of()); // id 50 not present
@@ -309,7 +311,7 @@ class TvRefreshServiceTest {
 
     @Test
     void refreshOneWithOmbiMatchAndSonarrSeries() {
-        TvRequest existing = new TvRequest("My Show", 1100, false, 60, "Common.ProcessingRequest");
+        var existing = new TvRequest("My Show", 1100, false, 60, "Common.ProcessingRequest");
         existing.setId(3L);
         OmbiTvRequest ombiTv = ombiTv(60, "My Show", 1100);
         OmbiTvChildRequest child = ombiChild(60, 1);
@@ -325,7 +327,7 @@ class TvRefreshServiceTest {
         when(childRepository.findByOmbiRequestId(1)).thenReturn(Optional.empty());
         when(childRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(plexClient.getShowByTvdbId(any(Integer.class), any(), any(Integer.class)))
-                .thenReturn(new report.butt.mediamanager.client.MetadataResult(null, null));
+                .thenReturn(new MetadataResult(null, null));
 
         service.refreshOne(3L);
 
@@ -335,7 +337,7 @@ class TvRefreshServiceTest {
     // --- fixtures ---
 
     private static OmbiTvRequest ombiTv(Integer id, String title, Integer tvdbId) {
-        OmbiTvRequest req = new OmbiTvRequest();
+        var req = new OmbiTvRequest();
         req.setId(id);
         req.setTitle(title);
         req.setTvDbId(tvdbId);
@@ -344,7 +346,7 @@ class TvRefreshServiceTest {
     }
 
     private static OmbiTvChildRequest ombiChild(Integer parentId, Integer id) {
-        OmbiTvChildRequest child = new OmbiTvChildRequest();
+        var child = new OmbiTvChildRequest();
         child.setId(id);
         child.setParentRequestId(parentId);
         child.setTitle("Child");
@@ -354,7 +356,7 @@ class TvRefreshServiceTest {
     }
 
     private static Series series(Integer id, Integer tvdbId, String titleSlug) {
-        Series s = new Series();
+        var s = new Series();
         s.setId(id);
         s.setTvdbId(tvdbId);
         s.setTitleSlug(titleSlug);
@@ -365,14 +367,14 @@ class TvRefreshServiceTest {
     }
 
     private static OmbiTvSeasonRequest ombiSeason(Integer id, Integer seasonNumber) {
-        OmbiTvSeasonRequest s = new OmbiTvSeasonRequest();
+        var s = new OmbiTvSeasonRequest();
         s.setId(id);
         s.setSeasonNumber(seasonNumber);
         return s;
     }
 
     private static OmbiTvEpisode ombiEpisode(Integer id, Integer episodeNumber) {
-        OmbiTvEpisode e = new OmbiTvEpisode();
+        var e = new OmbiTvEpisode();
         e.setId(id);
         e.setEpisodeNumber(episodeNumber);
         e.setAvailable(false);

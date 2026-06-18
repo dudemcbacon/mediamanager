@@ -8,13 +8,13 @@ class RequestValidationExceptionTest {
 
     @Test
     void message_containsId() {
-        RequestValidationException ex = new RequestValidationException(7L);
+        var ex = new RequestValidationException(7L);
         assertTrue(ex.getMessage().contains("7"));
     }
 
     @Test
     void message_containsId_zeroValue() {
-        RequestValidationException ex = new RequestValidationException(0L);
+        var ex = new RequestValidationException(0L);
         assertTrue(ex.getMessage().contains("0"));
     }
 }

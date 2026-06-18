@@ -1,5 +1,6 @@
 package report.butt.mediamanager.validation;
 
+import java.util.Objects;
 import org.springframework.stereotype.Component;
 import report.butt.mediamanager.model.TvEpisodeRequest;
 
@@ -8,7 +9,7 @@ public class EpisodeSearchedRecently implements EpisodeValidator {
 
     @Override
     public Boolean validate(TvEpisodeRequest episode) {
-        return Boolean.TRUE.equals(episode.getOmbiAvailable())
+        return Objects.equals(episode.getOmbiAvailable(), true)
                 || ValidationSupport.searchedWithinLastWeek(episode.getSonarrLastSearchTime());
     }
 

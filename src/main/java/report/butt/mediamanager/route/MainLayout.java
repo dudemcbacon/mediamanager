@@ -30,10 +30,10 @@ import report.butt.mediamanager.security.SecurityUtils;
 public class MainLayout extends AppLayout {
 
     public MainLayout(AuthenticationContext authenticationContext, ObjectProvider<BuildProperties> buildProperties) {
-        H1 title = new H1("Media Manager");
+        var title = new H1("Media Manager");
         title.getStyle().set("font-size", "var(--aura-font-size-l)").set("margin", "0");
 
-        HorizontalLayout navbar = new HorizontalLayout(
+        var navbar = new HorizontalLayout(
                 new DrawerToggle(), title, new Button("Logout", e -> authenticationContext.logout()));
         navbar.setWidthFull();
         navbar.setPadding(true);
@@ -41,11 +41,11 @@ public class MainLayout extends AppLayout {
         navbar.expand(title);
         addToNavbar(navbar);
 
-        SideNav nav = new SideNav();
+        var nav = new SideNav();
         nav.addItem(new SideNavItem("Movies", MovieRequestView.class));
         nav.addItem(new SideNavItem("TV", TvRequestView.class));
         if (SecurityUtils.isAdmin()) {
-            Hr separator = new Hr();
+            var separator = new Hr();
             separator.getStyle().set("margin", "var(--vaadin-padding-s) 0");
             nav.getElement().appendChild(separator.getElement());
             nav.addItem(new SideNavItem("Notifications", NotificationsView.class));
@@ -55,10 +55,10 @@ public class MainLayout extends AppLayout {
         addToDrawer(nav);
 
         BuildProperties build = buildProperties.getIfAvailable();
-        Span version = new Span("v" + (build != null ? build.getVersion() : "dev"));
+        var version = new Span("v" + (build != null ? build.getVersion() : "dev"));
         version.getStyle().set("font-size", "var(--aura-font-size-xs)");
 
-        Div footer = new Div(version);
+        var footer = new Div(version);
         footer.getStyle()
                 .set("display", "flex")
                 .set("flex-direction", "column")
@@ -69,7 +69,7 @@ public class MainLayout extends AppLayout {
         if (build != null) {
             String detail = buildDetail(build);
             if (!detail.isEmpty()) {
-                Span meta = new Span(detail);
+                var meta = new Span(detail);
                 meta.getStyle().set("font-size", "var(--aura-font-size-xs)").set("opacity", "0.7");
                 footer.add(meta);
             }
@@ -82,7 +82,7 @@ public class MainLayout extends AppLayout {
 
     /** Renders the build date and, when available, the short git sha as "{@code 2026-06-14 · a10eba5}". */
     private static String buildDetail(BuildProperties build) {
-        StringBuilder sb = new StringBuilder();
+        var sb = new StringBuilder();
         if (build.getTime() != null) {
             sb.append(BUILD_DATE.format(build.getTime()));
         }

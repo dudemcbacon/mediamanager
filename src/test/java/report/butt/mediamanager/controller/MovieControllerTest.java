@@ -64,7 +64,7 @@ class MovieControllerTest {
 
     @Test
     void getRadarrQueue_returnsQueueOnSuccess() {
-        RadarrQueue queue = new RadarrQueue();
+        var queue = new RadarrQueue();
         when(radarrClient.getQueue()).thenReturn(queue);
 
         RadarrQueue result = controller.getRadarrQueue();
@@ -83,7 +83,7 @@ class MovieControllerTest {
 
     @Test
     void getRadarrHealth_returnsListOnSuccess() {
-        List<RadarrHealthItem> health = List.of(new RadarrHealthItem());
+        var health = List.of(new RadarrHealthItem());
         when(radarrClient.getHealth()).thenReturn(health);
 
         List<RadarrHealthItem> result = controller.getRadarrHealth();
@@ -132,9 +132,9 @@ class MovieControllerTest {
 
     @Test
     void movies_addsMoviesAttributeAndReturnsView() {
-        MovieRequest m = new MovieRequest("A", 1, false, 1, "status");
+        var m = new MovieRequest("A", 1, false, 1, "status");
         when(movieRequestRepository.findAll()).thenReturn(List.of(m));
-        ConcurrentModel model = new ConcurrentModel();
+        var model = new ConcurrentModel();
 
         String view = controller.movies(model);
 
@@ -146,7 +146,7 @@ class MovieControllerTest {
 
     @Test
     void search_stampsSingleMovieAndRedirects() {
-        MovieRequest m = new MovieRequest("Movie", 1, false, 10, "status");
+        var m = new MovieRequest("Movie", 1, false, 10, "status");
         m.setRadarrRequestId(7);
         when(movieRequestRepository.findAll()).thenReturn(List.of(m));
         when(radarrClient.searchMovies(List.of(7))).thenReturn(new RadarrCommand());
@@ -168,7 +168,7 @@ class MovieControllerTest {
 
     @Test
     void validate_foundRequest_callsValidateAndRedirects() {
-        MovieRequest m = new MovieRequest("M", 1, false, 1, "s");
+        var m = new MovieRequest("M", 1, false, 1, "s");
         when(movieRequestRepository.findById(1L)).thenReturn(Optional.of(m));
 
         assertEquals("redirect:/movies", controller.validate(1L));
@@ -194,7 +194,7 @@ class MovieControllerTest {
 
     @Test
     void searchOne_withNullRadarrRequestId_redirectsWithoutSearch() {
-        MovieRequest m = new MovieRequest("M", 1, false, 1, "s");
+        var m = new MovieRequest("M", 1, false, 1, "s");
         when(movieRequestRepository.findById(1L)).thenReturn(Optional.of(m));
 
         assertEquals("redirect:/movies", controller.searchOne(1L));
@@ -203,7 +203,7 @@ class MovieControllerTest {
 
     @Test
     void searchOne_withRadarrRequestId_triggersSearchAndStampsTime() {
-        MovieRequest m = new MovieRequest("M", 1, false, 1, "s");
+        var m = new MovieRequest("M", 1, false, 1, "s");
         m.setId(2L);
         m.setRadarrRequestId(55);
         when(movieRequestRepository.findById(2L)).thenReturn(Optional.of(m));
@@ -226,7 +226,7 @@ class MovieControllerTest {
 
     @Test
     void searchAll_withNoMoviesHavingRadarrId_redirectsWithoutSearch() {
-        MovieRequest m = new MovieRequest("M", 1, false, 1, "s");
+        var m = new MovieRequest("M", 1, false, 1, "s");
         when(movieRequestRepository.findAll()).thenReturn(List.of(m));
 
         assertEquals("redirect:/movies", controller.searchAll());
@@ -235,7 +235,7 @@ class MovieControllerTest {
 
     @Test
     void searchAll_withMovies_triggersSearchAndStampsTime() {
-        MovieRequest m = new MovieRequest("M", 1, false, 1, "s");
+        var m = new MovieRequest("M", 1, false, 1, "s");
         m.setRadarrRequestId(77);
         when(movieRequestRepository.findAll()).thenReturn(List.of(m));
         when(radarrClient.searchMovies(List.of(77))).thenReturn(new RadarrCommand());
@@ -257,7 +257,7 @@ class MovieControllerTest {
 
     @Test
     void searchMovies_withNullEntries_deduplicatesAndCallsRadarr() {
-        MovieRequest m = new MovieRequest("M", 1, false, 1, "s");
+        var m = new MovieRequest("M", 1, false, 1, "s");
         m.setRadarrRequestId(10);
         when(movieRequestRepository.findAll()).thenReturn(List.of(m));
         when(radarrClient.searchMovies(List.of(10))).thenReturn(new RadarrCommand());
@@ -279,7 +279,7 @@ class MovieControllerTest {
 
     @Test
     void setQualityProfileToAny_withNullRadarrId_redirectsWithoutChangingProfile() {
-        MovieRequest m = new MovieRequest("M", 1, false, 1, "s");
+        var m = new MovieRequest("M", 1, false, 1, "s");
         when(movieRequestRepository.findById(1L)).thenReturn(Optional.of(m));
 
         assertEquals("redirect:/movies", controller.setQualityProfileToAny(1L));
@@ -288,7 +288,7 @@ class MovieControllerTest {
 
     @Test
     void setQualityProfileToAny_withNullProfileId_redirectsWithoutUpdating() {
-        MovieRequest m = new MovieRequest("M", 1, false, 1, "s");
+        var m = new MovieRequest("M", 1, false, 1, "s");
         m.setRadarrRequestId(33);
         when(movieRequestRepository.findById(1L)).thenReturn(Optional.of(m));
         when(radarrClient.getQualityProfileIdByName("Any")).thenReturn(null);
@@ -299,7 +299,7 @@ class MovieControllerTest {
 
     @Test
     void setQualityProfileToAny_withValidProfile_updatesAndRefreshes() {
-        MovieRequest m = new MovieRequest("M", 1, false, 1, "s");
+        var m = new MovieRequest("M", 1, false, 1, "s");
         m.setId(3L);
         m.setRadarrRequestId(33);
         when(movieRequestRepository.findById(3L)).thenReturn(Optional.of(m));
@@ -321,7 +321,7 @@ class MovieControllerTest {
 
     @Test
     void markAvailable_callsOmbiAndRedirects() throws Exception {
-        MovieRequest m = new MovieRequest("M", 1, false, 50, "s");
+        var m = new MovieRequest("M", 1, false, 50, "s");
         m.setId(4L);
         when(movieRequestRepository.findById(4L)).thenReturn(Optional.of(m));
         when(ombiClient.markMovieAvailable(50)).thenReturn(new OmbiReprocessResponse());
@@ -333,7 +333,7 @@ class MovieControllerTest {
 
     @Test
     void markAvailable_jacksonExceptionOnLogging_stillRedirects() throws Exception {
-        MovieRequest m = new MovieRequest("M", 1, false, 50, "s");
+        var m = new MovieRequest("M", 1, false, 50, "s");
         m.setId(4L);
         when(movieRequestRepository.findById(4L)).thenReturn(Optional.of(m));
         when(ombiClient.markMovieAvailable(50)).thenReturn(new OmbiReprocessResponse());
@@ -354,7 +354,7 @@ class MovieControllerTest {
 
     @Test
     void addNote_delegatesToAdminServiceAndReturnsNote() {
-        Note note = new Note("text", null);
+        var note = new Note("text", null);
         when(requestAdminService.addNote(movieRequestRepository, 1L, "text")).thenReturn(note);
 
         Note result = controller.addNote(1L, "text");
@@ -374,7 +374,7 @@ class MovieControllerTest {
 
     @Test
     void reprocess_callsOmbiAndRefreshesAndRedirects() throws Exception {
-        MovieRequest m = new MovieRequest("M", 1, false, 50, "s");
+        var m = new MovieRequest("M", 1, false, 50, "s");
         m.setId(5L);
         when(movieRequestRepository.findById(5L)).thenReturn(Optional.of(m));
         when(ombiClient.reprocessMovieRequest(50)).thenReturn(new OmbiReprocessResponse());
@@ -387,7 +387,7 @@ class MovieControllerTest {
 
     @Test
     void reprocess_jacksonExceptionOnLogging_stillRedirects() throws Exception {
-        MovieRequest m = new MovieRequest("M", 1, false, 50, "s");
+        var m = new MovieRequest("M", 1, false, 50, "s");
         m.setId(5L);
         when(movieRequestRepository.findById(5L)).thenReturn(Optional.of(m));
         when(ombiClient.reprocessMovieRequest(50)).thenReturn(new OmbiReprocessResponse());
@@ -415,7 +415,7 @@ class MovieControllerTest {
 
     @Test
     void deleteDownloadAndSearch_deletesOnlyThisMoviesQueueItemsThenSearches() {
-        MovieRequest movie = new MovieRequest("The Movie", 1, false, 100, "Common.ProcessingRequest");
+        var movie = new MovieRequest("The Movie", 1, false, 100, "Common.ProcessingRequest");
         movie.setId(5L);
         movie.setRadarrRequestId(42);
 
@@ -435,7 +435,7 @@ class MovieControllerTest {
 
     @Test
     void deleteDownloadAndSearch_withoutRadarrRequestId_doesNothing() {
-        MovieRequest movie = new MovieRequest("No Radarr", 1, false, 100, "Common.ProcessingRequest");
+        var movie = new MovieRequest("No Radarr", 1, false, 100, "Common.ProcessingRequest");
         movie.setId(6L);
 
         when(movieRequestRepository.findById(6L)).thenReturn(Optional.of(movie));
@@ -447,7 +447,7 @@ class MovieControllerTest {
 
     @Test
     void deleteDownloadAndSearch_queueFetchThrows_skipsDeleteAndStillSearches() {
-        MovieRequest movie = new MovieRequest("M", 1, false, 100, "s");
+        var movie = new MovieRequest("M", 1, false, 100, "s");
         movie.setId(7L);
         movie.setRadarrRequestId(42);
 
@@ -474,7 +474,7 @@ class MovieControllerTest {
 
     @Test
     void getLatestFfprobeScan_delegatesToService() {
-        FfprobeScan scan = new FfprobeScan(8L, "MOVIE");
+        var scan = new FfprobeScan(8L, "MOVIE");
         when(ffprobeScanService.getLatestMovieScan(8L)).thenReturn(Optional.of(scan));
 
         assertEquals(Optional.of(scan), controller.getLatestFfprobeScan(8L));
@@ -484,21 +484,21 @@ class MovieControllerTest {
 
     /** A movie that matches the searchMissing filter. */
     private static MovieRequest processingMovieWithFile(Integer radarrId) {
-        MovieRequest m = new MovieRequest("M", 1, false, 1, "Common.ProcessingRequest");
+        var m = new MovieRequest("M", 1, false, 1, "Common.ProcessingRequest");
         m.setRadarrHasFile(false);
         m.setRadarrRequestId(radarrId);
         return m;
     }
 
     private static RadarrQueueRecord queueRecord(Integer id, Integer movieId) {
-        RadarrQueueRecord record = new RadarrQueueRecord();
+        var record = new RadarrQueueRecord();
         record.setId(id);
         record.setMovieId(movieId);
         return record;
     }
 
     private static RadarrQueue queueOf(RadarrQueueRecord... records) {
-        RadarrQueue queue = new RadarrQueue();
+        var queue = new RadarrQueue();
         queue.setRecords(List.of(records));
         return queue;
     }

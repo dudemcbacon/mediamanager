@@ -146,7 +146,7 @@ class TvValidationRulesTest {
     @Test
     void englishOrAvailableTv_passesWhenNonEnglishAndAvailable() {
         // isAvailable() for TvRequest: fileCount >= episodeCount > 0 AND status==Common.Available
-        TvRequest t = new TvRequest("Show", 1, true, 1, "Common.Available");
+        var t = new TvRequest("Show", 1, true, 1, "Common.Available");
         t.setSonarrEpisodeFileCount(5);
         t.setSonarrEpisodeCount(5);
         t.setSonarrOriginalLanguage("Korean");
@@ -206,7 +206,7 @@ class TvValidationRulesTest {
 
     @Test
     void searchedRecentlyTv_passesWhenAvailable() {
-        TvRequest t = new TvRequest("Show", 1, true, 1, "Common.Available");
+        var t = new TvRequest("Show", 1, true, 1, "Common.Available");
         t.setSonarrEpisodeFileCount(3);
         t.setSonarrEpisodeCount(3);
         assertTrue(new SearchedRecentlyTv().validate(t));

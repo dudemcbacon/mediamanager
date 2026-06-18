@@ -1,5 +1,6 @@
 package report.butt.mediamanager.route;
 
+import com.google.errorprone.annotations.Var;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.badge.Badge;
@@ -34,6 +35,7 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.FfprobeStream;
@@ -69,7 +71,7 @@ final class RequestViewSupport {
     }
 
     /** Latest validation result for a request id + validator name, or null when none is recorded. */
-    static Boolean latestResultValue(
+    static @Nullable Boolean latestResultValue(
             Map<Long, Map<String, Validation>> latestValidations, Long requestId, String validationName) {
         Map<String, Validation> byName = latestValidations.get(requestId);
         Validation v = byName == null ? null : byName.get(validationName);
@@ -81,11 +83,11 @@ final class RequestViewSupport {
      *
      * <p>The validator-result and external-link cells render {@code <vaadin-icon>} from {@link LitRenderer} template
      * strings (the {@code validatorResultRenderer}s and {@link #linkRenderer}). In the optimized production bundle,
-     * Vaadin loads and registers the {@code vaadin} iconset only when a real {@link Icon} component is rendered — a bare
-     * {@code @JsModule} import is never triggered for template-string icons, so those cells stay blank in production
-     * (they work in dev, where the frontend loads eagerly). This is also why TV icons appear only once a row is expanded
-     * today: the detail tree grid is the only place using the Java {@code VaadinIcon} API. Adding one hidden {@code
-     * Icon} per view registers the iconset up front so every {@code <vaadin-icon>} resolves on load.
+     * Vaadin loads and registers the {@code vaadin} iconset only when a real {@link Icon} component is rendered — a
+     * bare {@code @JsModule} import is never triggered for template-string icons, so those cells stay blank in
+     * production (they work in dev, where the frontend loads eagerly). This is also why TV icons appear only once a row
+     * is expanded today: the detail tree grid is the only place using the Java {@code VaadinIcon} API. Adding one
+     * hidden {@code Icon} per view registers the iconset up front so every {@code <vaadin-icon>} resolves on load.
      */
     static Component iconsetLoader() {
         Icon loader = VaadinIcon.CHECK.create();
@@ -171,16 +173,16 @@ final class RequestViewSupport {
         if (protocols.isEmpty()) {
             return new Span("—");
         }
-        HorizontalLayout badges = new HorizontalLayout();
+        var badges = new HorizontalLayout();
         badges.setSpacing(false);
         badges.getStyle().set("gap", "0.25rem");
         if (protocols.stream().anyMatch(RequestViewSupport::isTorrent)) {
-            Badge torrent = new Badge("torrent");
+            var torrent = new Badge("torrent");
             torrent.addThemeVariants(BadgeVariant.FILLED);
             badges.add(torrent);
         }
         if (protocols.stream().anyMatch(p -> !isTorrent(p))) {
-            Badge usenet = new Badge("usenet");
+            var usenet = new Badge("usenet");
             usenet.addThemeVariants(BadgeVariant.SUCCESS, BadgeVariant.FILLED);
             badges.add(usenet);
         }
@@ -190,14 +192,14 @@ final class RequestViewSupport {
     // --- small component factories ---
 
     static Component headerWithTooltip(String shortName, String title, String description) {
-        Span label = new Span(shortName);
+        var label = new Span(shortName);
         Tooltip.forComponent(label).setText(title + "\n\n" + description);
         return label;
     }
 
     static Card statCard(String title, Span value) {
         value.getStyle().set("font-size", "1.5rem").set("font-weight", "bold");
-        Card card = new Card();
+        var card = new Card();
         card.setTitle(title);
         card.add(value);
         return card;
@@ -209,7 +211,7 @@ final class RequestViewSupport {
      */
     static void showCardLoading(Span value) {
         value.removeAll();
-        Span spinner = new Span();
+        var spinner = new Span();
         spinner.setClassName("status-spinner");
         spinner.getElement().setAttribute("role", "status");
         spinner.getElement().setAttribute("aria-label", "Loading");
@@ -289,6 +291,9 @@ final class RequestViewSupport {
      * the work — called with {@code false} up front (to disable the toolbar's bulk buttons) and {@code true} on
      * completion, success or failure.
      */
+    // Fire-and-forget: the whenComplete/UI#access callback handles success and failure (log + toast); the returned
+    // future is intentionally not awaited (blocking would freeze the UI thread). Requires server push (@Push).
+    @SuppressWarnings("FutureReturnValueIgnored")
     static void runNotificationCheck(
             UI ui,
             Logger log,
@@ -296,7 +301,7 @@ final class RequestViewSupport {
             Executor executor,
             Consumer<Boolean> setBulkButtonsEnabled) {
         setBulkButtonsEnabled.accept(false);
-        Notification working = new Notification("Running notification check…");
+        var working = new Notification("Running notification check…");
         working.setDuration(0);
         working.setPosition(Notification.Position.BOTTOM_START);
         working.open();
@@ -317,7 +322,7 @@ final class RequestViewSupport {
     }
 
     static Span coloredLabel(String text, String color) {
-        Span span = new Span(text);
+        var span = new Span(text);
         span.getStyle().set("color", color);
         return span;
     }
@@ -348,14 +353,17 @@ final class RequestViewSupport {
      * a toast; {@code always} (when non-null) runs on the UI thread on completion — success or failure — e.g. to
      * refresh a grid. Requires server push (see {@code @Push}).
      */
+    // Fire-and-forget: the whenComplete/UI#access callback handles success and failure (log + toast); the returned
+    // future is intentionally not awaited (blocking would freeze the UI thread). Requires server push (@Push).
+    @SuppressWarnings("FutureReturnValueIgnored")
     static void runAsync(
             UI ui, Logger log, String workingMessage, Runnable action, Runnable always, Executor executor) {
-        Notification working = new Notification(workingMessage);
+        var working = new Notification(workingMessage);
         working.setDuration(0);
         working.setPosition(Notification.Position.BOTTOM_START);
         working.open();
         CompletableFuture.runAsync(action, executor)
-                .whenComplete((unused, throwable) -> ui.access(() -> {
+                .whenComplete((_, throwable) -> ui.access(() -> {
                     try {
                         working.close();
                         if (throwable != null) {
@@ -374,10 +382,10 @@ final class RequestViewSupport {
 
     /** A read-only single-field dialog, e.g. for showing a Plex query URL. */
     static void openTextDialog(String headerTitle, String content) {
-        Dialog dialog = new Dialog();
+        var dialog = new Dialog();
         dialog.setHeaderTitle(headerTitle);
         dialog.setWidth("600px");
-        TextArea field = new TextArea();
+        var field = new TextArea();
         field.setReadOnly(true);
         field.setWidthFull();
         field.setValue(content);
@@ -388,26 +396,26 @@ final class RequestViewSupport {
 
     /** Lists a request's notes (caller supplies them newest-first) in a dialog. */
     static void openNotesDialog(String requestTitle, List<Note> notes) {
-        Dialog dialog = new Dialog();
+        var dialog = new Dialog();
         dialog.setHeaderTitle("Notes for \"" + requestTitle + "\"");
         dialog.setWidth("600px");
 
-        VerticalLayout body = new VerticalLayout();
+        var body = new VerticalLayout();
         body.setPadding(false);
         body.setSpacing(true);
         if (notes.isEmpty()) {
             body.add(new Span("No notes yet."));
         } else {
             for (Note n : notes) {
-                VerticalLayout entry = new VerticalLayout();
+                var entry = new VerticalLayout();
                 entry.setPadding(false);
                 entry.setSpacing(false);
-                Span timestamp = new Span(String.valueOf(n.getCreatedAt()));
+                var timestamp = new Span(String.valueOf(n.getCreatedAt()));
                 timestamp
                         .getStyle()
                         .set("font-size", "var(--aura-font-size-s)")
                         .set("color", "var(--vaadin-text-color-secondary)");
-                Span text = new Span(n.getNotes());
+                var text = new Span(n.getNotes());
                 text.getStyle().set("white-space", "pre-wrap");
                 entry.add(timestamp, text);
                 body.add(entry);
@@ -429,17 +437,17 @@ final class RequestViewSupport {
             List<String> cannedValues,
             boolean requireNonBlank,
             Consumer<String> onSubmit) {
-        Dialog dialog = new Dialog();
+        var dialog = new Dialog();
         dialog.setHeaderTitle(headerTitle);
 
-        TextArea field = new TextArea(fieldLabel);
+        var field = new TextArea(fieldLabel);
         field.setWidthFull();
         field.setMinHeight("8em");
         if (prefill != null) {
             field.setValue(prefill);
         }
 
-        Button submit = new Button("Submit", e -> {
+        var submit = new Button("Submit", e -> {
             String value = field.getValue();
             if (requireNonBlank && (value == null || value.isBlank())) {
                 return;
@@ -447,12 +455,12 @@ final class RequestViewSupport {
             onSubmit.accept(value);
             dialog.close();
         });
-        Button cancel = new Button("Cancel", e -> dialog.close());
+        var cancel = new Button("Cancel", e -> dialog.close());
 
         if (cannedValues.isEmpty()) {
             dialog.add(field);
         } else {
-            HorizontalLayout canned = new HorizontalLayout();
+            var canned = new HorizontalLayout();
             canned.getStyle().set("flex-wrap", "wrap");
             for (String value : cannedValues) {
                 canned.add(new Button(value, e -> field.setValue(value)));
@@ -506,7 +514,7 @@ final class RequestViewSupport {
      */
     static FormLayout fieldDump(
             Class<?> type, Object instance, List<String> priorityFields, Set<String> excludedFields) {
-        FormLayout layout = new FormLayout();
+        var layout = new FormLayout();
         layout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 2),
@@ -525,7 +533,7 @@ final class RequestViewSupport {
 
         for (Field field : fields) {
             field.setAccessible(true);
-            Object value;
+            @Var Object value;
             try {
                 value = field.get(instance);
             } catch (IllegalAccessException e) {
@@ -547,17 +555,17 @@ final class RequestViewSupport {
             return new Span("—");
         }
 
-        Span valueSpan = new Span(text);
+        var valueSpan = new Span(text);
         valueSpan.getStyle().set("flex-grow", "1").set("min-width", "0").set("word-break", "break-word");
 
-        Button copy = new Button(VaadinIcon.COPY_O.create());
+        var copy = new Button(VaadinIcon.COPY_O.create());
         copy.addThemeVariants(ButtonVariant.SMALL, ButtonVariant.TERTIARY);
         copy.setAriaLabel("Copy to clipboard");
         Tooltip.forComponent(copy).setText("Copy");
         copy.getStyle().set("flex-shrink", "0");
         copy.addClickListener(e -> copyToClipboard(copy, text));
 
-        HorizontalLayout cell = new HorizontalLayout(valueSpan, copy);
+        var cell = new HorizontalLayout(valueSpan, copy);
         cell.setSpacing(false);
         cell.setWidthFull();
         cell.getStyle().set("gap", "0.25rem").set("align-items", "baseline");
@@ -566,8 +574,7 @@ final class RequestViewSupport {
 
     // Copies $0 to the clipboard via the async Clipboard API, falling back to a hidden-textarea execCommand copy for
     // plain-HTTP LAN access (where navigator.clipboard is unavailable). Always resolves to a boolean success flag.
-    private static final String COPY_TO_CLIPBOARD_JS =
-            """
+    private static final String COPY_TO_CLIPBOARD_JS = """
             const text = $0;
             const fallback = () => {
               const ta = document.createElement('textarea');
@@ -592,7 +599,7 @@ final class RequestViewSupport {
     private static void copyToClipboard(Button source, String text) {
         source.getElement().executeJs(COPY_TO_CLIPBOARD_JS, text).then(Boolean.class, copied -> {
             boolean ok = copied != null && copied;
-            Notification toast = new Notification(ok ? "Copied" : "Copy failed");
+            var toast = new Notification(ok ? "Copied" : "Copy failed");
             toast.setDuration(1500);
             toast.setPosition(Notification.Position.BOTTOM_START);
             toast.open();
@@ -608,7 +615,7 @@ final class RequestViewSupport {
     }
 
     private static String humanizeFieldName(String name) {
-        StringBuilder sb = new StringBuilder();
+        var sb = new StringBuilder();
         for (int i = 0; i < name.length(); i++) {
             char c = name.charAt(i);
             if (i > 0 && Character.isUpperCase(c) && !Character.isUpperCase(name.charAt(i - 1))) {
@@ -626,13 +633,13 @@ final class RequestViewSupport {
      * request has never been scanned) renders a hint instead. Callers load the scan with its streams eagerly fetched.
      */
     static void openFfprobeResultsDialog(String title, FfprobeScan scan) {
-        Dialog dialog = new Dialog();
+        var dialog = new Dialog();
         dialog.setHeaderTitle(title);
         dialog.setWidth("900px");
         if (scan == null) {
             dialog.add(new Span("No ffprobe scans yet — run \"Scan with FFprobe\" first."));
         } else {
-            VerticalLayout body = new VerticalLayout(ffprobeSummary(scan), ffprobeStreamGrid(scan.getStreams()));
+            var body = new VerticalLayout(ffprobeSummary(scan), ffprobeStreamGrid(scan.getStreams()));
             body.setPadding(false);
             body.setSpacing(true);
             dialog.add(body);
@@ -643,7 +650,7 @@ final class RequestViewSupport {
 
     /** Container-level summary of a scan's {@code format} data. */
     private static VerticalLayout ffprobeSummary(FfprobeScan scan) {
-        VerticalLayout summary = new VerticalLayout();
+        var summary = new VerticalLayout();
         summary.setPadding(false);
         summary.setSpacing(false);
         String format = scan.getFormatLongName() != null ? scan.getFormatLongName() : scan.getFormatName();
@@ -652,14 +659,18 @@ final class RequestViewSupport {
                 ffprobeSummaryLine("Duration", formatDuration(scan.getDuration())),
                 ffprobeSummaryLine("Size", formatBytes(scan.getSize())),
                 ffprobeSummaryLine("Overall bit rate", formatBitRate(scan.getBitRate())),
-                ffprobeSummaryLine("Streams", scan.getNbStreams() == null ? null : scan.getNbStreams().toString()),
-                ffprobeSummaryLine("Scanned at", scan.getCreatedAt() == null ? null : scan.getCreatedAt().toString()));
+                ffprobeSummaryLine(
+                        "Streams",
+                        scan.getNbStreams() == null ? null : scan.getNbStreams().toString()),
+                ffprobeSummaryLine(
+                        "Scanned at",
+                        scan.getCreatedAt() == null ? null : scan.getCreatedAt().toString()));
         return summary;
     }
 
-    private static Span ffprobeSummaryLine(String label, String value) {
-        Span line = new Span();
-        Span key = new Span(label + ": ");
+    private static Span ffprobeSummaryLine(String label, @Nullable String value) {
+        var line = new Span();
+        var key = new Span(label + ": ");
         key.getStyle().set("color", "var(--vaadin-text-color-secondary)");
         line.add(key, new Span(value == null || value.isBlank() ? "—" : value));
         return line;
@@ -755,7 +766,7 @@ final class RequestViewSupport {
     }
 
     static ProgressBar indeterminateBar() {
-        ProgressBar bar = new ProgressBar();
+        var bar = new ProgressBar();
         bar.setIndeterminate(true);
         return bar;
     }
@@ -778,7 +789,7 @@ final class RequestViewSupport {
         }
 
         Component layout(Component... betweenHeaderAndGrid) {
-            VerticalLayout layout = new VerticalLayout();
+            var layout = new VerticalLayout();
             layout.setPadding(false);
             layout.setSpacing(false);
             layout.setWidthFull();

@@ -12,6 +12,7 @@ import net.bramp.ffmpeg.probe.FFmpegFormat;
 import net.bramp.ffmpeg.probe.FFmpegProbeResult;
 import net.bramp.ffmpeg.probe.FFmpegStream;
 import org.apache.commons.lang3.math.Fraction;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,13 +27,13 @@ import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 
 /**
- * Runs {@code ffprobe} (via ffmpeg-cli-wrapper) against a request's local media file and stores the
- * container format + per-stream data as a {@link FfprobeScan}. Equivalent to:
+ * Runs {@code ffprobe} (via ffmpeg-cli-wrapper) against a request's local media file and stores the container format +
+ * per-stream data as a {@link FfprobeScan}. Equivalent to:
  *
  * <pre>ffprobe -v quiet -print_format json -show_format -show_streams &lt;localFilePath&gt;</pre>
  *
- * The local path is the Radarr-reported file path with {@code mediamanager.local-file-system-prefix}
- * prepended (the same resolution {@code MovieRefreshService} uses for its local-file check).
+ * The local path is the Radarr-reported file path with {@code mediamanager.local-file-system-prefix} prepended (the
+ * same resolution {@code MovieRefreshService} uses for its local-file check).
  */
 @Service
 public class FfprobeScanService {
@@ -147,7 +148,7 @@ public class FfprobeScanService {
 
     /** Maps an ffprobe result's {@code format} and {@code streams} onto a new {@link FfprobeScan}. */
     static FfprobeScan toScan(FFmpegProbeResult result, Long requestId, String requestType) {
-        FfprobeScan scan = new FfprobeScan(requestId, requestType);
+        var scan = new FfprobeScan(requestId, requestType);
         FFmpegFormat format = result.getFormat();
         if (format != null) {
             scan.setFilename(format.getFilename());
@@ -191,7 +192,7 @@ public class FfprobeScanService {
     }
 
     /** ffprobe frame rates are {@code num/denom}; {@link Fraction#toString()} preserves that form. */
-    private static String fraction(Fraction value) {
+    private static @Nullable String fraction(Fraction value) {
         return value == null ? null : value.toString();
     }
 }

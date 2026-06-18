@@ -26,6 +26,8 @@ import report.butt.mediamanager.validation.EpisodeValidator;
 import report.butt.mediamanager.validation.Validator;
 
 @Service
+// Member collections are populated once at construction and never mutated; immutable types are unnecessary.
+@SuppressWarnings("ImmutableMemberCollection")
 public class ValidatorService {
 
     private static final Logger log = LoggerFactory.getLogger(ValidatorService.class);
@@ -146,8 +148,7 @@ public class ValidatorService {
         for (Validator<? extends Request> validator : applicable) {
             String name = validator.getClass().getSimpleName();
             Boolean result = runUnchecked(validator, request);
-            all.add(reconcile(
-                    existingByName.get(name), name, result, toSave, () -> new Validation(name, result, request)));
+            all.add(reconcile(existingByName.get(name), result, toSave, () -> new Validation(name, result, request)));
         }
         return all;
     }
@@ -158,8 +159,7 @@ public class ValidatorService {
         for (EpisodeValidator validator : episodeValidators) {
             String name = validator.getClass().getSimpleName();
             Boolean result = validator.validate(episode);
-            all.add(reconcile(
-                    existingByName.get(name), name, result, toSave, () -> new Validation(name, result, episode)));
+            all.add(reconcile(existingByName.get(name), result, toSave, () -> new Validation(name, result, episode)));
         }
         return all;
     }
@@ -170,7 +170,7 @@ public class ValidatorService {
      * construction so it only runs when there is no existing row.
      */
     private static Validation reconcile(
-            Validation existing, String name, Boolean result, List<Validation> toSave, Supplier<Validation> create) {
+            Validation existing, Boolean result, List<Validation> toSave, Supplier<Validation> create) {
         if (existing == null) {
             Validation created = create.get();
             toSave.add(created);
@@ -207,7 +207,7 @@ public class ValidatorService {
         return byName;
     }
 
-    private RequestType typeOf(Request request) {
+    private static RequestType typeOf(Request request) {
         if (request instanceof MovieRequest) {
             return RequestType.MOVIE;
         }
@@ -218,6 +218,8 @@ public class ValidatorService {
                 "Unknown Request subtype: " + request.getClass().getName());
     }
 
+    // Safe: validators are grouped by supportedType() in validatorsByType, so each Validator is only ever invoked here
+    // with a Request of the type it declares it supports; the raw validate(...) call and Boolean cast cannot mismatch.
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static Boolean runUnchecked(Validator validator, Request request) {
         return (Boolean) validator.validate(request);

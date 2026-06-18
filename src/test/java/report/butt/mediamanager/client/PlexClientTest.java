@@ -19,6 +19,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -26,8 +27,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import report.butt.mediamanager.model.plex.EpisodeKey;
-import report.butt.mediamanager.model.plex.PlexEpisodeData;
 import report.butt.mediamanager.model.plex.PlexDirectory;
+import report.butt.mediamanager.model.plex.PlexEpisodeData;
 import report.butt.mediamanager.model.plex.PlexGuid;
 import report.butt.mediamanager.model.plex.PlexMedia;
 import report.butt.mediamanager.model.plex.PlexMediaContainer;
@@ -78,7 +79,7 @@ class PlexClientTest {
 
     @Test
     void cacheMachineIdentifierThrowsWhenUrlBlank() {
-        PlexClient blank = new PlexClient(RestClient.builder(), mapper, cacheService, "", TOKEN, "TV Shows", "Movies");
+        var blank = new PlexClient(RestClient.builder(), mapper, cacheService, "", TOKEN, "TV Shows", "Movies");
         assertThrows(IllegalStateException.class, blank::cacheMachineIdentifier);
     }
 
@@ -108,7 +109,7 @@ class PlexClientTest {
 
     @Test
     void cacheTvSectionIdThrowsWhenUrlBlank() {
-        PlexClient blank = new PlexClient(RestClient.builder(), mapper, cacheService, "", TOKEN, "TV Shows", "Movies");
+        var blank = new PlexClient(RestClient.builder(), mapper, cacheService, "", TOKEN, "TV Shows", "Movies");
         assertThrows(IllegalStateException.class, blank::cacheTvSectionId);
     }
 
@@ -130,7 +131,7 @@ class PlexClientTest {
 
     @Test
     void cacheMoviesSectionIdThrowsWhenUrlBlank() {
-        PlexClient blank = new PlexClient(RestClient.builder(), mapper, cacheService, "", TOKEN, "TV Shows", "Movies");
+        var blank = new PlexClient(RestClient.builder(), mapper, cacheService, "", TOKEN, "TV Shows", "Movies");
         assertThrows(IllegalStateException.class, blank::cacheMoviesSectionId);
     }
 
@@ -391,43 +392,43 @@ class PlexClientTest {
     }
 
     private static PlexSearchResponse machineResponse(String machineId) {
-        PlexMediaContainer container = new PlexMediaContainer();
+        var container = new PlexMediaContainer();
         container.setMachineIdentifier(machineId);
-        PlexSearchResponse response = new PlexSearchResponse();
+        var response = new PlexSearchResponse();
         response.setMediaContainer(container);
         return response;
     }
 
     private static PlexSearchResponse sectionsResponse(PlexDirectory... directories) {
-        PlexMediaContainer container = new PlexMediaContainer();
+        var container = new PlexMediaContainer();
         container.setDirectory(List.of(directories));
-        PlexSearchResponse response = new PlexSearchResponse();
+        var response = new PlexSearchResponse();
         response.setMediaContainer(container);
         return response;
     }
 
     private static PlexSearchResponse metadataResponse(PlexMetadata... metadata) {
-        PlexMediaContainer container = new PlexMediaContainer();
+        var container = new PlexMediaContainer();
         container.setMetadata(List.of(metadata));
-        PlexSearchResponse response = new PlexSearchResponse();
+        var response = new PlexSearchResponse();
         response.setMediaContainer(container);
         return response;
     }
 
     private static PlexDirectory directory(String title, String key) {
-        PlexDirectory directory = new PlexDirectory();
+        var directory = new PlexDirectory();
         directory.setTitle(title);
         directory.setKey(key);
         return directory;
     }
 
     private static PlexMetadata metadata(String ratingKey, String... guidIds) {
-        PlexMetadata metadata = new PlexMetadata();
+        var metadata = new PlexMetadata();
         metadata.setRatingKey(ratingKey);
         if (guidIds.length > 0) {
             List<PlexGuid> guids = new ArrayList<>();
             for (String id : guidIds) {
-                PlexGuid guid = new PlexGuid();
+                var guid = new PlexGuid();
                 guid.setId(id);
                 guids.add(guid);
             }
@@ -436,16 +437,17 @@ class PlexClientTest {
         return metadata;
     }
 
-    private static PlexMetadata episode(String showRatingKey, Integer season, Integer number, String file) {
-        PlexMetadata episode = new PlexMetadata();
+    private static PlexMetadata episode(
+            @Nullable String showRatingKey, Integer season, Integer number, @Nullable String file) {
+        var episode = new PlexMetadata();
         episode.setGrandparentRatingKey(showRatingKey);
         episode.setParentIndex(season);
         episode.setIndex(number);
         if (file != null) {
-            PlexPart part = new PlexPart();
+            var part = new PlexPart();
             part.setFile(file);
             part.setSize(1234L);
-            PlexMedia media = new PlexMedia();
+            var media = new PlexMedia();
             media.setPart(List.of(part));
             episode.setMedia(List.of(media));
         }
@@ -455,8 +457,8 @@ class PlexClientTest {
     @Test
     void getShowGrandchildrenEmptyWhenMetadataListNull() {
         // Container present but no metadata list -> empty list (not null).
-        PlexMediaContainer container = new PlexMediaContainer();
-        PlexSearchResponse response = new PlexSearchResponse();
+        var container = new PlexMediaContainer();
+        var response = new PlexSearchResponse();
         response.setMediaContainer(container);
         expectGet("/library/metadata/5/grandchildren", json(response));
 

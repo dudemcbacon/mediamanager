@@ -1,5 +1,6 @@
 package report.butt.mediamanager.route;
 
+import com.google.errorprone.annotations.Var;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.grid.contextmenu.GridContextMenu;
 import com.vaadin.flow.component.grid.contextmenu.GridMenuItem;
@@ -17,8 +18,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import report.butt.mediamanager.controller.TvController;
@@ -65,10 +68,10 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
 
         TreeData<TvHierarchyRow> treeData = new TreeData<>();
         for (TvChildRequest child : children) {
-            ChildRow childRow = new ChildRow(child);
+            var childRow = new ChildRow(child);
             treeData.addItem(null, childRow);
             for (TvSeasonRequest season : child.getSeasonRequests()) {
-                SeasonRow seasonRow = new SeasonRow(season);
+                var seasonRow = new SeasonRow(season);
                 treeData.addItem(childRow, seasonRow);
                 for (TvEpisodeRequest episode : season.getEpisodeRequests()) {
                     treeData.addItem(seasonRow, new EpisodeRow(episode));
@@ -188,7 +191,9 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
                     if (row instanceof EpisodeRow(TvEpisodeRequest episode)) {
                         RequestViewSupport.openFfprobeResultsDialog(
                                 "FFprobe results for \"" + titleText(row) + "\"",
-                                tvController.getLatestFfprobeScan(episode.getId()).orElse(null));
+                                tvController
+                                        .getLatestFfprobeScan(episode.getId())
+                                        .orElse(null));
                     }
                 }));
 
@@ -208,8 +213,8 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
             scanFfprobe.setVisible(row instanceof EpisodeRow && SecurityUtils.isAdmin());
             viewFfprobe.setVisible(row instanceof EpisodeRow);
             if (row instanceof EpisodeRow(TvEpisodeRequest episode)) {
-                scanFfprobe.setEnabled(
-                        episode.getSonarrPath() != null && !episode.getSonarrPath().isBlank());
+                scanFfprobe.setEnabled(episode.getSonarrPath() != null
+                        && !episode.getSonarrPath().isBlank());
             }
             return true;
         });
@@ -221,9 +226,9 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     }
 
     /**
-     * Re-applies fresh download status from a parent-driven poll without rebuilding the tree, so the Type/Progress/Peers
-     * cells refresh in place — the user's expansion state and the parent grid's open detail panel are preserved (a
-     * full {@code dataProvider.refreshAll()} on the parent grid would discard both).
+     * Re-applies fresh download status from a parent-driven poll without rebuilding the tree, so the
+     * Type/Progress/Peers cells refresh in place — the user's expansion state and the parent grid's open detail panel
+     * are preserved (a full {@code dataProvider.refreshAll()} on the parent grid would discard both).
      */
     void applyDownloadStatus(Map<EpisodeKey, EpisodeDownload> episodeDownloads) {
         downloadByEpisodeId.clear();
@@ -334,7 +339,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         return download.torrent() == null ? "—" : RequestViewSupport.formatPeers(download.torrent());
     }
 
-    private EpisodeDownload downloadFor(TvHierarchyRow row) {
+    private @Nullable EpisodeDownload downloadFor(TvHierarchyRow row) {
         return row instanceof EpisodeRow(TvEpisodeRequest episode) && episode.getId() != null
                 ? downloadByEpisodeId.get(episode.getId())
                 : null;
@@ -375,13 +380,13 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         return rollUpIgnoringUnknown(childResults);
     }
 
-    private static Boolean episodeResult(
+    private static @Nullable Boolean episodeResult(
             TvEpisodeRequest episode,
             String validationName,
             Map<Long, Map<String, Validation>> latestEpisodeValidations) {
         Map<String, Validation> byName = latestEpisodeValidations.get(episode.getId());
         Validation v = byName == null ? null : byName.get(validationName);
-        return v == null ? null : Boolean.TRUE.equals(v.getResult());
+        return v == null ? null : Objects.equals(v.getResult(), true);
     }
 
     private static Boolean seasonResult(
@@ -408,14 +413,14 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
      * Aggregates tri-state results: null if none are known (unknown), TRUE only if every entry is known and valid,
      * FALSE otherwise (any failing or not-yet-validated entry).
      */
-    private static Boolean rollUp(List<Boolean> results) {
-        boolean anyKnown = false;
-        boolean allValid = true;
+    private static @Nullable Boolean rollUp(List<Boolean> results) {
+        @Var boolean anyKnown = false;
+        @Var boolean allValid = true;
         for (Boolean result : results) {
             if (result != null) {
                 anyKnown = true;
             }
-            if (!Boolean.TRUE.equals(result)) {
+            if (!Objects.equals(result, true)) {
                 allValid = false;
             }
         }
@@ -427,15 +432,15 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
      * is unknown, TRUE when every known entry is valid, FALSE when any known entry failed. Used at the child-request
      * level so that not-yet-validated rows don't drag an otherwise-valid child to a failure.
      */
-    private static Boolean rollUpIgnoringUnknown(List<Boolean> results) {
-        boolean anyKnown = false;
-        boolean allValid = true;
+    private static @Nullable Boolean rollUpIgnoringUnknown(List<Boolean> results) {
+        @Var boolean anyKnown = false;
+        @Var boolean allValid = true;
         for (Boolean result : results) {
             if (result == null) {
                 continue;
             }
             anyKnown = true;
-            if (!Boolean.TRUE.equals(result)) {
+            if (!result.equals(true)) {
                 allValid = false;
             }
         }
@@ -468,8 +473,8 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     private static Component availableComponent(TvHierarchyRow row) {
         return switch (row) {
             case ChildRow(TvChildRequest c) -> resultIcon(c.isAvailable());
-            case SeasonRow(TvSeasonRequest s) -> resultIcon(Boolean.TRUE.equals(s.getOmbiSeasonAvailable()));
-            case EpisodeRow(TvEpisodeRequest e) -> resultIcon(Boolean.TRUE.equals(e.getOmbiAvailable()));
+            case SeasonRow(TvSeasonRequest s) -> resultIcon(Objects.equals(s.getOmbiSeasonAvailable(), true));
+            case EpisodeRow(TvEpisodeRequest e) -> resultIcon(Objects.equals(e.getOmbiAvailable(), true));
         };
     }
 
@@ -478,14 +483,14 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
             case ChildRow(TvChildRequest c) -> {
                 List<TvSeasonRequest> seasons = c.getSeasonRequests();
                 long available = seasons.stream()
-                        .filter(s -> Boolean.TRUE.equals(s.getOmbiSeasonAvailable()))
+                        .filter(s -> Objects.equals(s.getOmbiSeasonAvailable(), true))
                         .count();
                 yield available + "/" + seasons.size();
             }
             case SeasonRow(TvSeasonRequest s) -> {
                 List<TvEpisodeRequest> episodes = s.getEpisodeRequests();
                 long available = episodes.stream()
-                        .filter(e -> Boolean.TRUE.equals(e.getOmbiAvailable()))
+                        .filter(e -> Objects.equals(e.getOmbiAvailable(), true))
                         .count();
                 yield available + "/" + episodes.size();
             }

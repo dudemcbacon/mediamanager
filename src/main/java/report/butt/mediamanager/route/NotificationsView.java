@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,11 +45,16 @@ import report.butt.mediamanager.service.NotificationService.ZeroSeedDownload;
 
 /**
  * Notifications dashboard: the same findings the notification email reports, shown as grids with deep links and
- * bulk/per-row actions. The snapshot loads asynchronously (with a progress bar) on attach — it hits Deluge/Radarr/Sonarr
- * and can be slow — so the page renders immediately; results are delivered via server push (see {@code @Push}).
+ * bulk/per-row actions. The snapshot loads asynchronously (with a progress bar) on attach — it hits
+ * Deluge/Radarr/Sonarr and can be slow — so the page renders immediately; results are delivered via server push (see
+ * {@code @Push}).
  */
 @Route("notifications")
 @RolesAllowed("ADMIN")
+// Async-UI view: remote/DB data is loaded off the UI thread via CompletableFuture + whenComplete/UI#access (@Push).
+// Each such future handles its own success and failure in the callback (log + toast) and is intentionally not
+// awaited — blocking on it would freeze the UI thread — so FutureReturnValueIgnored is suppressed class-wide.
+@SuppressWarnings("FutureReturnValueIgnored")
 public class NotificationsView extends VerticalLayout {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationsView.class);
@@ -266,7 +272,7 @@ public class NotificationsView extends VerticalLayout {
                             }
                         },
                         uiTaskExecutor)
-                .whenComplete((unused, throwable) -> ui.access(() -> {
+                .whenComplete((_, throwable) -> ui.access(() -> {
                     try {
                         if (throwable != null) {
                             log.warn("Failed to search requests", throwable);
@@ -306,7 +312,7 @@ public class NotificationsView extends VerticalLayout {
 
     // --- link building ---
 
-    private String ombiHref(RequestLink link) {
+    private @Nullable String ombiHref(RequestLink link) {
         if (link == null) {
             return null;
         }
@@ -318,7 +324,7 @@ public class NotificationsView extends VerticalLayout {
         return link.tmdbId() == null ? null : ombiUrl + "/details/movie/" + link.tmdbId();
     }
 
-    private String arrHref(RequestLink link) {
+    private @Nullable String arrHref(RequestLink link) {
         if (link == null) {
             return null;
         }

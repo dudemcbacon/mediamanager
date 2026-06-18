@@ -1,5 +1,6 @@
 package report.butt.mediamanager.validation;
 
+import java.util.Objects;
 import org.springframework.stereotype.Component;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
@@ -9,7 +10,7 @@ public class LocalFileMatchesPlex implements Validator<MovieRequest> {
 
     @Override
     public Boolean validate(MovieRequest request) {
-        return Boolean.TRUE.equals(request.getLocalFilePathAvailable())
+        return Objects.equals(request.getLocalFilePathAvailable(), true)
                 && request.getLocalFileSize() != null
                 && request.getLocalFileSize().equals(request.getPlexMediaSize());
     }

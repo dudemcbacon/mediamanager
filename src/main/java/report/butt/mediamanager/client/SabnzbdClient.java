@@ -58,7 +58,7 @@ public class SabnzbdClient {
                 }
             }
             return byNzoId;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to fetch SABnzbd queue", e);
             return Map.of();
         }

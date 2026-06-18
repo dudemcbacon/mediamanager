@@ -114,14 +114,14 @@ class PlexCacheServiceTest {
     @Test
     void cleanExceptDoesNothingWhenCacheDirIsNull() {
         // Build a service whose init() was never called (cacheDir = null)
-        PlexCacheService noInit = new PlexCacheService("");
+        var noInit = new PlexCacheService("");
         // Should not throw even though cacheDir is null
         noInit.cleanExcept("movie-", Set.of());
     }
 
     @Test
     void initWithBlankConfiguredDirCreatesTempDir() throws IOException {
-        PlexCacheService svc = new PlexCacheService("");
+        var svc = new PlexCacheService("");
         svc.init();
         // Just verify no exception and store works
         String url = svc.store("test-1", "data");

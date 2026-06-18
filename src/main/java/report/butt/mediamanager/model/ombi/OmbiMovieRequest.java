@@ -203,7 +203,7 @@ public class OmbiMovieRequest implements Serializable {
     private Integer id;
 
     @JsonIgnore
-    private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
+    private final Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
     private static final long serialVersionUID = 6356458637734283408L;
 

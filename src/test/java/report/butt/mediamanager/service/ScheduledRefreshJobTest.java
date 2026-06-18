@@ -15,7 +15,7 @@ class ScheduledRefreshJobTest {
 
     @Test
     void refreshAndValidateDelegatesInOrder() {
-        ScheduledRefreshJob job = new ScheduledRefreshJob(
+        var job = new ScheduledRefreshJob(
                 movieRefreshService, tvRefreshService, validatorService, notificationService, true);
 
         job.refreshAndValidate();
@@ -28,7 +28,7 @@ class ScheduledRefreshJobTest {
 
     @Test
     void runNotificationsCallsServiceWhenEnabled() {
-        ScheduledRefreshJob job = new ScheduledRefreshJob(
+        var job = new ScheduledRefreshJob(
                 movieRefreshService, tvRefreshService, validatorService, notificationService, true);
 
         job.runNotifications();
@@ -38,7 +38,7 @@ class ScheduledRefreshJobTest {
 
     @Test
     void runNotificationsSkipsServiceWhenDisabled() {
-        ScheduledRefreshJob job = new ScheduledRefreshJob(
+        var job = new ScheduledRefreshJob(
                 movieRefreshService, tvRefreshService, validatorService, notificationService, false);
 
         job.runNotifications();

@@ -18,7 +18,7 @@ public class AppUserDetailsService implements UserDetailsService {
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String username) {
         AppUser user = repository
                 .findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Unknown user: " + username));

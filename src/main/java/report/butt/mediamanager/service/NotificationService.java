@@ -10,11 +10,14 @@ import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -83,6 +86,8 @@ public class NotificationService {
     private final int unsearchedDays;
     private final int newRequestWindowHours;
 
+    // Spring constructor injection; the parameter count reflects injected collaborators, not a design smell.
+    @SuppressWarnings("TooManyParameters")
     public NotificationService(
             DelugeClient delugeClient,
             RadarrClient radarrClient,
@@ -219,6 +224,8 @@ public class NotificationService {
 
     // --- detection ---
 
+    // Internal data carrier; its collection components are never mutated after construction.
+    @SuppressWarnings("ImmutableMemberCollection")
     private record DownloadFindings(List<StuckDownload> stuck, List<ZeroSeedDownload> zeroSeed) {}
 
     private DownloadFindings findDownloads(
@@ -237,7 +244,7 @@ public class NotificationService {
                                 .isBefore(stuckThreshold))
                 .sorted(Comparator.comparing(e -> e.getValue().getTimeAdded()))
                 .map(e -> {
-                    TorrentRequest request = requestByTorrentHash.get(e.getKey().toLowerCase());
+                    TorrentRequest request = requestByTorrentHash.get(e.getKey().toLowerCase(Locale.ROOT));
                     return new StuckDownload(
                             e.getValue().getName(),
                             e.getValue().getProgress(),
@@ -258,7 +265,7 @@ public class NotificationService {
                 .sorted(Comparator.comparing(
                         e -> e.getValue().getName(), Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
                 .map(e -> {
-                    TorrentRequest request = requestByTorrentHash.get(e.getKey().toLowerCase());
+                    TorrentRequest request = requestByTorrentHash.get(e.getKey().toLowerCase(Locale.ROOT));
                     return new ZeroSeedDownload(
                             e.getValue().getName(),
                             e.getValue().getProgress(),
@@ -274,7 +281,7 @@ public class NotificationService {
         return new DownloadFindings(stuck, zeroSeed);
     }
 
-    private List<ImportBlocked> findImportBlocked(
+    private static List<ImportBlocked> findImportBlocked(
             RadarrQueue radarrQueue,
             SonarrQueue sonarrQueue,
             Map<Integer, String> movieTitleByRadarrId,
@@ -282,7 +289,7 @@ public class NotificationService {
         List<ImportBlocked> blocked = new ArrayList<>();
         if (radarrQueue != null && radarrQueue.getRecords() != null) {
             for (RadarrQueueRecord record : radarrQueue.getRecords()) {
-                if (IMPORT_BLOCKED_STATE.equals(record.getTrackedDownloadState())) {
+                if (Objects.equals(record.getTrackedDownloadState(), IMPORT_BLOCKED_STATE)) {
                     blocked.add(new ImportBlocked(
                             "Radarr",
                             label(movieTitleByRadarrId.get(record.getMovieId()), record.getDownloadId()),
@@ -292,7 +299,7 @@ public class NotificationService {
         }
         if (sonarrQueue != null && sonarrQueue.getRecords() != null) {
             for (SonarrQueueRecord record : sonarrQueue.getRecords()) {
-                if (IMPORT_BLOCKED_STATE.equals(record.getTrackedDownloadState())) {
+                if (Objects.equals(record.getTrackedDownloadState(), IMPORT_BLOCKED_STATE)) {
                     blocked.add(new ImportBlocked(
                             "Sonarr",
                             label(tvTitleBySonarrId.get(record.getSeriesId()), record.getDownloadId()),
@@ -335,7 +342,7 @@ public class NotificationService {
                 MovieRequest movie = movieByRadarrId.get(record.getMovieId());
                 if (record.getDownloadId() != null && movie != null) {
                     byHash.put(
-                            record.getDownloadId().toLowerCase(),
+                            record.getDownloadId().toLowerCase(Locale.ROOT),
                             new TorrentRequest("Movie: " + movie.getTitle(), linkOf(movie)));
                 }
             }
@@ -346,7 +353,7 @@ public class NotificationService {
                 if (record.getDownloadId() != null && show != null) {
                     String season = record.getSeasonNumber() == null ? "" : " (S" + record.getSeasonNumber() + ")";
                     byHash.put(
-                            record.getDownloadId().toLowerCase(),
+                            record.getDownloadId().toLowerCase(Locale.ROOT),
                             new TorrentRequest("TV: " + show.getTitle() + season, linkOf(show)));
                 }
             }
@@ -388,7 +395,7 @@ public class NotificationService {
     private static <X> X tryFetch(String integration, List<String> unreachable, Supplier<X> call) {
         try {
             return call.get();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("{} unreachable during notification check", integration, e);
             if (!unreachable.contains(integration)) {
                 unreachable.add(integration);
@@ -398,7 +405,7 @@ public class NotificationService {
     }
 
     private static boolean actionableUnavailable(Request r) {
-        return !Boolean.TRUE.equals(r.getStale()) && !r.isAvailable();
+        return !Objects.equals(r.getStale(), true) && !r.isAvailable();
     }
 
     private static boolean beforeOrNull(Instant value, Instant threshold) {
@@ -420,7 +427,7 @@ public class NotificationService {
     }
 
     /** Counts queue records by the id that ties them to a request (Radarr movie id / Sonarr series id). */
-    private static <R> Map<Integer, Integer> queueCountsById(List<R> records, Function<R, Integer> idFn) {
+    private static <R> Map<Integer, Integer> queueCountsById(@Nullable List<R> records, Function<R, Integer> idFn) {
         Map<Integer, Integer> counts = new HashMap<>();
         if (records != null) {
             for (R record : records) {
@@ -570,7 +577,7 @@ public class NotificationService {
                         .map(NotificationService::newRequestLine)
                         .toList());
 
-        StringBuilder sb = new StringBuilder("MediaManager daily summary.\n");
+        var sb = new StringBuilder("MediaManager daily summary.\n");
         for (Category category : Category.values()) {
             List<String> categoryLines = lines.getOrDefault(category, List.of());
             if (categoryLines.isEmpty()) {
@@ -601,7 +608,7 @@ public class NotificationService {
             return false;
         }
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
+            var message = new SimpleMailMessage();
             if (from != null && !from.isBlank()) {
                 message.setFrom(from);
             }
@@ -611,7 +618,7 @@ public class NotificationService {
             sender.send(message);
             log.info("Sent notification summary email with {} item(s) to {}", total, to);
             return true;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logSendFailure(sender, e);
             return false;
         }
@@ -642,15 +649,30 @@ public class NotificationService {
     // --- structured findings (shared by the email and the admin page) ---
 
     /** Identifiers needed to build Ombi/Radarr/Sonarr deep links for a request. */
-    public record RequestLink(boolean tv, Integer tmdbId, Integer ombiExternalProviderId, String sonarrTitleSlug) {}
+    public record RequestLink(
+            boolean tv,
+            @Nullable Integer tmdbId,
+            @Nullable Integer ombiExternalProviderId,
+            @Nullable String sonarrTitleSlug) {}
 
     public record StuckDownload(
-            String name, double progress, Instant added, String linkedRequest, RequestLink link, String hash) {}
+            String name,
+            double progress,
+            Instant added,
+            @Nullable String linkedRequest,
+            @Nullable RequestLink link,
+            String hash) {}
 
     public record ZeroSeedDownload(
-            String name, double progress, Instant added, String linkedRequest, RequestLink link, String hash) {}
+            String name,
+            double progress,
+            @Nullable Instant added,
+            @Nullable String linkedRequest,
+            @Nullable RequestLink link,
+            String hash) {}
 
-    public record ImportBlocked(String source, String title, Integer season) {}
+    public record ImportBlocked(
+            String source, String title, @Nullable Integer season) {}
 
     public record OverdueMovieRow(
             String title, Instant requested, String requester, Instant lastSearched, int queued, RequestLink link) {}
@@ -672,6 +694,8 @@ public class NotificationService {
     public record HealthIssue(String source, String type, String message) {}
 
     /** All findings from one detection run, in structured form. */
+    // Internal data carrier; its collection components are never mutated after construction.
+    @SuppressWarnings("ImmutableMemberCollection")
     public record NotificationSnapshot(
             List<StuckDownload> stuckDownloads,
             List<ZeroSeedDownload> zeroSeedDownloads,
@@ -705,6 +729,8 @@ public class NotificationService {
     }
 
     /** Outcome of a {@link #runCheck()} run, for reporting back to the UI. */
+    // Internal data carrier; its count map is never mutated after construction.
+    @SuppressWarnings("ImmutableMemberCollection")
     public record NotificationResult(boolean emailSent, boolean mailConfigured, Map<Category, Integer> counts) {
 
         public int total() {

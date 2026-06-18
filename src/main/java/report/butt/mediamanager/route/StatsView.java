@@ -32,6 +32,10 @@ import report.butt.mediamanager.route.RequestViewSupport.Section;
  */
 @Route("stats")
 @RolesAllowed("ADMIN")
+// Async-UI view: leaderboard data is loaded off the UI thread via CompletableFuture + whenComplete/UI#access (@Push).
+// Each such future handles its own success and failure in the callback (log + toast) and is intentionally not
+// awaited — blocking on it would freeze the UI thread — so FutureReturnValueIgnored is suppressed class-wide.
+@SuppressWarnings("FutureReturnValueIgnored")
 public class StatsView extends VerticalLayout {
 
     private static final Logger log = LoggerFactory.getLogger(StatsView.class);
@@ -46,6 +50,8 @@ public class StatsView extends VerticalLayout {
         }
     }
 
+    // Internal data carrier; its collection components are never mutated after construction.
+    @SuppressWarnings("ImmutableMemberCollection")
     private record Leaderboards(List<RequesterCount> movies, List<RequesterCount> tv) {}
 
     private final MovieRequestRepository movieRequestRepository;
@@ -76,7 +82,7 @@ public class StatsView extends VerticalLayout {
         add(new H2("Stats"));
         add(new H3("Leaderboards (top " + LEADERBOARD_SIZE + ")"));
         add(leaderboardProgress);
-        HorizontalLayout boards = new HorizontalLayout(movieBoard.layout(), tvBoard.layout());
+        var boards = new HorizontalLayout(movieBoard.layout(), tvBoard.layout());
         boards.setWidthFull();
         add(boards);
     }
@@ -118,14 +124,13 @@ public class StatsView extends VerticalLayout {
             }
         }
         return new Leaderboards(
-                leaderboard(movies, movieBytes),
-                leaderboard(tvRequestRepository.findAll(), tvBytesByUser()));
+                leaderboard(movies, movieBytes), leaderboard(tvRequestRepository.findAll(), tvBytesByUser()));
     }
 
     private Map<String, Long> tvBytesByUser() {
         Map<String, Long> bytes = new HashMap<>();
         for (Object[] row : tvEpisodeRequestRepository.sumLocalFileSizeByTvRequestOmbiUserName()) {
-            Long sum = (Long) row[1];
+            var sum = (Long) row[1];
             if (sum != null) {
                 bytes.merge(userKey((String) row[0]), sum, Long::sum);
             }
@@ -150,10 +155,7 @@ public class StatsView extends VerticalLayout {
         }
         return stats.entrySet().stream()
                 .map(e -> new RequesterCount(
-                        e.getKey(),
-                        e.getValue()[0],
-                        e.getValue()[1],
-                        bytesByUser.getOrDefault(e.getKey(), 0L)))
+                        e.getKey(), e.getValue()[0], e.getValue()[1], bytesByUser.getOrDefault(e.getKey(), 0L)))
                 .sorted(Comparator.comparingLong(RequesterCount::count)
                         .reversed()
                         .thenComparing(RequesterCount::username, String.CASE_INSENSITIVE_ORDER))

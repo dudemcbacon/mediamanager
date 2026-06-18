@@ -12,6 +12,7 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -28,7 +29,10 @@ public abstract class Request {
 
     protected static final String OMBI_AVAILABLE_STATUS = "Common.Available";
 
-    private @Id @GeneratedValue Long id;
+    @Id
+    @GeneratedValue
+    private Long id;
+
     private String title;
     private Boolean ombiAvailable;
 
@@ -221,7 +225,7 @@ public abstract class Request {
     public boolean isValid(Collection<String> validatorNames, Map<String, Validation> latestByName) {
         return validatorNames.stream().allMatch(name -> {
             Validation v = latestByName.get(name);
-            return v != null && Boolean.TRUE.equals(v.getResult());
+            return v != null && Objects.equals(v.getResult(), true);
         });
     }
 }

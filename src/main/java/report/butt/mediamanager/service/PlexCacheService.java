@@ -11,6 +11,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,7 +59,7 @@ public class PlexCacheService {
         return URL_PREFIX + key + ".json";
     }
 
-    public Path resolve(String filename) {
+    public @Nullable Path resolve(String filename) {
         if (filename == null || !filename.endsWith(".json")) {
             return null;
         }

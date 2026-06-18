@@ -47,10 +47,10 @@ class DownloadCleanupServiceTest {
         // Sonarr: one queued item matches.
         when(sonarrClient.getQueue()).thenReturn(sonarrQueue(sonarrRecord(201, 20, 999, "DEFHASH")));
 
-        MovieRequest movie = new MovieRequest("Movie", 1, false, 1, "Common.ProcessingRequest");
+        var movie = new MovieRequest("Movie", 1, false, 1, "Common.ProcessingRequest");
         movie.setId(5L);
         when(movieRequestRepository.findByRadarrRequestId(10)).thenReturn(Optional.of(movie));
-        TvRequest show = new TvRequest("Show", 1, false, 1, "Common.ProcessingRequest");
+        var show = new TvRequest("Show", 1, false, 1, "Common.ProcessingRequest");
         show.setId(7L);
         when(tvRequestRepository.findBySonarrSeriesId(20)).thenReturn(List.of(show));
 
@@ -80,13 +80,13 @@ class DownloadCleanupServiceTest {
     }
 
     private static RadarrQueue radarrQueue(RadarrQueueRecord... records) {
-        RadarrQueue queue = new RadarrQueue();
+        var queue = new RadarrQueue();
         queue.setRecords(List.of(records));
         return queue;
     }
 
     private static RadarrQueueRecord radarrRecord(Integer id, Integer movieId, String downloadId) {
-        RadarrQueueRecord record = new RadarrQueueRecord();
+        var record = new RadarrQueueRecord();
         record.setId(id);
         record.setMovieId(movieId);
         record.setDownloadId(downloadId);
@@ -94,17 +94,17 @@ class DownloadCleanupServiceTest {
     }
 
     private static SonarrQueue sonarrQueue(SonarrQueueRecord... records) {
-        SonarrQueue queue = new SonarrQueue();
+        var queue = new SonarrQueue();
         queue.setRecords(List.of(records));
         return queue;
     }
 
     private static SonarrQueueRecord sonarrRecord(Integer id, Integer seriesId, Integer episodeId, String downloadId) {
-        SonarrQueueRecord record = new SonarrQueueRecord();
+        var record = new SonarrQueueRecord();
         record.setId(id);
         record.setSeriesId(seriesId);
         record.setDownloadId(downloadId);
-        Episode episode = new Episode();
+        var episode = new Episode();
         episode.setId(episodeId);
         record.setEpisode(episode);
         return record;

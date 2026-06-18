@@ -79,7 +79,7 @@ class MovieRefreshServiceTest {
     @Test
     void refreshAllSkipsSaveWhenExistingMovieUnchanged() {
         OmbiMovieRequest ombi = ombiMovie(1, "Existing Movie", 100);
-        MovieRequest existing = new MovieRequest("Existing Movie", 100, false, 1, "Common.ProcessingRequest");
+        var existing = new MovieRequest("Existing Movie", 100, false, 1, "Common.ProcessingRequest");
         existing.setId(5L);
         // Set ombi fields that applyUpdates will set — so hash won't change
         existing.setTitle("Existing Movie");
@@ -161,7 +161,7 @@ class MovieRefreshServiceTest {
 
     @Test
     void refreshOneWithNullOmbiIdSkipsOmbiLookup() {
-        MovieRequest existing = new MovieRequest("My Movie", 400, false, null, "Common.ProcessingRequest");
+        var existing = new MovieRequest("My Movie", 400, false, null, "Common.ProcessingRequest");
         existing.setId(1L);
         when(repository.findById(1L)).thenReturn(Optional.of(existing));
         when(radarrClient.getQualityProfilesById()).thenReturn(Map.of());
@@ -174,7 +174,7 @@ class MovieRefreshServiceTest {
 
     @Test
     void refreshOneWithOmbiIdFetchesOmbiAndRadarr() {
-        MovieRequest existing = new MovieRequest("Some Movie", 500, false, 10, "Common.ProcessingRequest");
+        var existing = new MovieRequest("Some Movie", 500, false, 10, "Common.ProcessingRequest");
         existing.setId(2L);
         OmbiMovieRequest ombi = ombiMovie(10, "Some Movie", 500);
         Movie radarrMovie = radarrMovie(500, 77, "/movies/some-movie");
@@ -193,7 +193,7 @@ class MovieRefreshServiceTest {
 
     @Test
     void refreshOneWithOmbiIdNotFoundInOmbiResponse() {
-        MovieRequest existing = new MovieRequest("Orphan Movie", 600, false, 20, "Common.ProcessingRequest");
+        var existing = new MovieRequest("Orphan Movie", 600, false, 20, "Common.ProcessingRequest");
         existing.setId(3L);
 
         when(repository.findById(3L)).thenReturn(Optional.of(existing));
@@ -224,7 +224,7 @@ class MovieRefreshServiceTest {
                 jobRequestScheduler,
                 ffprobeScanService);
 
-        MovieRequest existing = new MovieRequest("Some Movie", 500, false, null, "Common.ProcessingRequest");
+        var existing = new MovieRequest("Some Movie", 500, false, null, "Common.ProcessingRequest");
         existing.setId(2L);
         Movie radarrMovie = radarrMovie(500, 77, "/movies/some-movie");
         radarrMovie.setMovieFile(movieFile("/movies/movie.mkv"));
@@ -254,7 +254,7 @@ class MovieRefreshServiceTest {
                 jobRequestScheduler,
                 ffprobeScanService);
 
-        MovieRequest existing = new MovieRequest("Some Movie", 500, false, null, "Common.ProcessingRequest");
+        var existing = new MovieRequest("Some Movie", 500, false, null, "Common.ProcessingRequest");
         existing.setId(2L);
         Movie radarrMovie = radarrMovie(500, 77, "/movies/some-movie");
         radarrMovie.setMovieFile(movieFile("/movies/does-not-exist.mkv"));
@@ -274,7 +274,7 @@ class MovieRefreshServiceTest {
 
     @Test
     void refreshOneMarksLocalFileUnavailableWhenRadarrReportsNoFile() {
-        MovieRequest existing = new MovieRequest("Some Movie", 500, false, null, "Common.ProcessingRequest");
+        var existing = new MovieRequest("Some Movie", 500, false, null, "Common.ProcessingRequest");
         existing.setId(2L);
         Movie radarrMovie = radarrMovie(500, 77, "/movies/some-movie"); // no movie file
 
@@ -300,13 +300,13 @@ class MovieRefreshServiceTest {
     // --- fixtures ---
 
     private static Moviefile movieFile(String path) {
-        Moviefile f = new Moviefile();
+        var f = new Moviefile();
         f.setPath(path);
         return f;
     }
 
     private static OmbiMovieRequest ombiMovie(Integer id, String title, Integer tmdbId) {
-        OmbiMovieRequest m = new OmbiMovieRequest();
+        var m = new OmbiMovieRequest();
         m.setId(id);
         m.setTitle(title);
         m.setTheMovieDbId(tmdbId);
@@ -316,7 +316,7 @@ class MovieRefreshServiceTest {
     }
 
     private static Movie radarrMovie(Integer tmdbId, Integer radarrId, String path) {
-        Movie m = new Movie();
+        var m = new Movie();
         m.setTmdbId(tmdbId);
         m.setId(radarrId);
         m.setPath(path);

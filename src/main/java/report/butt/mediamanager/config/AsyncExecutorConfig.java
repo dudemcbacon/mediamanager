@@ -22,9 +22,9 @@ public class AsyncExecutorConfig {
      * <p>Wrapped in a {@link DelegatingSecurityContextExecutorService} so the Spring Security context is propagated to
      * the worker threads. The context is thread-local: it's present on the Vaadin UI thread that submits the task but
      * absent on a plain pool thread, so {@code @PreAuthorize}-guarded controller calls (e.g.
-     * {@code MovieController.markAvailable}) would otherwise fail with {@code AuthenticationCredentialsNotFoundException}.
-     * The wrapper captures the context at submit time and restores the worker's previous context afterward, so it
-     * doesn't leak between pooled tasks.
+     * {@code MovieController.markAvailable}) would otherwise fail with
+     * {@code AuthenticationCredentialsNotFoundException}. The wrapper captures the context at submit time and restores
+     * the worker's previous context afterward, so it doesn't leak between pooled tasks.
      *
      * <p>The wrapper freezes the {@link org.springframework.security.core.context.SecurityContextHolderStrategy} at
      * construction time (see {@code AbstractDelegatingSecurityContextSupport}). With {@code @Push}, a context-menu
@@ -36,12 +36,12 @@ public class AsyncExecutorConfig {
      */
     @Bean(destroyMethod = "shutdown")
     ExecutorService uiTaskExecutor(VaadinAwareSecurityContextHolderStrategy securityContextHolderStrategy) {
-        ThreadFactory factory = new ThreadFactory() {
+        var factory = new ThreadFactory() {
             private final AtomicInteger counter = new AtomicInteger();
 
             @Override
             public Thread newThread(Runnable r) {
-                Thread thread = new Thread(r, "ui-task-" + counter.incrementAndGet());
+                var thread = new Thread(r, "ui-task-" + counter.incrementAndGet());
                 thread.setDaemon(true);
                 return thread;
             }

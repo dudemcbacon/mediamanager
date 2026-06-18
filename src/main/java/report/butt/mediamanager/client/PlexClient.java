@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -179,7 +180,7 @@ public class PlexClient {
     }
 
     /** The per-item Plex query URL used to look up a show, without the X-Plex-Token. */
-    public String showQueryUrl(String title) {
+    public @Nullable String showQueryUrl(String title) {
         if (tvSectionId == null) {
             return null;
         }
@@ -294,9 +295,9 @@ public class PlexClient {
     }
 
     public String cacheMovieMetadata(int tmdbId, PlexMetadata metadata) {
-        PlexMediaContainer container = new PlexMediaContainer();
+        var container = new PlexMediaContainer();
         container.setMetadata(metadata == null ? List.of() : List.of(metadata));
-        PlexSearchResponse wrapper = new PlexSearchResponse();
+        var wrapper = new PlexSearchResponse();
         wrapper.setMediaContainer(container);
         String body = objectMapper.writeValueAsString(wrapper);
         return plexCacheService.store(movieCacheKey(tmdbId), body);
@@ -483,15 +484,15 @@ public class PlexClient {
     }
 
     public String cacheTvMetadata(int tvdbId, PlexMetadata metadata) {
-        PlexMediaContainer container = new PlexMediaContainer();
+        var container = new PlexMediaContainer();
         container.setMetadata(metadata == null ? List.of() : List.of(metadata));
-        PlexSearchResponse wrapper = new PlexSearchResponse();
+        var wrapper = new PlexSearchResponse();
         wrapper.setMediaContainer(container);
         String body = objectMapper.writeValueAsString(wrapper);
         return plexCacheService.store(tvCacheKey(tvdbId), body);
     }
 
-    private static PlexEpisodeData firstFile(PlexMetadata episode) {
+    private static @Nullable PlexEpisodeData firstFile(PlexMetadata episode) {
         if (episode.getMedia() == null || episode.getMedia().isEmpty()) {
             return null;
         }
@@ -514,7 +515,7 @@ public class PlexClient {
         return "tv-" + tvdbId;
     }
 
-    private PlexSearchResponse parse(String body) {
+    private @Nullable PlexSearchResponse parse(String body) {
         if (body == null || body.isBlank()) {
             return null;
         }

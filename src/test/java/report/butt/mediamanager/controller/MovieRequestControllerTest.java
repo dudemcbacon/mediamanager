@@ -22,7 +22,7 @@ class MovieRequestControllerTest {
 
     @Test
     void all_returnsAllFromRepository() {
-        MovieRequest m = new MovieRequest("A", 1, false, 1, "s");
+        var m = new MovieRequest("A", 1, false, 1, "s");
         when(repository.findAll()).thenReturn(List.of(m));
 
         List<MovieRequest> result = controller.all();
@@ -34,7 +34,7 @@ class MovieRequestControllerTest {
 
     @Test
     void newMovieRequest_savesAndReturns() {
-        MovieRequest m = new MovieRequest("A", 1, false, 1, "s");
+        var m = new MovieRequest("A", 1, false, 1, "s");
         when(repository.save(m)).thenReturn(m);
 
         MovieRequest result = controller.newMovieRequest(m);
@@ -47,7 +47,7 @@ class MovieRequestControllerTest {
 
     @Test
     void one_found_returnsRequest() {
-        MovieRequest m = new MovieRequest("A", 1, false, 1, "s");
+        var m = new MovieRequest("A", 1, false, 1, "s");
         when(repository.findById(1L)).thenReturn(Optional.of(m));
 
         assertEquals(m, controller.one(1L));
@@ -64,8 +64,8 @@ class MovieRequestControllerTest {
 
     @Test
     void replaceMovieRequest_found_updatesFieldsAndSaves() {
-        MovieRequest existing = new MovieRequest("Old", 1, false, 10, "oldStatus");
-        MovieRequest incoming = new MovieRequest("New", 2, true, 20, "newStatus");
+        var existing = new MovieRequest("Old", 1, false, 10, "oldStatus");
+        var incoming = new MovieRequest("New", 2, true, 20, "newStatus");
         when(repository.findById(1L)).thenReturn(Optional.of(existing));
         when(repository.save(existing)).thenReturn(existing);
 
@@ -78,7 +78,7 @@ class MovieRequestControllerTest {
 
     @Test
     void replaceMovieRequest_notFound_savesIncomingAsNew() {
-        MovieRequest incoming = new MovieRequest("New", 2, true, 20, "newStatus");
+        var incoming = new MovieRequest("New", 2, true, 20, "newStatus");
         when(repository.findById(1L)).thenReturn(Optional.empty());
         when(repository.save(incoming)).thenReturn(incoming);
 

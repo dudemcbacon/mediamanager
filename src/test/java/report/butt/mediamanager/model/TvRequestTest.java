@@ -1,5 +1,6 @@
 package report.butt.mediamanager.model;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class TvRequestTest {
 
     private static TvRequest available() {
-        TvRequest tv = new TvRequest("Breaking Bad", 81189, false, 1, "Common.Available");
+        var tv = new TvRequest("Breaking Bad", 81189, false, 1, "Common.Available");
         tv.setSonarrEpisodeFileCount(62);
         tv.setSonarrEpisodeCount(62);
         return tv;
@@ -68,7 +69,7 @@ class TvRequestTest {
         TvRequest tv = available();
         int h1 = tv.hashCode();
         int h2 = tv.hashCode();
-        assert h1 == h2;
+        assertEquals(h2, h1);
     }
 
     @Test
@@ -78,55 +79,55 @@ class TvRequestTest {
 
     @Test
     void settersAndGetters_roundTrip() {
-        TvRequest tv = new TvRequest("Show", 12345, true, 5, "Common.Available");
+        var tv = new TvRequest("Show", 12345, true, 5, "Common.Available");
 
         tv.setTvdbId(999);
-        assert tv.getTvdbId() == 999;
+        assertEquals(999, tv.getTvdbId());
 
         tv.setPlexTvdbId(888);
-        assert tv.getPlexTvdbId() == 888;
+        assertEquals(888, tv.getPlexTvdbId());
 
         tv.setSonarrSeriesId(77);
-        assert tv.getSonarrSeriesId() == 77;
+        assertEquals(77, tv.getSonarrSeriesId());
 
         tv.setSonarrTitleSlug("show-slug");
-        assert "show-slug".equals(tv.getSonarrTitleSlug());
+        assertEquals("show-slug", tv.getSonarrTitleSlug());
 
         tv.setSonarrMonitored(true);
         assertTrue(tv.getSonarrMonitored());
 
         tv.setSonarrMonitoredAll("all");
-        assert "all".equals(tv.getSonarrMonitoredAll());
+        assertEquals("all", tv.getSonarrMonitoredAll());
 
         tv.setSonarrPath("/tv/show");
-        assert "/tv/show".equals(tv.getSonarrPath());
+        assertEquals("/tv/show", tv.getSonarrPath());
 
         tv.setSonarrRootFolderPath("/tv");
-        assert "/tv".equals(tv.getSonarrRootFolderPath());
+        assertEquals("/tv", tv.getSonarrRootFolderPath());
 
         tv.setSonarrEpisodeFileCount(10);
-        assert tv.getSonarrEpisodeFileCount() == 10;
+        assertEquals(10, tv.getSonarrEpisodeFileCount());
 
         tv.setSonarrEpisodeCount(12);
-        assert tv.getSonarrEpisodeCount() == 12;
+        assertEquals(12, tv.getSonarrEpisodeCount());
 
         tv.setSonarrTotalEpisodeCount(50);
-        assert tv.getSonarrTotalEpisodeCount() == 50;
+        assertEquals(50, tv.getSonarrTotalEpisodeCount());
 
         Instant t = Instant.parse("2024-06-01T00:00:00Z");
         tv.setSonarrLastSearched(t);
-        assert tv.getSonarrLastSearched().equals(t);
+        assertEquals(t, tv.getSonarrLastSearched());
 
         tv.setSonarrOriginalLanguage("English");
-        assert "English".equals(tv.getSonarrOriginalLanguage());
+        assertEquals("English", tv.getSonarrOriginalLanguage());
 
         tv.setSonarrQualityProfile("HD");
-        assert "HD".equals(tv.getSonarrQualityProfile());
+        assertEquals("HD", tv.getSonarrQualityProfile());
 
         tv.setOmbiTotalSeasons(5);
-        assert tv.getOmbiTotalSeasons() == 5;
+        assertEquals(5, tv.getOmbiTotalSeasons());
 
         tv.setOmbiExternalProviderId(42);
-        assert tv.getOmbiExternalProviderId() == 42;
+        assertEquals(42, tv.getOmbiExternalProviderId());
     }
 }

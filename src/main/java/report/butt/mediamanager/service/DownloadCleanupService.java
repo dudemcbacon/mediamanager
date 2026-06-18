@@ -1,8 +1,10 @@
 package report.butt.mediamanager.service;
 
+import com.google.errorprone.annotations.Var;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -65,10 +67,10 @@ public class DownloadCleanupService {
         }
         Set<String> hashes = torrentHashes.stream()
                 .filter(Objects::nonNull)
-                .map(s -> s.toLowerCase())
+                .map(s -> s.toLowerCase(Locale.ROOT))
                 .collect(Collectors.toSet());
 
-        int torrentsDeleted = 0;
+        @Var int torrentsDeleted = 0;
 
         Set<Integer> movieIds = new LinkedHashSet<>();
         RadarrQueue radarrQueue = fetch(radarrClient::getQueue, "Radarr queue");
@@ -111,7 +113,7 @@ public class DownloadCleanupService {
             sonarrClient.searchEpisodes(episodeIds);
         }
 
-        int moviesReprocessed = 0;
+        @Var int moviesReprocessed = 0;
         for (Integer movieId : movieIds) {
             var request = movieRequestRepository.findByRadarrRequestId(movieId);
             if (request.isPresent()) {
@@ -119,7 +121,7 @@ public class DownloadCleanupService {
                 moviesReprocessed++;
             }
         }
-        int showsReprocessed = 0;
+        @Var int showsReprocessed = 0;
         for (Integer seriesId : seriesIds) {
             for (TvRequest request : tvRequestRepository.findBySonarrSeriesId(seriesId)) {
                 tvRefreshService.refreshOne(request.getId());
@@ -136,13 +138,13 @@ public class DownloadCleanupService {
     }
 
     private static boolean matches(Integer queueId, String downloadId, Set<String> hashes) {
-        return queueId != null && downloadId != null && hashes.contains(downloadId.toLowerCase());
+        return queueId != null && downloadId != null && hashes.contains(downloadId.toLowerCase(Locale.ROOT));
     }
 
     private static <X> X fetch(Supplier<X> call, String what) {
         try {
             return call.get();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to fetch {}; skipping its deletions", what, e);
             return null;
         }

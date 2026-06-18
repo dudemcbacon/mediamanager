@@ -1,10 +1,13 @@
 package report.butt.mediamanager.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Objects;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,27 +20,27 @@ class AppUserDetailsServiceTest {
 
     @Test
     void loadUserByUsername_found_returnsUserDetails() {
-        AppUser user = new AppUser("alice", "hashedPwd", "ADMIN");
+        var user = new AppUser("alice", "hashedPwd", "ADMIN");
         when(repository.findByUsername("alice")).thenReturn(Optional.of(user));
 
         UserDetails details = service.loadUserByUsername("alice");
 
         assertEquals("alice", details.getUsername());
         assertEquals("hashedPwd", details.getPassword());
-        assert details.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
-        assert details.isEnabled();
+        assertTrue(details.getAuthorities().stream().anyMatch(a -> Objects.equals(a.getAuthority(), "ROLE_ADMIN")));
+        assertTrue(details.isEnabled());
     }
 
     @Test
     void loadUserByUsername_found_disabledUser_returnsDisabledDetails() {
-        AppUser user = new AppUser("bob", "pwd", "USER");
+        var user = new AppUser("bob", "pwd", "USER");
         user.setEnabled(false);
         when(repository.findByUsername("bob")).thenReturn(Optional.of(user));
 
         UserDetails details = service.loadUserByUsername("bob");
 
-        assert !details.isEnabled();
-        assert details.getAuthorities().stream().anyMatch(a -> "ROLE_USER".equals(a.getAuthority()));
+        assertFalse(details.isEnabled());
+        assertTrue(details.getAuthorities().stream().anyMatch(a -> Objects.equals(a.getAuthority(), "ROLE_USER")));
     }
 
     @Test

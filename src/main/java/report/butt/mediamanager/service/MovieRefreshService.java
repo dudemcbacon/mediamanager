@@ -1,5 +1,6 @@
 package report.butt.mediamanager.service;
 
+import com.google.errorprone.annotations.Var;
 import com.newrelic.api.agent.Trace;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -10,6 +11,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -85,7 +87,7 @@ public class MovieRefreshService {
                 .collect(Collectors.toMap(MovieRequest::getOmbiRequestId, Function.identity(), (a, b) -> a));
 
         List<MovieRequest> toSave = new ArrayList<>();
-        int unchanged = 0;
+        @Var int unchanged = 0;
         for (OmbiMovieRequest ombiMovie : ombiMovies) {
             MovieRequest existing = existingByOmbiId.get(ombiMovie.getId());
             MovieRequest movieRequest = existing != null
@@ -155,7 +157,7 @@ public class MovieRefreshService {
                         .orElse(null);
 
         Integer tmdbid = ombiMovie != null ? ombiMovie.getTheMovieDbId() : movieRequest.getTmdbid();
-        Movie radarrMovie = null;
+        @Var Movie radarrMovie = null;
         if (tmdbid != null) {
             List<Movie> radarrMovies = radarrClient.getMoviesByTmdbId(tmdbid);
             if (!radarrMovies.isEmpty()) {
@@ -176,7 +178,7 @@ public class MovieRefreshService {
             MovieRequest movieRequest,
             OmbiMovieRequest ombiMovie,
             Movie radarrMovie,
-            Map<Integer, PlexMetadata> plexByTmdb,
+            @Nullable Map<Integer, PlexMetadata> plexByTmdb,
             Map<Integer, String> qualityProfilesById) {
         if (ombiMovie != null) {
             String ombiUserName = ombiMovie.getRequestedUser() == null
@@ -266,7 +268,7 @@ public class MovieRefreshService {
             } else {
                 log.info("No Plex match found for tmdbId {}", radarrMovie.getTmdbId());
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Plex lookup failed for tmdbId {}", radarrMovie.getTmdbId(), e);
         }
     }

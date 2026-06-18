@@ -1,5 +1,6 @@
 package report.butt.mediamanager.validation;
 
+import java.util.Objects;
 import org.springframework.stereotype.Component;
 import report.butt.mediamanager.model.RequestType;
 import report.butt.mediamanager.model.TvRequest;
@@ -11,7 +12,8 @@ public class SonarrMonitored implements Validator<TvRequest> {
 
     @Override
     public Boolean validate(TvRequest request) {
-        return Boolean.TRUE.equals(request.getSonarrMonitored()) && MONITOR_ALL.equals(request.getSonarrMonitoredAll());
+        return Objects.equals(request.getSonarrMonitored(), true)
+                && Objects.equals(request.getSonarrMonitoredAll(), MONITOR_ALL);
     }
 
     @Override

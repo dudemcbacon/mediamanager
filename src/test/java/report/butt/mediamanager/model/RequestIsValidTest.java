@@ -30,7 +30,7 @@ class RequestIsValidTest {
         MovieRequest r = req();
         Validation v1 = passing(r, "PathsMatch");
         Validation v2 = passing(r, "RadarrHasFile");
-        Map<String, Validation> map = Map.of("PathsMatch", v1, "RadarrHasFile", v2);
+        var map = Map.of("PathsMatch", v1, "RadarrHasFile", v2);
 
         assertTrue(r.isValid(List.of("PathsMatch", "RadarrHasFile"), map));
     }
@@ -45,7 +45,7 @@ class RequestIsValidTest {
     void missingValidatorInMap_returnsFalse() {
         MovieRequest r = req();
         Validation v1 = passing(r, "PathsMatch");
-        Map<String, Validation> map = Map.of("PathsMatch", v1);
+        var map = Map.of("PathsMatch", v1);
 
         assertFalse(r.isValid(List.of("PathsMatch", "MissingValidator"), map));
     }
@@ -55,7 +55,7 @@ class RequestIsValidTest {
         MovieRequest r = req();
         Validation v1 = passing(r, "PathsMatch");
         Validation v2 = failing(r, "RadarrHasFile");
-        Map<String, Validation> map = Map.of("PathsMatch", v1, "RadarrHasFile", v2);
+        var map = Map.of("PathsMatch", v1, "RadarrHasFile", v2);
 
         assertFalse(r.isValid(List.of("PathsMatch", "RadarrHasFile"), map));
     }
@@ -63,8 +63,8 @@ class RequestIsValidTest {
     @Test
     void validatorWithNullResult_returnsFalse() {
         MovieRequest r = req();
-        Validation v = new Validation("PathsMatch", null, r);
-        Map<String, Validation> map = Map.of("PathsMatch", v);
+        var v = new Validation("PathsMatch", null, r);
+        var map = Map.of("PathsMatch", v);
 
         assertFalse(r.isValid(List.of("PathsMatch"), map));
     }

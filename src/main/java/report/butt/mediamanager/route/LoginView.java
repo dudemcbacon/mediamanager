@@ -21,7 +21,7 @@ public class LoginView extends Main implements BeforeEnterObserver {
         login = new LoginForm();
         login.setAction("login");
 
-        VerticalLayout layout = new VerticalLayout();
+        var layout = new VerticalLayout();
         layout.setAlignItems(FlexComponent.Alignment.CENTER);
         layout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
         layout.add(login);

@@ -35,13 +35,15 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -73,6 +75,10 @@ import report.butt.mediamanager.validation.Validator;
 @Component
 @UIScope
 @StyleSheet("grid-available.css")
+// Async-UI view: remote/DB data is loaded off the UI thread via CompletableFuture + whenComplete/UI#access (@Push).
+// Each such future handles its own success and failure in the callback (log + toast) and is intentionally not
+// awaited — blocking on it would freeze the UI thread — so FutureReturnValueIgnored is suppressed class-wide.
+@SuppressWarnings("FutureReturnValueIgnored")
 public class MovieRequestView extends VerticalLayout {
 
     private static final Logger log = LoggerFactory.getLogger(MovieRequestView.class);
@@ -124,8 +130,10 @@ public class MovieRequestView extends VerticalLayout {
     /** How often to quietly re-fetch live Radarr/download status while the view is open. */
     private static final int LIVE_POLL_INTERVAL_MS = 30_000;
 
-    private Registration pollRegistration;
+    private @Nullable Registration pollRegistration;
 
+    // Spring constructor injection; the parameter count reflects injected collaborators, not a design smell.
+    @SuppressWarnings("TooManyParameters")
     public MovieRequestView(
             MovieRequestRepository movieRequestRepository,
             MovieController movieController,
@@ -219,8 +227,8 @@ public class MovieRequestView extends VerticalLayout {
                                 mr,
                                 "Updating quality profile…",
                                 () -> movieController.setQualityProfileToAny(mr.getId()))));
-        GridMenuItem<MovieRequest> scanFfprobeItem = contextMenu.addItem("Scan with FFprobe", e -> e.getItem()
-                .ifPresent(mr -> {
+        GridMenuItem<MovieRequest> scanFfprobeItem =
+                contextMenu.addItem("Scan with FFprobe", e -> e.getItem().ifPresent(mr -> {
                     movieController.scanWithFfprobe(mr.getId());
                     Notification.show("FFprobe scan queued for \"" + mr.getTitle() + "\".");
                 }));
@@ -250,8 +258,8 @@ public class MovieRequestView extends VerticalLayout {
                 return false;
             }
             markAvailableItem.setEnabled(mr.getOmbiRequestId() != null);
-            scanFfprobeItem.setEnabled(
-                    mr.getRadarrMovieFilePath() != null && !mr.getRadarrMovieFilePath().isBlank());
+            scanFfprobeItem.setEnabled(mr.getRadarrMovieFilePath() != null
+                    && !mr.getRadarrMovieFilePath().isBlank());
             viewOmbiItem.setEnabled(ombiHref(mr) != null);
             viewPlexAppItem.setEnabled(plexAppHref(mr) != null);
             viewPlexJsonItem.setEnabled(plexHref(mr) != null);
@@ -260,7 +268,7 @@ public class MovieRequestView extends VerticalLayout {
         });
 
         grid.setPartNameGenerator(mr -> {
-            if (Boolean.TRUE.equals(mr.getStale())) {
+            if (Objects.equals(mr.getStale(), true)) {
                 return "stale";
             }
             if (movieRequestsWithNotes.contains(mr.getId()) && !mr.isAvailable()) {
@@ -274,16 +282,16 @@ public class MovieRequestView extends VerticalLayout {
         grid.setWidthFull();
         grid.setMinHeight("0");
 
-        Button refreshAll = new Button(
+        var refreshAll = new Button(
                 "Refresh All",
                 e -> runBulkAction("Refreshing all…", () -> {
                     movieController.refreshAll();
                     movieController.validateAll();
                 }));
-        Button validateAll =
+        var validateAll =
                 new Button("Validate All", e -> runBulkAction("Validating all…", movieController::validateAll));
-        Button searchAll = new Button("Search All", e -> runBulkAction("Searching all…", movieController::searchAll));
-        Button testNotifications = new Button("Test Notifications", e -> runNotificationCheck());
+        var searchAll = new Button("Search All", e -> runBulkAction("Searching all…", movieController::searchAll));
+        var testNotifications = new Button("Test Notifications", e -> runNotificationCheck());
         testNotifications.setVisible(admin);
         bulkButtons.addAll(List.of(refreshAll, validateAll, searchAll, testNotifications));
         showValidCheckbox.addValueChangeListener(e -> applyFilters());
@@ -296,16 +304,15 @@ public class MovieRequestView extends VerticalLayout {
         searchField.setClearButtonVisible(true);
         searchField.setValueChangeMode(ValueChangeMode.LAZY);
         searchField.addValueChangeListener(e -> applyFilters());
-        HorizontalLayout statsRow = new HorizontalLayout(radarrQueueCard, radarrHealthCard);
+        var statsRow = new HorizontalLayout(radarrQueueCard, radarrHealthCard);
         statsRow.setAlignItems(FlexComponent.Alignment.CENTER);
         statsRow.getStyle().set("flex-wrap", "wrap");
-        HorizontalLayout toolbar =
+        var toolbar =
                 new HorizontalLayout(searchField, refreshAll, validateAll, searchAll, testNotifications, totalLabel);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
         // Many controls in one row: let them wrap instead of overflowing on narrow screens.
         toolbar.getStyle().set("flex-wrap", "wrap");
-        HorizontalLayout filterRow =
-                new HorizontalLayout(showValidCheckbox, showStaleCheckbox, showWithNotesCheckbox);
+        var filterRow = new HorizontalLayout(showValidCheckbox, showStaleCheckbox, showWithNotesCheckbox);
         filterRow.setAlignItems(FlexComponent.Alignment.CENTER);
         filterRow.getStyle().set("flex-wrap", "wrap");
 
@@ -336,8 +343,9 @@ public class MovieRequestView extends VerticalLayout {
     }
 
     /**
-     * Like {@link #runAction}, but for the toolbar's library-wide buttons: disables all of them for the duration so a
-     * long operation can't be double-fired or overlapped with another bulk action, re-enabling them on completion.
+     * Like {@link RequestViewSupport#runAsync}, but for the toolbar's library-wide buttons: disables all of them for
+     * the duration so a long operation can't be double-fired or overlapped with another bulk action, re-enabling them
+     * on completion.
      */
     private void runBulkAction(String workingMessage, Runnable action) {
         getUI().ifPresent(ui -> {
@@ -391,6 +399,8 @@ public class MovieRequestView extends VerticalLayout {
                 }));
     }
 
+    // Internal data carrier; its collection components are never mutated after construction.
+    @SuppressWarnings("ImmutableMemberCollection")
     private record GridSnapshot(
             Map<Long, Map<String, Validation>> latestValidations, Set<Long> withNotes, List<MovieRequest> all) {}
 
@@ -432,7 +442,7 @@ public class MovieRequestView extends VerticalLayout {
                 .filter(mr -> mr.isValid(knownValidatorNames, latestValidations.getOrDefault(mr.getId(), Map.of())))
                 .count();
         long stale = allRequests.stream()
-                .filter(mr -> Boolean.TRUE.equals(mr.getStale()))
+                .filter(mr -> Objects.equals(mr.getStale(), true))
                 .count();
         long withNotes = allRequests.stream()
                 .filter(mr -> movieRequestsWithNotes.contains(mr.getId()))
@@ -443,7 +453,9 @@ public class MovieRequestView extends VerticalLayout {
         totalLabel.setText("Total movies: " + allRequests.size());
     }
 
-    private record RowSnapshot(MovieRequest request, Map<String, Validation> validations, boolean hasNotes) {}
+    // Internal data carrier; its collection components are never mutated after construction.
+    @SuppressWarnings("ImmutableMemberCollection")
+    private record RowSnapshot(@Nullable MovieRequest request, Map<String, Validation> validations, boolean hasNotes) {}
 
     /** Refreshes a single row's DB state (validations, notes, entity) off the UI thread — see {@link #runRowAction}. */
     private void refreshRow(Long id) {
@@ -564,6 +576,8 @@ public class MovieRequestView extends VerticalLayout {
                 }));
     }
 
+    // Internal data carrier; its collection components are never mutated after construction.
+    @SuppressWarnings("ImmutableMemberCollection")
     private record StatsResult(RadarrQueue queue, List<RadarrHealthItem> health) {}
 
     /** Kicks off the Deluge + SABnzbd fetch on the current UI, if the view is attached; a no-op otherwise. */
@@ -608,6 +622,8 @@ public class MovieRequestView extends VerticalLayout {
                 }));
     }
 
+    // Internal data carrier; its collection components are never mutated after construction.
+    @SuppressWarnings("ImmutableMemberCollection")
     private record DownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {}
 
     /**
@@ -621,7 +637,7 @@ public class MovieRequestView extends VerticalLayout {
         slotByMovieId.clear();
         Map<String, DelugeTorrent> byLowerHash = new HashMap<>();
         if (torrents != null) {
-            torrents.forEach((hash, torrent) -> byLowerHash.put(hash.toLowerCase(), torrent));
+            torrents.forEach((hash, torrent) -> byLowerHash.put(hash.toLowerCase(Locale.ROOT), torrent));
         }
         Map<String, SabnzbdSlot> byNzoId = slots == null ? Map.of() : slots;
         downloadIdByMovieId.forEach((movieId, downloadId) -> {
@@ -629,7 +645,7 @@ public class MovieRequestView extends VerticalLayout {
                 return;
             }
             if (RequestViewSupport.isTorrent(protocolByMovieId.get(movieId))) {
-                DelugeTorrent torrent = byLowerHash.get(downloadId.toLowerCase());
+                DelugeTorrent torrent = byLowerHash.get(downloadId.toLowerCase(Locale.ROOT));
                 if (torrent != null) {
                     torrentByMovieId.put(movieId, torrent);
                 }
@@ -651,19 +667,19 @@ public class MovieRequestView extends VerticalLayout {
         String term =
                 searchField.getValue() == null ? "" : searchField.getValue().trim();
         if (!term.isBlank()) {
-            String lower = term.toLowerCase();
+            String lower = term.toLowerCase(Locale.ROOT);
             grid.setItems(allRequests.stream()
-                    .filter(mr ->
-                            mr.getTitle() != null && mr.getTitle().toLowerCase().contains(lower))
+                    .filter(mr -> mr.getTitle() != null
+                            && mr.getTitle().toLowerCase(Locale.ROOT).contains(lower))
                     .toList());
             return;
         }
 
-        boolean showValid = Boolean.TRUE.equals(showValidCheckbox.getValue());
-        boolean showStale = Boolean.TRUE.equals(showStaleCheckbox.getValue());
-        boolean showWithNotes = Boolean.TRUE.equals(showWithNotesCheckbox.getValue());
+        boolean showValid = Objects.equals(showValidCheckbox.getValue(), true);
+        boolean showStale = Objects.equals(showStaleCheckbox.getValue(), true);
+        boolean showWithNotes = Objects.equals(showWithNotesCheckbox.getValue(), true);
         grid.setItems(allRequests.stream()
-                .filter(mr -> showStale || !Boolean.TRUE.equals(mr.getStale()))
+                .filter(mr -> showStale || !Objects.equals(mr.getStale(), true))
                 .filter(mr -> showWithNotes || !movieRequestsWithNotes.contains(mr.getId()))
                 .filter(mr -> showValid
                         || !mr.isValid(knownValidatorNames, latestValidations.getOrDefault(mr.getId(), Map.of())))
@@ -703,8 +719,8 @@ public class MovieRequestView extends VerticalLayout {
     }
 
     /**
-     * Displays the most recent ffprobe scan for the movie. The scan's streams are eagerly fetched by the repository,
-     * so this read is safe to run on the UI thread; rendering is shared with the TV view via {@link RequestViewSupport}.
+     * Displays the most recent ffprobe scan for the movie. The scan's streams are eagerly fetched by the repository, so
+     * this read is safe to run on the UI thread; rendering is shared with the TV view via {@link RequestViewSupport}.
      */
     private void openFfprobeResultsDialog(MovieRequest mr) {
         RequestViewSupport.openFfprobeResultsDialog(
@@ -750,22 +766,22 @@ public class MovieRequestView extends VerticalLayout {
         }
     }
 
-    private String ombiHref(MovieRequest mr) {
+    private @Nullable String ombiHref(MovieRequest mr) {
         Integer tmdbid = mr.getTmdbid();
         return tmdbid == null ? null : ombiUrl + "/details/movie/" + tmdbid;
     }
 
-    private String radarrHref(MovieRequest mr) {
+    private @Nullable String radarrHref(MovieRequest mr) {
         Integer tmdbid = mr.getTmdbid();
         return tmdbid == null ? null : radarrUrl + "/movie/" + tmdbid;
     }
 
-    private static String plexHref(MovieRequest mr) {
+    private static @Nullable String plexHref(MovieRequest mr) {
         String url = mr.getPlexMetadataUrl();
         return url == null || url.isBlank() ? null : url;
     }
 
-    private String plexAppHref(MovieRequest mr) {
+    private @Nullable String plexAppHref(MovieRequest mr) {
         String ratingKey = mr.getPlexMetadataId();
         if (ratingKey == null || ratingKey.isBlank() || plexMachineIdentifier == null) {
             return null;
@@ -774,7 +790,7 @@ public class MovieRequestView extends VerticalLayout {
                 + ratingKey;
     }
 
-    private static String tmdbHref(MovieRequest mr) {
+    private static @Nullable String tmdbHref(MovieRequest mr) {
         Integer tmdbid = mr.getTmdbid();
         return tmdbid == null ? null : "https://www.themoviedb.org/movie/" + tmdbid;
     }
@@ -835,7 +851,7 @@ public class MovieRequestView extends VerticalLayout {
         if (protocol == null) {
             return new Span("—");
         }
-        Badge badge = new Badge(protocol);
+        var badge = new Badge(protocol);
         if (RequestViewSupport.isTorrent(protocol)) {
             badge.addThemeVariants(BadgeVariant.FILLED);
         } else {

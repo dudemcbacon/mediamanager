@@ -17,9 +17,8 @@ class ValidationRuleMetadataTest {
 
     @Test
     void allMovieValidatorsExposeConsistentMetadata() {
-        TvSeasonRequestRepository repo = mock(TvSeasonRequestRepository.class);
 
-        List<Validator<?>> movieValidators = List.of(
+        var movieValidators = List.of(
                 new AvailableInOmbi(),
                 new AvailableInPlex(),
                 new AvailableInRadarr(),
@@ -49,7 +48,7 @@ class ValidationRuleMetadataTest {
     void allTvValidatorsExposeConsistentMetadata() {
         TvSeasonRequestRepository repo = mock(TvSeasonRequestRepository.class);
 
-        List<Validator<?>> tvValidators = List.of(
+        var tvValidators = List.of(
                 new AvailableInOmbiTv(),
                 new AvailableInSonarr(),
                 new AvailableInPlexTv(),
@@ -74,7 +73,7 @@ class ValidationRuleMetadataTest {
 
     @Test
     void allEpisodeValidatorsExposeConsistentMetadata() {
-        List<EpisodeValidator> episodeValidators =
+        var episodeValidators =
                 List.of(new EpisodePathsMatch(), new EpisodeSearchedRecently(), new EpisodeLocalFileMatchesPlex());
 
         for (EpisodeValidator rule : episodeValidators) {
@@ -87,8 +86,8 @@ class ValidationRuleMetadataTest {
 
     @Test
     void movieValidatorsSupportedTypeIsMovie() {
-        TvSeasonRequestRepository repo = mock(TvSeasonRequestRepository.class);
-        List<Validator<?>> movieValidators = List.of(
+
+        var movieValidators = List.of(
                 new AvailableInOmbi(),
                 new AvailableInPlex(),
                 new AvailableInRadarr(),
@@ -112,7 +111,7 @@ class ValidationRuleMetadataTest {
     @Test
     void tvValidatorsSupportedTypeIsTv() {
         TvSeasonRequestRepository repo = mock(TvSeasonRequestRepository.class);
-        List<Validator<?>> tvValidators = List.of(
+        var tvValidators = List.of(
                 new AvailableInOmbiTv(),
                 new AvailableInSonarr(),
                 new AvailableInPlexTv(),

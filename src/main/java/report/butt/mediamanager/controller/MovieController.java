@@ -4,8 +4,10 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +54,8 @@ public class MovieController {
     private final FfprobeScanService ffprobeScanService;
     private final JobRequestScheduler jobRequestScheduler;
 
+    // Spring constructor injection; the parameter count reflects injected collaborators, not a design smell.
+    @SuppressWarnings("TooManyParameters")
     @Autowired
     public MovieController(
             MovieRequestRepository movieRequestRepository,
@@ -75,20 +79,20 @@ public class MovieController {
     }
 
     /** Radarr's current download queue, or null if Radarr can't be reached. */
-    public RadarrQueue getRadarrQueue() {
+    public @Nullable RadarrQueue getRadarrQueue() {
         try {
             return radarrClient.getQueue();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to fetch Radarr queue", e);
             return null;
         }
     }
 
     /** Active Radarr health issues, or null if Radarr can't be reached. */
-    public List<RadarrHealthItem> getRadarrHealth() {
+    public @Nullable List<RadarrHealthItem> getRadarrHealth() {
         try {
             return radarrClient.getHealth();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to fetch Radarr health", e);
             return null;
         }
@@ -104,8 +108,8 @@ public class MovieController {
     @PostMapping("/movies/search-missing")
     public String searchMissing() {
         List<MovieRequest> movieRequests = movieRequestRepository.findAll().stream()
-                .filter(movieRequest -> "Common.ProcessingRequest".equals(movieRequest.getOmbiRequestStatus())
-                        && Boolean.FALSE.equals(movieRequest.getRadarrHasFile())
+                .filter(movieRequest -> Objects.equals(movieRequest.getOmbiRequestStatus(), "Common.ProcessingRequest")
+                        && Objects.equals(movieRequest.getRadarrHasFile(), false)
                         && movieRequest.getRadarrRequestId() != null)
                 .toList();
 
@@ -320,7 +324,7 @@ public class MovieController {
         RadarrQueue queue;
         try {
             queue = radarrClient.getQueue();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn(
                     "Failed to fetch Radarr queue; cannot delete downloads for movie request {} ({})",
                     requestId,

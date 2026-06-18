@@ -6,21 +6,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.route.StatsView.RequesterCount;
 
 class StatsViewLeaderboardTest {
 
-    private static MovieRequest requestedBy(String username) {
-        MovieRequest movie = new MovieRequest("Movie", 1, false, 1, "Common.ProcessingRequest");
+    private static MovieRequest requestedBy(@Nullable String username) {
+        var movie = new MovieRequest("Movie", 1, false, 1, "Common.ProcessingRequest");
         movie.setOmbiUserName(username);
         return movie;
     }
 
     private static MovieRequest availableRequestedBy(String username) {
         // isAvailable() requires radarrHasFile==true AND ombiRequestStatus==Common.Available.
-        MovieRequest movie = new MovieRequest("Movie", 1, true, 1, "Common.Available");
+        var movie = new MovieRequest("Movie", 1, true, 1, "Common.Available");
         movie.setRadarrHasFile(true);
         movie.setOmbiUserName(username);
         return movie;
@@ -41,13 +43,13 @@ class StatsViewLeaderboardTest {
 
     @Test
     void blankOrNullUsernamesBucketIntoUnknown() {
-        List<RequesterCount> board = StatsView.leaderboard(
-                List.of(requestedBy(null), requestedBy("  "), requestedBy("carol")), Map.of());
+        List<RequesterCount> board =
+                StatsView.leaderboard(List.of(requestedBy(null), requestedBy("  "), requestedBy("carol")), Map.of());
 
         assertEquals(2, board.size());
         assertEquals("unknown", board.get(0).username()); // 2 anonymous requests → top
         assertEquals(2, board.get(0).count());
-        assertTrue(board.stream().anyMatch(r -> "carol".equals(r.username()) && r.count() == 1));
+        assertTrue(board.stream().anyMatch(r -> Objects.equals(r.username(), "carol") && r.count() == 1));
     }
 
     @Test
@@ -84,25 +86,31 @@ class StatsViewLeaderboardTest {
     @Test
     void bytesLookedUpByNormalizedUserKey() {
         // bytesByUser keys are pre-normalized: blank/null users roll up to "unknown".
-        Map<String, Long> bytes = Map.of("alice", 5_000L, "unknown", 2_000L);
+        var bytes = Map.of("alice", 5_000L, "unknown", 2_000L);
         List<RequesterCount> board = StatsView.leaderboard(
                 List.of(requestedBy("alice"), requestedBy("alice"), requestedBy(null), requestedBy("bob")), bytes);
 
         // alice: 5000, unknown: 2000, bob: 0 (no entry).
-        assertEquals(5_000L, board.stream()
-                .filter(r -> "alice".equals(r.username()))
-                .findFirst()
-                .orElseThrow()
-                .bytes());
-        assertEquals(2_000L, board.stream()
-                .filter(r -> "unknown".equals(r.username()))
-                .findFirst()
-                .orElseThrow()
-                .bytes());
-        assertEquals(0L, board.stream()
-                .filter(r -> "bob".equals(r.username()))
-                .findFirst()
-                .orElseThrow()
-                .bytes());
+        assertEquals(
+                5_000L,
+                board.stream()
+                        .filter(r -> Objects.equals(r.username(), "alice"))
+                        .findFirst()
+                        .orElseThrow()
+                        .bytes());
+        assertEquals(
+                2_000L,
+                board.stream()
+                        .filter(r -> Objects.equals(r.username(), "unknown"))
+                        .findFirst()
+                        .orElseThrow()
+                        .bytes());
+        assertEquals(
+                0L,
+                board.stream()
+                        .filter(r -> Objects.equals(r.username(), "bob"))
+                        .findFirst()
+                        .orElseThrow()
+                        .bytes());
     }
 }

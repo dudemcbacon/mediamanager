@@ -73,19 +73,19 @@ public class UserAdminView extends VerticalLayout {
     }
 
     private void openAddUserDialog() {
-        Dialog dialog = new Dialog();
+        var dialog = new Dialog();
         dialog.setHeaderTitle("Add user");
 
-        TextField username = new TextField("Username");
+        var username = new TextField("Username");
         username.setWidthFull();
-        PasswordField password = new PasswordField("Password");
+        var password = new PasswordField("Password");
         password.setWidthFull();
         Select<Role> role = new Select<>();
         role.setLabel("Role");
         role.setItems(Role.values());
         role.setValue(Role.USER);
 
-        Button submit = new Button("Create", e -> {
+        var submit = new Button("Create", e -> {
             try {
                 userAdminService.create(username.getValue(), password.getValue(), role.getValue());
                 dialog.close();
@@ -95,7 +95,7 @@ public class UserAdminView extends VerticalLayout {
                 Notification.show(ex.getMessage());
             }
         });
-        Button cancel = new Button("Cancel", e -> dialog.close());
+        var cancel = new Button("Cancel", e -> dialog.close());
 
         dialog.add(username, password, role);
         dialog.getFooter().add(cancel, submit);
@@ -103,13 +103,13 @@ public class UserAdminView extends VerticalLayout {
     }
 
     private void openResetPasswordDialog(AppUser user) {
-        Dialog dialog = new Dialog();
+        var dialog = new Dialog();
         dialog.setHeaderTitle("Reset password for \"" + user.getUsername() + "\"");
 
-        PasswordField password = new PasswordField("New password");
+        var password = new PasswordField("New password");
         password.setWidthFull();
 
-        Button submit = new Button("Reset", e -> {
+        var submit = new Button("Reset", e -> {
             try {
                 userAdminService.resetPassword(user.getId(), password.getValue());
                 dialog.close();
@@ -118,7 +118,7 @@ public class UserAdminView extends VerticalLayout {
                 Notification.show(ex.getMessage());
             }
         });
-        Button cancel = new Button("Cancel", e -> dialog.close());
+        var cancel = new Button("Cancel", e -> dialog.close());
 
         dialog.add(password);
         dialog.getFooter().add(cancel, submit);

@@ -51,7 +51,7 @@ public class SonarrClient {
                     .body(new ParameterizedTypeReference<List<QualityProfile>>() {});
             this.qualityProfilesById =
                     QualityProfiles.index(profiles, QualityProfile::getId, QualityProfile::getName, "Sonarr");
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to cache Sonarr quality profiles; names will be unavailable", e);
         }
     }

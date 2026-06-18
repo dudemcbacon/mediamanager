@@ -111,7 +111,7 @@ class MovieValidationRulesTest {
     @Test
     void englishOrAvailable_passesWhenNonEnglishAndAvailable() {
         // isAvailable() == radarrHasFile && ombiRequestStatus == Common.Available
-        MovieRequest m = new MovieRequest("Title", 1, true, 1, "Common.Available");
+        var m = new MovieRequest("Title", 1, true, 1, "Common.Available");
         m.setRadarrHasFile(true);
         m.setRadarrOriginalLanguage("French");
         assertTrue(new EnglishOrAvailable().validate(m));
@@ -240,7 +240,7 @@ class MovieValidationRulesTest {
     @Test
     void qualityProfileAnyOrAvailable_passesWhenAvailable() {
         // isAvailable() = radarrHasFile==true AND ombiRequestStatus==Common.Available
-        MovieRequest m = new MovieRequest("Title", 1, true, 1, "Common.Available");
+        var m = new MovieRequest("Title", 1, true, 1, "Common.Available");
         m.setRadarrHasFile(true);
         m.setRadarrQualityProfile("HD-1080p");
         assertTrue(new QualityProfileAnyOrAvailable().validate(m));
@@ -279,7 +279,7 @@ class MovieValidationRulesTest {
 
     @Test
     void searchedRecently_passesWhenAvailable() {
-        MovieRequest m = new MovieRequest("Title", 1, true, 1, "Common.Available");
+        var m = new MovieRequest("Title", 1, true, 1, "Common.Available");
         m.setRadarrHasFile(true);
         assertTrue(new SearchedRecently().validate(m));
     }
@@ -388,7 +388,7 @@ class MovieValidationRulesTest {
 
     @Test
     void availableInOmbi_metadataIsConsistent() {
-        AvailableInOmbi rule = new AvailableInOmbi();
+        var rule = new AvailableInOmbi();
         assertTrue(rule.sortOrder() > 0);
         assertTrue(rule.shortName() != null && !rule.shortName().isBlank());
         assertTrue(rule.title() != null && !rule.title().isBlank());

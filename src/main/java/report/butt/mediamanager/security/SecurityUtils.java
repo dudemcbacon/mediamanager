@@ -1,5 +1,6 @@
 package report.butt.mediamanager.security;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -16,7 +17,7 @@ public final class SecurityUtils {
     }
 
     /** The current user's username, or null when unauthenticated. */
-    public static String currentUsername() {
+    public static @Nullable String currentUsername() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return auth == null ? null : auth.getName();
     }

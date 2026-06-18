@@ -16,7 +16,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Entity
 public class Note {
 
-    private @Id @GeneratedValue Long id;
+    @Id
+    @GeneratedValue
+    private Long id;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String notes;

@@ -189,7 +189,7 @@ public class TvRequest extends Request {
                 && sonarrEpisodeCount != null
                 && sonarrEpisodeCount > 0
                 && sonarrEpisodeFileCount.intValue() >= sonarrEpisodeCount.intValue()
-                && OMBI_AVAILABLE_STATUS.equals(getOmbiRequestStatus());
+                && Objects.equals(getOmbiRequestStatus(), OMBI_AVAILABLE_STATUS);
     }
 
     @Override

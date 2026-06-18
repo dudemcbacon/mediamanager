@@ -17,6 +17,7 @@ import net.bramp.ffmpeg.probe.FFmpegStream;
 import net.bramp.ffmpeg.shared.CodecType;
 import org.apache.commons.lang3.math.Fraction;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.FfprobeStream;
@@ -101,7 +102,7 @@ class FfprobeScanServiceTest {
         when(movieRequestRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(RequestNotFoundException.class, () -> service.scanMovie(99L));
-        verify(ffprobeScanRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(ffprobeScanRepository, never()).save(ArgumentMatchers.any());
     }
 
     @Test
@@ -112,7 +113,7 @@ class FfprobeScanServiceTest {
         when(movieRequestRepository.findById(5L)).thenReturn(Optional.of(movie));
 
         assertThrows(IllegalStateException.class, () -> service.scanMovie(5L));
-        verify(ffprobeScanRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(ffprobeScanRepository, never()).save(ArgumentMatchers.any());
     }
 
     @Test
@@ -131,7 +132,7 @@ class FfprobeScanServiceTest {
         when(tvEpisodeRequestRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(RequestNotFoundException.class, () -> service.scanEpisode(99L));
-        verify(ffprobeScanRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(ffprobeScanRepository, never()).save(ArgumentMatchers.any());
     }
 
     @Test
@@ -141,7 +142,7 @@ class FfprobeScanServiceTest {
         when(tvEpisodeRequestRepository.findById(7L)).thenReturn(Optional.of(episode));
 
         assertThrows(IllegalStateException.class, () -> service.scanEpisode(7L));
-        verify(ffprobeScanRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(ffprobeScanRepository, never()).save(ArgumentMatchers.any());
     }
 
     @Test

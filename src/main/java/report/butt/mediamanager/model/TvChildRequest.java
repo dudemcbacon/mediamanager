@@ -173,7 +173,7 @@ public class TvChildRequest {
     }
 
     public boolean isAvailable() {
-        return Boolean.TRUE.equals(ombiAvailable) && OMBI_AVAILABLE_STATUS.equals(ombiRequestStatus);
+        return Objects.equals(ombiAvailable, true) && Objects.equals(ombiRequestStatus, OMBI_AVAILABLE_STATUS);
     }
 
     @Override

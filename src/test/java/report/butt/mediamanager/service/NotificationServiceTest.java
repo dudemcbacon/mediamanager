@@ -317,7 +317,7 @@ class NotificationServiceTest {
     // --- builders ---
 
     private static DelugeTorrent torrent(String name, double progress, double timeAdded, int totalSeeds) {
-        DelugeTorrent t = new DelugeTorrent();
+        var t = new DelugeTorrent();
         t.setName(name);
         t.setProgress(progress);
         t.setTimeAdded(timeAdded);
@@ -326,26 +326,26 @@ class NotificationServiceTest {
     }
 
     private static RadarrQueue queue(RadarrQueueRecord... records) {
-        RadarrQueue q = new RadarrQueue();
+        var q = new RadarrQueue();
         q.setRecords(List.of(records));
         return q;
     }
 
     private static RadarrQueueRecord record(int movieId, String state) {
-        RadarrQueueRecord r = new RadarrQueueRecord();
+        var r = new RadarrQueueRecord();
         r.setMovieId(movieId);
         r.setTrackedDownloadState(state);
         return r;
     }
 
     private static SonarrQueue sonarrQueue(SonarrQueueRecord... records) {
-        SonarrQueue q = new SonarrQueue();
+        var q = new SonarrQueue();
         q.setRecords(List.of(records));
         return q;
     }
 
     private static SonarrQueueRecord sonarrRecord(int seriesId, int season, String state) {
-        SonarrQueueRecord r = new SonarrQueueRecord();
+        var r = new SonarrQueueRecord();
         r.setSeriesId(seriesId);
         r.setSeasonNumber(season);
         r.setTrackedDownloadState(state);
@@ -353,14 +353,14 @@ class NotificationServiceTest {
     }
 
     private static RadarrHealthItem radarrHealth(String type, String message) {
-        RadarrHealthItem item = new RadarrHealthItem();
+        var item = new RadarrHealthItem();
         item.setType(type);
         item.setMessage(message);
         return item;
     }
 
     private static SonarrHealthItem sonarrHealth(String type, String message) {
-        SonarrHealthItem item = new SonarrHealthItem();
+        var item = new SonarrHealthItem();
         item.setType(type);
         item.setMessage(message);
         return item;
@@ -373,13 +373,13 @@ class NotificationServiceTest {
     }
 
     private static TvRequest tvWithSonarrId(String title, int sonarrId) {
-        TvRequest t = new TvRequest(title, 1, false, 1, "Common.ProcessingRequest");
+        var t = new TvRequest(title, 1, false, 1, "Common.ProcessingRequest");
         t.setSonarrSeriesId(sonarrId);
         return t;
     }
 
     private static TvRequest tvOverdue(String title, Instant requestedDate) {
-        TvRequest t = new TvRequest(title, 1, false, 1, "Common.ProcessingRequest");
+        var t = new TvRequest(title, 1, false, 1, "Common.ProcessingRequest");
         t.setOmbiRequestedDate(requestedDate);
         t.setStale(false);
         return t;
@@ -387,8 +387,7 @@ class NotificationServiceTest {
 
     private static MovieRequest movie(String title, Instant requestedDate, boolean available, boolean stale) {
         // isAvailable() requires radarrHasFile==true AND ombiRequestStatus==Common.Available.
-        MovieRequest m =
-                new MovieRequest(title, 1, available, 1, available ? AVAILABLE_STATUS : "Common.ProcessingRequest");
+        var m = new MovieRequest(title, 1, available, 1, available ? AVAILABLE_STATUS : "Common.ProcessingRequest");
         m.setRadarrHasFile(available);
         m.setOmbiRequestedDate(requestedDate);
         m.setStale(stale);

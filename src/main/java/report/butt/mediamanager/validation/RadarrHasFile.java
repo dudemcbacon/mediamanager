@@ -1,5 +1,6 @@
 package report.butt.mediamanager.validation;
 
+import java.util.Objects;
 import org.springframework.stereotype.Component;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
@@ -8,7 +9,7 @@ import report.butt.mediamanager.model.RequestType;
 public class RadarrHasFile implements Validator<MovieRequest> {
     @Override
     public Boolean validate(MovieRequest request) {
-        return Boolean.TRUE.equals(request.getRadarrHasFile());
+        return Objects.equals(request.getRadarrHasFile(), true);
     }
 
     @Override

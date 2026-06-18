@@ -8,13 +8,13 @@ class RequestNotFoundExceptionTest {
 
     @Test
     void message_containsId() {
-        RequestNotFoundException ex = new RequestNotFoundException(42L);
+        var ex = new RequestNotFoundException(42L);
         assertTrue(ex.getMessage().contains("42"));
     }
 
     @Test
     void message_containsId_largeValue() {
-        RequestNotFoundException ex = new RequestNotFoundException(99999L);
+        var ex = new RequestNotFoundException(99999L);
         assertTrue(ex.getMessage().contains("99999"));
     }
 }

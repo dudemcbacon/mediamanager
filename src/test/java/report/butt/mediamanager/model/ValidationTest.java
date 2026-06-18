@@ -1,86 +1,89 @@
 package report.butt.mediamanager.model;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
 
 class ValidationTest {
 
     @Test
     void constructor_withRequest_setsFields() {
-        MovieRequest req = new MovieRequest("T", 1, false, 1, "Common.ProcessingRequest");
-        Validation v = new Validation("PathsMatch", true, req);
+        var req = new MovieRequest("T", 1, false, 1, "Common.ProcessingRequest");
+        var v = new Validation("PathsMatch", true, req);
 
-        assert "PathsMatch".equals(v.getValidationName());
+        assertEquals("PathsMatch", v.getValidationName());
         assertTrue(v.getResult());
-        assert v.getRequest() == req;
+        assertEquals(req, v.getRequest());
         assertNull(v.getTvEpisode());
     }
 
     @Test
     void constructor_withTvEpisode_setsFields() {
-        TvRequest parent = new TvRequest("Show", 100, false, 5, "Common.Available");
-        TvChildRequest child = new TvChildRequest(parent, "Show", 100, false, 6, "Common.Available");
-        TvSeasonRequest season = new TvSeasonRequest(child, 7, 1, false);
-        TvEpisodeRequest ep = new TvEpisodeRequest(season, 8, 1);
+        var parent = new TvRequest("Show", 100, false, 5, "Common.Available");
+        var child = new TvChildRequest(parent, "Show", 100, false, 6, "Common.Available");
+        var season = new TvSeasonRequest(child, 7, 1, false);
+        var ep = new TvEpisodeRequest(season, 8, 1);
 
-        Validation v = new Validation("EpisodePaths", false, ep);
+        var v = new Validation("EpisodePaths", false, ep);
 
-        assert "EpisodePaths".equals(v.getValidationName());
+        assertEquals("EpisodePaths", v.getValidationName());
         assertNull(v.getResult() == null ? null : v.getResult() ? true : null);
-        assert !Boolean.TRUE.equals(v.getResult());
-        assert v.getTvEpisode() == ep;
+        assertFalse(Objects.equals(v.getResult(), true));
+        assertEquals(ep, v.getTvEpisode());
         assertNull(v.getRequest());
     }
 
     @Test
     void setters_roundTrip() {
-        MovieRequest req = new MovieRequest("T", 1, false, 1, "S");
-        Validation v = new Validation("Name", true, req);
+        var req = new MovieRequest("T", 1, false, 1, "S");
+        var v = new Validation("Name", true, req);
 
         v.setId(10L);
-        assert v.getId() == 10L;
+        assertEquals(10L, v.getId());
 
         v.setValidationName("NewName");
-        assert "NewName".equals(v.getValidationName());
+        assertEquals("NewName", v.getValidationName());
 
         v.setResult(false);
-        assert !Boolean.TRUE.equals(v.getResult());
+        assertFalse(Objects.equals(v.getResult(), true));
 
-        MovieRequest req2 = new MovieRequest("T2", 2, false, 2, "S");
+        var req2 = new MovieRequest("T2", 2, false, 2, "S");
         v.setRequest(req2);
-        assert v.getRequest() == req2;
+        assertEquals(req2, v.getRequest());
 
-        TvRequest parent = new TvRequest("P", 1, false, 1, "S");
-        TvChildRequest child = new TvChildRequest(parent, "C", 1, false, 2, "S");
-        TvSeasonRequest season = new TvSeasonRequest(child, 3, 1, false);
-        TvEpisodeRequest ep = new TvEpisodeRequest(season, 4, 1);
+        var parent = new TvRequest("P", 1, false, 1, "S");
+        var child = new TvChildRequest(parent, "C", 1, false, 2, "S");
+        var season = new TvSeasonRequest(child, 3, 1, false);
+        var ep = new TvEpisodeRequest(season, 4, 1);
         v.setTvEpisode(ep);
-        assert v.getTvEpisode() == ep;
+        assertEquals(ep, v.getTvEpisode());
     }
 
     @Test
     void hashCode_isStable() {
-        MovieRequest req = new MovieRequest("T", 1, false, 1, "S");
-        Validation v = new Validation("Name", true, req);
+        var req = new MovieRequest("T", 1, false, 1, "S");
+        var v = new Validation("Name", true, req);
         int h1 = v.hashCode();
         int h2 = v.hashCode();
-        assert h1 == h2;
+        assertEquals(h2, h1);
     }
 
     @Test
     void toString_isNonNull() {
-        MovieRequest req = new MovieRequest("T", 1, false, 1, "S");
-        Validation v = new Validation("Name", true, req);
+        var req = new MovieRequest("T", 1, false, 1, "S");
+        var v = new Validation("Name", true, req);
         assertNotNull(v.toString());
     }
 
     @Test
     void createdAt_updatedAt_nullBeforePersist() {
-        MovieRequest req = new MovieRequest("T", 1, false, 1, "S");
-        Validation v = new Validation("Name", true, req);
+        var req = new MovieRequest("T", 1, false, 1, "S");
+        var v = new Validation("Name", true, req);
         assertNull(v.getCreatedAt());
         assertNull(v.getUpdatedAt());
     }

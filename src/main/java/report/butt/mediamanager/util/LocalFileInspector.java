@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +20,7 @@ public final class LocalFileInspector {
     private LocalFileInspector() {}
 
     /** Whether the reported file resolves to an existing local file and, if so, its size in bytes (else null). */
-    public record Result(boolean available, Long sizeBytes) {
+    public record Result(boolean available, @Nullable Long sizeBytes) {
         static final Result UNAVAILABLE = new Result(false, null);
     }
 
@@ -32,7 +33,7 @@ public final class LocalFileInspector {
             return Result.UNAVAILABLE;
         }
         try {
-            Path localPath = Path.of(prefix + reportedPath);
+            var localPath = Path.of(prefix + reportedPath);
             if (Files.exists(localPath)) {
                 return new Result(true, Files.size(localPath));
             }

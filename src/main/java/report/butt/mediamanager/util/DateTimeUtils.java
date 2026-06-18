@@ -2,6 +2,7 @@ package report.butt.mediamanager.util;
 
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +16,7 @@ public final class DateTimeUtils {
      * Parses an ISO-8601 instant, returning null for null/blank input or unparseable values. The {@code source} label
      * (e.g. "Radarr", "Sonarr") tags the warning logged on a parse failure.
      */
-    public static Instant parseInstant(String value, String source) {
+    public static @Nullable Instant parseInstant(String value, String source) {
         if (value == null || value.isBlank()) {
             return null;
         }

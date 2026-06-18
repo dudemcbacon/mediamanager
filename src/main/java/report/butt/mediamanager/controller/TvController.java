@@ -9,6 +9,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,6 +68,8 @@ public class TvController {
     private final FfprobeScanService ffprobeScanService;
     private final JobRequestScheduler jobRequestScheduler;
 
+    // Spring constructor injection; the parameter count reflects injected collaborators, not a design smell.
+    @SuppressWarnings("TooManyParameters")
     @Autowired
     public TvController(
             TvRequestRepository tvRequestRepository,
@@ -105,7 +108,7 @@ public class TvController {
     @PostMapping("/tv/search-missing")
     public String searchMissing() {
         List<TvRequest> tvRequests = tvRequestRepository.findAll().stream()
-                .filter(tvRequest -> "Common.ProcessingRequest".equals(tvRequest.getOmbiRequestStatus())
+                .filter(tvRequest -> Objects.equals(tvRequest.getOmbiRequestStatus(), "Common.ProcessingRequest")
                         && tvRequest.getSonarrEpisodeFileCount() != null
                         && tvRequest.getSonarrTotalEpisodeCount() != null
                         && tvRequest.getSonarrTotalEpisodeCount() > 0
@@ -276,7 +279,7 @@ public class TvController {
                 continue;
             }
             List<TvSeasonRequest> seasons = seasonsOf(tvRequest).stream()
-                    .filter(season -> !Boolean.TRUE.equals(season.getOmbiSeasonAvailable()))
+                    .filter(season -> !Objects.equals(season.getOmbiSeasonAvailable(), true))
                     .toList();
             if (!seasons.isEmpty()) {
                 searchSeasons(tvRequest.getSonarrSeriesId(), "tv request " + tvRequest.getId(), seasons);
@@ -437,7 +440,7 @@ public class TvController {
         SonarrQueue queue;
         try {
             queue = sonarrClient.getQueue();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to fetch Sonarr queue; cannot delete downloads for {}", label, e);
             return;
         }
@@ -542,7 +545,7 @@ public class TvController {
                 continue;
             }
             for (TvEpisodeRequest episode : season.getEpisodeRequests()) {
-                if (Boolean.TRUE.equals(episode.getOmbiAvailable()) || episode.getOmbiEpisodeNumber() == null) {
+                if (Objects.equals(episode.getOmbiAvailable(), true) || episode.getOmbiEpisodeNumber() == null) {
                     continue;
                 }
                 keys.add(new EpisodeKey(season.getOmbiSeasonNumber(), episode.getOmbiEpisodeNumber()));
@@ -565,33 +568,33 @@ public class TvController {
         return keys;
     }
 
-    private static Integer seriesId(TvChildRequest child) {
+    private static @Nullable Integer seriesId(TvChildRequest child) {
         return child.getParent() == null ? null : child.getParent().getSonarrSeriesId();
     }
 
-    private static Integer seriesId(TvSeasonRequest season) {
+    private static @Nullable Integer seriesId(TvSeasonRequest season) {
         return season.getTvChildRequest() == null ? null : seriesId(season.getTvChildRequest());
     }
 
-    private static Integer seriesId(TvEpisodeRequest episode) {
+    private static @Nullable Integer seriesId(TvEpisodeRequest episode) {
         return episode.getTvSeasonRequest() == null ? null : seriesId(episode.getTvSeasonRequest());
     }
 
     /** Sonarr's current download queue, or null if Sonarr can't be reached. */
-    public SonarrQueue getSonarrQueue() {
+    public @Nullable SonarrQueue getSonarrQueue() {
         try {
             return sonarrClient.getQueue();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to fetch Sonarr queue", e);
             return null;
         }
     }
 
     /** Active Sonarr health issues, or null if Sonarr can't be reached. */
-    public List<SonarrHealthItem> getSonarrHealth() {
+    public @Nullable List<SonarrHealthItem> getSonarrHealth() {
         try {
             return sonarrClient.getHealth();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to fetch Sonarr health", e);
             return null;
         }

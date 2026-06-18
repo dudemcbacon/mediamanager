@@ -15,7 +15,7 @@ public class TomcatSessionConfig {
         return factory -> factory.addContextCustomizers(context -> {
             Manager manager = context.getManager();
             if (manager == null) {
-                StandardManager standardManager = new StandardManager();
+                var standardManager = new StandardManager();
                 standardManager.setPathname(null);
                 context.setManager(standardManager);
             } else if (manager instanceof StandardManager standardManager) {

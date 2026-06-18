@@ -97,8 +97,8 @@ class TvHierarchyServiceTest {
                 new TvChildRequest(parent, "Eps By Id Show", 777001, false, 7801, "Common.Approved"));
 
         TvSeasonRequest season = tvSeasonRequestRepository.save(new TvSeasonRequest(child, 7700, 1, false));
-        TvEpisodeRequest ep1 = tvEpisodeRequestRepository.save(new TvEpisodeRequest(season, 7800, 1));
-        TvEpisodeRequest ep2 = tvEpisodeRequestRepository.save(new TvEpisodeRequest(season, 7801, 2));
+        tvEpisodeRequestRepository.save(new TvEpisodeRequest(season, 7800, 1));
+        tvEpisodeRequestRepository.save(new TvEpisodeRequest(season, 7801, 2));
 
         entityManager.flush();
         entityManager.clear();

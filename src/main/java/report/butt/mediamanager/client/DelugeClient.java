@@ -1,7 +1,9 @@
 package report.butt.mediamanager.client;
 
+import com.google.errorprone.annotations.Var;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,7 +49,7 @@ public class DelugeClient {
 
     /** Returns the current torrents keyed by info hash, or an empty map if the call fails. */
     public Map<String, DelugeTorrent> getTorrentsStatus() {
-        DelugeResponse<Map<String, DelugeTorrent>> response = requestTorrentsStatus();
+        @Var DelugeResponse<Map<String, DelugeTorrent>> response = requestTorrentsStatus();
         if (response != null && response.getError() != null) {
             login();
             response = requestTorrentsStatus();
@@ -93,7 +95,7 @@ public class DelugeClient {
         }
 
         DelugeResponse<Boolean> body = entity.getBody();
-        if (body == null || !Boolean.TRUE.equals(body.getResult())) {
+        if (body == null || !Objects.equals(body.getResult(), true)) {
             throw new IllegalStateException("Deluge auth.login failed: " + describeError(body));
         }
         log.info("Authenticated with Deluge");
