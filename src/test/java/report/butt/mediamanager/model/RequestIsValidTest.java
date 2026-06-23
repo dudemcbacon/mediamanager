@@ -5,12 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 
 /**
  * Tests Request.isValid(validatorNames, latestByName) — the concrete subclass MovieRequest is used since Request is
  * abstract.
  */
+@NullMarked
 class RequestIsValidTest {
 
     private static MovieRequest req() {

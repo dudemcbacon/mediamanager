@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import report.butt.mediamanager.model.TvChildRequest;
 import report.butt.mediamanager.model.TvEpisodeRequest;
@@ -17,6 +18,7 @@ import report.butt.mediamanager.validation.EpisodePathsMatch;
 import report.butt.mediamanager.validation.EpisodeSearchedRecently;
 import report.butt.mediamanager.validation.EpisodeValidator;
 
+@NullMarked
 class TvHierarchyTreeGridTest {
 
     private static final List<EpisodeValidator> VALIDATORS =
@@ -48,8 +50,7 @@ class TvHierarchyTreeGridTest {
     void allRowsUnknownStaysUnknown() {
         var child = childWithEpisodes(1L, 2L);
 
-        Boolean result =
-                TvHierarchyTreeGrid.allChildrenValidation(List.of(child), VALIDATORS, new HashMap<>());
+        Boolean result = TvHierarchyTreeGrid.allChildrenValidation(List.of(child), VALIDATORS, new HashMap<>());
 
         assertNull(result, "A child with nothing validated is unknown, not a failure");
     }

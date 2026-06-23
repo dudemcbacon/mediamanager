@@ -1,6 +1,7 @@
 package report.butt.mediamanager.service;
 
 import java.time.Instant;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import report.butt.mediamanager.repository.ValidationRepository;
  * repository, so one implementation serves both MovieRequest and TvRequest.
  */
 @Service
+@NullMarked
 public class RequestAdminService {
 
     private final ValidationRepository validationRepository;

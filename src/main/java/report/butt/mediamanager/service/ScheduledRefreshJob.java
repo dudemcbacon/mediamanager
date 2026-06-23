@@ -1,6 +1,7 @@
 package report.butt.mediamanager.service;
 
 import com.newrelic.api.agent.Trace;
+import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,6 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
+@NullMarked
 public class ScheduledRefreshJob {
 
     private static final Logger log = LoggerFactory.getLogger(ScheduledRefreshJob.class);

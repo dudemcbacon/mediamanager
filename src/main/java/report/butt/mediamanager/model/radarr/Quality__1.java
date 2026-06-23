@@ -9,77 +9,80 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.processing.Generated;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({"id", "name", "source", "resolution", "modifier"})
 @Generated("jsonschema2pojo")
+@NullMarked
 public class Quality__1 {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("name")
-    private String name;
+    private @Nullable String name;
 
     @JsonProperty("source")
-    private String source;
+    private @Nullable String source;
 
     @JsonProperty("resolution")
-    private Integer resolution;
+    private @Nullable Integer resolution;
 
     @JsonProperty("modifier")
-    private String modifier;
+    private @Nullable String modifier;
 
     @JsonIgnore
     private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
     @JsonProperty("id")
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
     @JsonProperty("id")
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 
     @JsonProperty("name")
-    public String getName() {
+    public @Nullable String getName() {
         return name;
     }
 
     @JsonProperty("name")
-    public void setName(String name) {
+    public void setName(@Nullable String name) {
         this.name = name;
     }
 
     @JsonProperty("source")
-    public String getSource() {
+    public @Nullable String getSource() {
         return source;
     }
 
     @JsonProperty("source")
-    public void setSource(String source) {
+    public void setSource(@Nullable String source) {
         this.source = source;
     }
 
     @JsonProperty("resolution")
-    public Integer getResolution() {
+    public @Nullable Integer getResolution() {
         return resolution;
     }
 
     @JsonProperty("resolution")
-    public void setResolution(Integer resolution) {
+    public void setResolution(@Nullable Integer resolution) {
         this.resolution = resolution;
     }
 
     @JsonProperty("modifier")
-    public String getModifier() {
+    public @Nullable String getModifier() {
         return modifier;
     }
 
     @JsonProperty("modifier")
-    public void setModifier(String modifier) {
+    public void setModifier(@Nullable String modifier) {
         this.modifier = modifier;
     }
 

@@ -4,6 +4,8 @@ import com.google.errorprone.annotations.Var;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +25,7 @@ import report.butt.mediamanager.model.deluge.DelugeTorrent;
  * calls re-authenticate and retry once.
  */
 @Service
+@NullMarked
 public class DelugeClient {
 
     private static final Logger log = LoggerFactory.getLogger(DelugeClient.class);
@@ -37,7 +40,7 @@ public class DelugeClient {
 
     private final RestClient restClient;
     private final String password;
-    private volatile String sessionCookie;
+    private volatile @Nullable String sessionCookie;
 
     public DelugeClient(
             RestClient.Builder builder,
@@ -107,7 +110,7 @@ public class DelugeClient {
         }
     }
 
-    private static String describeError(DelugeResponse<?> response) {
+    private static String describeError(@Nullable DelugeResponse<?> response) {
         if (response == null || response.getError() == null) {
             return "no response body";
         }

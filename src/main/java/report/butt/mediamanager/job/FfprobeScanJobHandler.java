@@ -3,6 +3,7 @@ package report.butt.mediamanager.job;
 import com.newrelic.api.agent.Trace;
 import org.jobrunr.jobs.annotations.Job;
 import org.jobrunr.jobs.lambdas.JobRequestHandler;
+import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ import report.butt.mediamanager.service.FfprobeScanService;
  * by {@code jobrunr.background-job-server.worker-count}.
  */
 @Component
+@NullMarked
 public class FfprobeScanJobHandler implements JobRequestHandler<FfprobeScanJobRequest> {
 
     private static final Logger log = LoggerFactory.getLogger(FfprobeScanJobHandler.class);

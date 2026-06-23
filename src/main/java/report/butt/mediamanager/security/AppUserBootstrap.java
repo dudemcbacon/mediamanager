@@ -1,5 +1,7 @@
 package report.butt.mediamanager.security;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,20 +10,21 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
+@NullMarked
 public class AppUserBootstrap implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AppUserBootstrap.class);
 
     private final AppUserRepository repository;
     private final PasswordEncoder passwordEncoder;
-    private final String bootstrapUsername;
-    private final String bootstrapPassword;
+    private final @Nullable String bootstrapUsername;
+    private final @Nullable String bootstrapPassword;
 
     public AppUserBootstrap(
             AppUserRepository repository,
             PasswordEncoder passwordEncoder,
-            @Value("${mediamanager.bootstrap.username:}") String bootstrapUsername,
-            @Value("${mediamanager.bootstrap.password:}") String bootstrapPassword) {
+            @Value("${mediamanager.bootstrap.username:}") @Nullable String bootstrapUsername,
+            @Value("${mediamanager.bootstrap.password:}") @Nullable String bootstrapPassword) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.bootstrapUsername = bootstrapUsername;

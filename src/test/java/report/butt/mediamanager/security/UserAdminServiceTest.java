@@ -11,10 +11,12 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+@NullMarked
 class UserAdminServiceTest {
 
     private final AppUserRepository repository = mock(AppUserRepository.class);

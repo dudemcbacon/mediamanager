@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import com.google.errorprone.annotations.Var;
 import java.time.Instant;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Each case starts from a populated entity, mutates one field to a distinct value, and asserts the hash changed.
  */
+@NullMarked
 class RequestHashCodeTest {
 
     @Test

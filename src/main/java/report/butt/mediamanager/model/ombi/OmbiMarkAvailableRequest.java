@@ -1,11 +1,14 @@
 package report.butt.mediamanager.model.ombi;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
+@NullMarked
 public class OmbiMarkAvailableRequest {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("is4K")
     private Boolean is4K = false;
@@ -14,11 +17,11 @@ public class OmbiMarkAvailableRequest {
         this.id = id;
     }
 
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 

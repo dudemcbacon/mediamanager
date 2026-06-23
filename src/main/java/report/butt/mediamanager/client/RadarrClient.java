@@ -3,6 +3,8 @@ package report.butt.mediamanager.client;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +19,7 @@ import report.butt.mediamanager.model.radarr.RadarrHealthItem;
 import report.butt.mediamanager.model.radarr.RadarrQueue;
 
 @Service
+@NullMarked
 public class RadarrClient {
 
     private static final Logger log = LoggerFactory.getLogger(RadarrClient.class);
@@ -58,7 +61,7 @@ public class RadarrClient {
         return qualityProfilesById;
     }
 
-    public Integer getQualityProfileIdByName(String name) {
+    public @Nullable Integer getQualityProfileIdByName(String name) {
         return QualityProfiles.idByName(qualityProfilesById, name);
     }
 

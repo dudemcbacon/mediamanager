@@ -9,38 +9,41 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.processing.Generated;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({"id", "name"})
 @Generated("jsonschema2pojo")
+@NullMarked
 public class OriginalLanguage {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("name")
-    private String name;
+    private @Nullable String name;
 
     @JsonIgnore
     private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
     @JsonProperty("id")
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
     @JsonProperty("id")
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 
     @JsonProperty("name")
-    public String getName() {
+    public @Nullable String getName() {
         return name;
     }
 
     @JsonProperty("name")
-    public void setName(String name) {
+    public void setName(@Nullable String name) {
         this.name = name;
     }
 

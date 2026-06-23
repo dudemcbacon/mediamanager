@@ -1,11 +1,13 @@
 package report.butt.mediamanager.validation;
 
+import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import report.butt.mediamanager.model.RequestType;
 import report.butt.mediamanager.model.TvRequest;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
 
 @Component
+@NullMarked
 public class OmbiSeasonCountAlignment implements Validator<TvRequest> {
 
     private final TvSeasonRequestRepository seasonRepository;

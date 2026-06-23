@@ -9,6 +9,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ import report.butt.mediamanager.repository.TvRequestRepository;
  * matching the per-item "Delete Download" action), triggers a fresh search, and refreshes each affected request.
  */
 @Service
+@NullMarked
 public class DownloadCleanupService {
 
     private static final Logger log = LoggerFactory.getLogger(DownloadCleanupService.class);
@@ -61,7 +64,7 @@ public class DownloadCleanupService {
      * Deletes every Radarr/Sonarr queue item whose download id matches one of {@code torrentHashes}, then searches and
      * refreshes the affected movies/shows. Matching is case-insensitive (download id == torrent hash).
      */
-    public CleanupResult deleteTorrentsAndReprocess(Set<String> torrentHashes) {
+    public CleanupResult deleteTorrentsAndReprocess(@Nullable Set<String> torrentHashes) {
         if (torrentHashes == null || torrentHashes.isEmpty()) {
             return new CleanupResult(0, 0, 0);
         }
@@ -137,7 +140,7 @@ public class DownloadCleanupService {
         return new CleanupResult(torrentsDeleted, moviesReprocessed, showsReprocessed);
     }
 
-    private static boolean matches(Integer queueId, String downloadId, Set<String> hashes) {
+    private static boolean matches(@Nullable Integer queueId, @Nullable String downloadId, Set<String> hashes) {
         return queueId != null && downloadId != null && hashes.contains(downloadId.toLowerCase(Locale.ROOT));
     }
 

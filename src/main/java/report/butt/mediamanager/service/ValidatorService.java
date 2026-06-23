@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ import report.butt.mediamanager.validation.Validator;
 @Service
 // Member collections are populated once at construction and never mutated; immutable types are unnecessary.
 @SuppressWarnings("ImmutableMemberCollection")
+@NullMarked
 public class ValidatorService {
 
     private static final Logger log = LoggerFactory.getLogger(ValidatorService.class);
@@ -170,7 +173,7 @@ public class ValidatorService {
      * construction so it only runs when there is no existing row.
      */
     private static Validation reconcile(
-            Validation existing, Boolean result, List<Validation> toSave, Supplier<Validation> create) {
+            @Nullable Validation existing, Boolean result, List<Validation> toSave, Supplier<Validation> create) {
         if (existing == null) {
             Validation created = create.get();
             toSave.add(created);

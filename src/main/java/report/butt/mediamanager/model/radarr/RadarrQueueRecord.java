@@ -2,62 +2,65 @@ package report.butt.mediamanager.model.radarr;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@NullMarked
 public class RadarrQueueRecord {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("movieId")
-    private Integer movieId;
+    private @Nullable Integer movieId;
 
     @JsonProperty("trackedDownloadState")
-    private String trackedDownloadState;
+    private @Nullable String trackedDownloadState;
 
     @JsonProperty("downloadId")
-    private String downloadId;
+    private @Nullable String downloadId;
 
     @JsonProperty("protocol")
-    private String protocol;
+    private @Nullable String protocol;
 
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 
-    public Integer getMovieId() {
+    public @Nullable Integer getMovieId() {
         return movieId;
     }
 
-    public void setMovieId(Integer movieId) {
+    public void setMovieId(@Nullable Integer movieId) {
         this.movieId = movieId;
     }
 
-    public String getTrackedDownloadState() {
+    public @Nullable String getTrackedDownloadState() {
         return trackedDownloadState;
     }
 
-    public void setTrackedDownloadState(String trackedDownloadState) {
+    public void setTrackedDownloadState(@Nullable String trackedDownloadState) {
         this.trackedDownloadState = trackedDownloadState;
     }
 
-    public String getDownloadId() {
+    public @Nullable String getDownloadId() {
         return downloadId;
     }
 
-    public void setDownloadId(String downloadId) {
+    public void setDownloadId(@Nullable String downloadId) {
         this.downloadId = downloadId;
     }
 
-    public String getProtocol() {
+    public @Nullable String getProtocol() {
         return protocol;
     }
 
-    public void setProtocol(String protocol) {
+    public void setProtocol(@Nullable String protocol) {
         this.protocol = protocol;
     }
 }

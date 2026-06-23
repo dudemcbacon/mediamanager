@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -38,6 +39,7 @@ import report.butt.mediamanager.repository.MovieRequestRepository;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
+@NullMarked
 class MovieRefreshServiceTest {
 
     private final MovieRequestRepository repository = mock(MovieRequestRepository.class);

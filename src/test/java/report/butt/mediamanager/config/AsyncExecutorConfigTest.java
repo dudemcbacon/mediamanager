@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import com.vaadin.flow.spring.security.VaadinAwareSecurityContextHolderStrategy;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,9 +19,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
  * {@code @PreAuthorize}-guarded controllers (e.g. "Mark Available"). The {@code uiTaskExecutor} must propagate the
  * Spring Security context to its worker threads, and it must capture that context via the injected
  * {@link VaadinAwareSecurityContextHolderStrategy} — which resolves it from the {@code VaadinSession} on a websocket
- * {@code @Push} thread — rather than the plain thread-local strategy the wrapper would otherwise freeze at
- * construction time. If the executor is ever unwrapped, or stops honoring the injected strategy, these tests fail.
+ * {@code @Push} thread — rather than the plain thread-local strategy the wrapper would otherwise freeze at construction
+ * time. If the executor is ever unwrapped, or stops honoring the injected strategy, these tests fail.
  */
+@NullMarked
 class AsyncExecutorConfigTest {
 
     private final VaadinAwareSecurityContextHolderStrategy strategy = new VaadinAwareSecurityContextHolderStrategy();

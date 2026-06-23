@@ -1,10 +1,12 @@
 package report.butt.mediamanager.validation;
 
 import java.util.Objects;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import report.butt.mediamanager.model.TvEpisodeRequest;
 
 @Component
+@NullMarked
 public class EpisodeLocalFileMatchesPlex implements EpisodeValidator {
 
     @Override

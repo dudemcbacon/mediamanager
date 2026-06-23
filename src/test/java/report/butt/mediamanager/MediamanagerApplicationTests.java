@@ -1,5 +1,6 @@
 package report.butt.mediamanager;
 
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -16,6 +17,7 @@ import report.butt.mediamanager.client.PlexClient;
             "jobrunr.background-job-server.enabled=false",
             "jobrunr.dashboard.enabled=false"
         })
+@NullMarked
 class MediamanagerApplicationTests {
 
     // PlexClient's @PostConstruct eagerly calls the live Plex server (to cache the machine id and section ids)

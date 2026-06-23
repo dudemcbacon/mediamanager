@@ -13,6 +13,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * One media stream from an ffprobe scan ({@code ffprobe -show_streams}): a representative subset of the
@@ -20,11 +22,12 @@ import org.hibernate.annotations.UpdateTimestamp;
  */
 @Entity
 @Table(name = "ffprobe_streams")
+@NullMarked
 public class FfprobeStream {
 
     @Id
     @GeneratedValue
-    private Long id;
+    private @Nullable Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ffprobe_scan_id", nullable = false)
@@ -33,36 +36,36 @@ public class FfprobeStream {
 
     // "index" is a reserved word in most SQL dialects, so map to stream_index.
     @Column(name = "stream_index")
-    private Integer streamIndex;
+    private @Nullable Integer streamIndex;
 
-    private String codecName;
-    private String codecLongName;
-    private String codecType;
-    private Integer width;
-    private Integer height;
-    private String pixFmt;
-    private Integer sampleRate;
-    private Integer channels;
-    private String channelLayout;
-    private Long bitRate;
-    private Double duration;
-    private Long nbFrames;
-    private String rFrameRate;
-    private String avgFrameRate;
+    private @Nullable String codecName;
+    private @Nullable String codecLongName;
+    private @Nullable String codecType;
+    private @Nullable Integer width;
+    private @Nullable Integer height;
+    private @Nullable String pixFmt;
+    private @Nullable Integer sampleRate;
+    private @Nullable Integer channels;
+    private @Nullable String channelLayout;
+    private @Nullable Long bitRate;
+    private @Nullable Double duration;
+    private @Nullable Long nbFrames;
+    private @Nullable String rFrameRate;
+    private @Nullable String avgFrameRate;
 
     @CreationTimestamp
-    private Instant createdAt;
+    private @Nullable Instant createdAt;
 
     @UpdateTimestamp
-    private Instant updatedAt;
+    private @Nullable Instant updatedAt;
 
     public FfprobeStream() {}
 
-    public Long getId() {
+    public @Nullable Long getId() {
         return this.id;
     }
 
-    public void setId(Long id) {
+    public void setId(@Nullable Long id) {
         this.id = id;
     }
 
@@ -74,131 +77,131 @@ public class FfprobeStream {
         this.ffprobeScan = ffprobeScan;
     }
 
-    public Integer getStreamIndex() {
+    public @Nullable Integer getStreamIndex() {
         return this.streamIndex;
     }
 
-    public void setStreamIndex(Integer streamIndex) {
+    public void setStreamIndex(@Nullable Integer streamIndex) {
         this.streamIndex = streamIndex;
     }
 
-    public String getCodecName() {
+    public @Nullable String getCodecName() {
         return this.codecName;
     }
 
-    public void setCodecName(String codecName) {
+    public void setCodecName(@Nullable String codecName) {
         this.codecName = codecName;
     }
 
-    public String getCodecLongName() {
+    public @Nullable String getCodecLongName() {
         return this.codecLongName;
     }
 
-    public void setCodecLongName(String codecLongName) {
+    public void setCodecLongName(@Nullable String codecLongName) {
         this.codecLongName = codecLongName;
     }
 
-    public String getCodecType() {
+    public @Nullable String getCodecType() {
         return this.codecType;
     }
 
-    public void setCodecType(String codecType) {
+    public void setCodecType(@Nullable String codecType) {
         this.codecType = codecType;
     }
 
-    public Integer getWidth() {
+    public @Nullable Integer getWidth() {
         return this.width;
     }
 
-    public void setWidth(Integer width) {
+    public void setWidth(@Nullable Integer width) {
         this.width = width;
     }
 
-    public Integer getHeight() {
+    public @Nullable Integer getHeight() {
         return this.height;
     }
 
-    public void setHeight(Integer height) {
+    public void setHeight(@Nullable Integer height) {
         this.height = height;
     }
 
-    public String getPixFmt() {
+    public @Nullable String getPixFmt() {
         return this.pixFmt;
     }
 
-    public void setPixFmt(String pixFmt) {
+    public void setPixFmt(@Nullable String pixFmt) {
         this.pixFmt = pixFmt;
     }
 
-    public Integer getSampleRate() {
+    public @Nullable Integer getSampleRate() {
         return this.sampleRate;
     }
 
-    public void setSampleRate(Integer sampleRate) {
+    public void setSampleRate(@Nullable Integer sampleRate) {
         this.sampleRate = sampleRate;
     }
 
-    public Integer getChannels() {
+    public @Nullable Integer getChannels() {
         return this.channels;
     }
 
-    public void setChannels(Integer channels) {
+    public void setChannels(@Nullable Integer channels) {
         this.channels = channels;
     }
 
-    public String getChannelLayout() {
+    public @Nullable String getChannelLayout() {
         return this.channelLayout;
     }
 
-    public void setChannelLayout(String channelLayout) {
+    public void setChannelLayout(@Nullable String channelLayout) {
         this.channelLayout = channelLayout;
     }
 
-    public Long getBitRate() {
+    public @Nullable Long getBitRate() {
         return this.bitRate;
     }
 
-    public void setBitRate(Long bitRate) {
+    public void setBitRate(@Nullable Long bitRate) {
         this.bitRate = bitRate;
     }
 
-    public Double getDuration() {
+    public @Nullable Double getDuration() {
         return this.duration;
     }
 
-    public void setDuration(Double duration) {
+    public void setDuration(@Nullable Double duration) {
         this.duration = duration;
     }
 
-    public Long getNbFrames() {
+    public @Nullable Long getNbFrames() {
         return this.nbFrames;
     }
 
-    public void setNbFrames(Long nbFrames) {
+    public void setNbFrames(@Nullable Long nbFrames) {
         this.nbFrames = nbFrames;
     }
 
-    public String getRFrameRate() {
+    public @Nullable String getRFrameRate() {
         return this.rFrameRate;
     }
 
-    public void setRFrameRate(String rFrameRate) {
+    public void setRFrameRate(@Nullable String rFrameRate) {
         this.rFrameRate = rFrameRate;
     }
 
-    public String getAvgFrameRate() {
+    public @Nullable String getAvgFrameRate() {
         return this.avgFrameRate;
     }
 
-    public void setAvgFrameRate(String avgFrameRate) {
+    public void setAvgFrameRate(@Nullable String avgFrameRate) {
         this.avgFrameRate = avgFrameRate;
     }
 
-    public Instant getCreatedAt() {
+    public @Nullable Instant getCreatedAt() {
         return this.createdAt;
     }
 
-    public Instant getUpdatedAt() {
+    public @Nullable Instant getUpdatedAt() {
         return this.updatedAt;
     }
 

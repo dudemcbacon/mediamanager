@@ -2,6 +2,7 @@ package report.butt.mediamanager.client;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +18,7 @@ import report.butt.mediamanager.model.sabnzbd.SabnzbdSlot;
  * progress (mirrors {@link DelugeClient} for torrents).
  */
 @Service
+@NullMarked
 public class SabnzbdClient {
 
     private static final Logger log = LoggerFactory.getLogger(SabnzbdClient.class);

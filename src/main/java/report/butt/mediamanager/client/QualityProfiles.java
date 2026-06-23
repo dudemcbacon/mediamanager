@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory;
  * Shared helpers for the Radarr/Sonarr quality-profile caches. Radarr and Sonarr expose distinct (generated)
  * {@code QualityProfile} types, so the id/name extractors are passed in rather than relying on a common interface.
  */
+@NullMarked
 final class QualityProfiles {
 
     private static final Logger log = LoggerFactory.getLogger(QualityProfiles.class);
@@ -23,7 +25,7 @@ final class QualityProfiles {
      * Returns an empty map when {@code profiles} is null.
      */
     static <T> Map<Integer, String> index(
-            List<T> profiles, Function<T, Integer> idFn, Function<T, String> nameFn, String source) {
+            @Nullable List<T> profiles, Function<T, Integer> idFn, Function<T, String> nameFn, String source) {
         Map<Integer, String> byId = profiles == null
                 ? Map.of()
                 : profiles.stream()

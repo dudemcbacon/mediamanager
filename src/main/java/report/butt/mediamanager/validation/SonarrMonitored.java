@@ -1,11 +1,13 @@
 package report.butt.mediamanager.validation;
 
 import java.util.Objects;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import report.butt.mediamanager.model.RequestType;
 import report.butt.mediamanager.model.TvRequest;
 
 @Component
+@NullMarked
 public class SonarrMonitored implements Validator<TvRequest> {
 
     private static final String MONITOR_ALL = "all";

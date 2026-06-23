@@ -35,6 +35,7 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import report.butt.mediamanager.model.FfprobeScan;
@@ -50,20 +51,21 @@ import report.butt.mediamanager.service.NotificationService;
  * {@link TvHierarchyTreeGrid}. These were previously duplicated across the views (or reached across classes via
  * {@code MovieRequestView.xxx} static calls); collecting them here keeps the two parallel Movie/TV views in sync.
  */
+@NullMarked
 final class RequestViewSupport {
 
     private RequestViewSupport() {}
 
     // --- validation result icon (client-side LitRenderer values) ---
 
-    static String resultIconName(Boolean result) {
+    static String resultIconName(@Nullable Boolean result) {
         if (result == null) {
             return "vaadin:minus";
         }
         return result ? "vaadin:check" : "vaadin:close";
     }
 
-    static String resultIconColor(Boolean result) {
+    static String resultIconColor(@Nullable Boolean result) {
         if (result == null) {
             return "var(--vaadin-text-color-disabled)";
         }
@@ -102,12 +104,12 @@ final class RequestViewSupport {
         return "torrent".equalsIgnoreCase(protocol);
     }
 
-    static String formatProgress(Double progress) {
+    static String formatProgress(@Nullable Double progress) {
         return progress == null ? "—" : String.format("%.1f%%", progress);
     }
 
     /** SABnzbd reports percentage as a whole-number string, e.g. "42"; render it as "42%". */
-    static String formatPercentage(String percentage) {
+    static String formatPercentage(@Nullable String percentage) {
         return percentage == null || percentage.isBlank() ? "—" : percentage + "%";
     }
 
@@ -117,7 +119,7 @@ final class RequestViewSupport {
                 + nz(t.getTotalSeeds()) + ")";
     }
 
-    private static int nz(Integer value) {
+    private static int nz(@Nullable Integer value) {
         return value == null ? 0 : value;
     }
 
@@ -126,7 +128,8 @@ final class RequestViewSupport {
      * queued, or the torrent/slot hasn't reported yet). Drives the visual progress bar; the matching text label still
      * comes from {@link #formatProgress}/{@link #formatPercentage}.
      */
-    static double progressPercentOf(String protocol, DelugeTorrent torrent, SabnzbdSlot slot) {
+    static double progressPercentOf(
+            @Nullable String protocol, @Nullable DelugeTorrent torrent, @Nullable SabnzbdSlot slot) {
         if (protocol == null) {
             return -1;
         }
@@ -231,7 +234,11 @@ final class RequestViewSupport {
      * anything is {@code importPending}. A null {@code byState} means the queue couldn't be fetched.
      */
     static void updateQueueCard(
-            Card card, Span value, Tooltip tooltip, Integer totalRecords, Map<String, Long> byState) {
+            Card card,
+            Span value,
+            Tooltip tooltip,
+            @Nullable Integer totalRecords,
+            @Nullable Map<String, Long> byState) {
         if (byState == null) {
             value.setText("—");
             tooltip.setText("Queue unavailable");
@@ -261,7 +268,7 @@ final class RequestViewSupport {
             Card card,
             Span value,
             Tooltip tooltip,
-            List<H> health,
+            @Nullable List<H> health,
             Function<H, String> typeFn,
             Function<H, String> messageFn) {
         if (health == null) {
@@ -328,7 +335,7 @@ final class RequestViewSupport {
     }
 
     /** Formats a health item as a "• [type] message" bullet line for a tooltip. */
-    static String healthIssueLine(String type, String message) {
+    static String healthIssueLine(@Nullable String type, @Nullable String message) {
         String prefix = type == null ? "" : "[" + type + "] ";
         return "• " + prefix + (message == null ? "" : message);
     }
@@ -357,7 +364,7 @@ final class RequestViewSupport {
     // future is intentionally not awaited (blocking would freeze the UI thread). Requires server push (@Push).
     @SuppressWarnings("FutureReturnValueIgnored")
     static void runAsync(
-            UI ui, Logger log, String workingMessage, Runnable action, Runnable always, Executor executor) {
+            UI ui, Logger log, String workingMessage, Runnable action, @Nullable Runnable always, Executor executor) {
         var working = new Notification(workingMessage);
         working.setDuration(0);
         working.setPosition(Notification.Position.BOTTOM_START);
@@ -433,7 +440,7 @@ final class RequestViewSupport {
     static void openTextEntryDialog(
             String headerTitle,
             String fieldLabel,
-            String prefill,
+            @Nullable String prefill,
             List<String> cannedValues,
             boolean requireNonBlank,
             Consumer<String> onSubmit) {
@@ -632,7 +639,7 @@ final class RequestViewSupport {
      * Shows an ffprobe scan's container {@code format} summary and a row per stream in a dialog. A null scan (the
      * request has never been scanned) renders a hint instead. Callers load the scan with its streams eagerly fetched.
      */
-    static void openFfprobeResultsDialog(String title, FfprobeScan scan) {
+    static void openFfprobeResultsDialog(String title, @Nullable FfprobeScan scan) {
         var dialog = new Dialog();
         dialog.setHeaderTitle(title);
         dialog.setWidth("900px");
@@ -721,7 +728,7 @@ final class RequestViewSupport {
         return parts.isEmpty() ? "—" : String.join(", ", parts);
     }
 
-    private static String formatDuration(Double seconds) {
+    private static String formatDuration(@Nullable Double seconds) {
         if (seconds == null) {
             return "—";
         }
@@ -730,7 +737,7 @@ final class RequestViewSupport {
     }
 
     /** Human-friendly byte size: TiB above 1024 GiB, GiB above 1 GiB, otherwise MiB. Null/non-positive → "—". */
-    static String formatBytes(Long bytes) {
+    static String formatBytes(@Nullable Long bytes) {
         if (bytes == null || bytes <= 0) {
             return "—";
         }
@@ -744,7 +751,7 @@ final class RequestViewSupport {
         return String.format("%.1f MiB", bytes / (1024.0 * 1024.0));
     }
 
-    private static String formatBitRate(Long bitsPerSecond) {
+    private static String formatBitRate(@Nullable Long bitsPerSecond) {
         if (bitsPerSecond == null || bitsPerSecond <= 0) {
             return "—";
         }

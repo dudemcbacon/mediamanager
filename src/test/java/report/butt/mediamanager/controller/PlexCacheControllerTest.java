@@ -8,12 +8,14 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import report.butt.mediamanager.service.PlexCacheService;
 
+@NullMarked
 class PlexCacheControllerTest {
 
     private final PlexCacheService plexCacheService = mock(PlexCacheService.class);

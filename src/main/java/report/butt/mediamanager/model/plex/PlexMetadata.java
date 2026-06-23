@@ -2,127 +2,130 @@ package report.butt.mediamanager.model.plex;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
+@NullMarked
 public class PlexMetadata {
 
     @JsonProperty("ratingKey")
-    private String ratingKey;
+    private @Nullable String ratingKey;
 
     @JsonProperty("key")
-    private String key;
+    private @Nullable String key;
 
     @JsonProperty("title")
-    private String title;
+    private @Nullable String title;
 
     @JsonProperty("year")
-    private Integer year;
+    private @Nullable Integer year;
 
     @JsonProperty("index")
-    private Integer index;
+    private @Nullable Integer index;
 
     @JsonProperty("parentIndex")
-    private Integer parentIndex;
+    private @Nullable Integer parentIndex;
 
     @JsonProperty("grandparentRatingKey")
-    private String grandparentRatingKey;
+    private @Nullable String grandparentRatingKey;
 
     @JsonProperty("addedAt")
-    private Long addedAt;
+    private @Nullable Long addedAt;
 
     @JsonProperty("updatedAt")
-    private Long updatedAt;
+    private @Nullable Long updatedAt;
 
     @JsonProperty("Guid")
-    private List<PlexGuid> guids;
+    private @Nullable List<PlexGuid> guids;
 
     @JsonProperty("Media")
-    private List<PlexMedia> media;
+    private @Nullable List<PlexMedia> media;
 
-    public String getRatingKey() {
+    public @Nullable String getRatingKey() {
         return ratingKey;
     }
 
-    public void setRatingKey(String ratingKey) {
+    public void setRatingKey(@Nullable String ratingKey) {
         this.ratingKey = ratingKey;
     }
 
-    public String getKey() {
+    public @Nullable String getKey() {
         return key;
     }
 
-    public void setKey(String key) {
+    public void setKey(@Nullable String key) {
         this.key = key;
     }
 
-    public String getTitle() {
+    public @Nullable String getTitle() {
         return title;
     }
 
-    public void setTitle(String title) {
+    public void setTitle(@Nullable String title) {
         this.title = title;
     }
 
-    public Integer getYear() {
+    public @Nullable Integer getYear() {
         return year;
     }
 
-    public void setYear(Integer year) {
+    public void setYear(@Nullable Integer year) {
         this.year = year;
     }
 
-    public Integer getIndex() {
+    public @Nullable Integer getIndex() {
         return index;
     }
 
-    public void setIndex(Integer index) {
+    public void setIndex(@Nullable Integer index) {
         this.index = index;
     }
 
-    public Integer getParentIndex() {
+    public @Nullable Integer getParentIndex() {
         return parentIndex;
     }
 
-    public void setParentIndex(Integer parentIndex) {
+    public void setParentIndex(@Nullable Integer parentIndex) {
         this.parentIndex = parentIndex;
     }
 
-    public String getGrandparentRatingKey() {
+    public @Nullable String getGrandparentRatingKey() {
         return grandparentRatingKey;
     }
 
-    public void setGrandparentRatingKey(String grandparentRatingKey) {
+    public void setGrandparentRatingKey(@Nullable String grandparentRatingKey) {
         this.grandparentRatingKey = grandparentRatingKey;
     }
 
-    public Long getAddedAt() {
+    public @Nullable Long getAddedAt() {
         return addedAt;
     }
 
-    public void setAddedAt(Long addedAt) {
+    public void setAddedAt(@Nullable Long addedAt) {
         this.addedAt = addedAt;
     }
 
-    public Long getUpdatedAt() {
+    public @Nullable Long getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(Long updatedAt) {
+    public void setUpdatedAt(@Nullable Long updatedAt) {
         this.updatedAt = updatedAt;
     }
 
-    public List<PlexGuid> getGuids() {
+    public @Nullable List<PlexGuid> getGuids() {
         return guids;
     }
 
-    public void setGuids(List<PlexGuid> guids) {
+    public void setGuids(@Nullable List<PlexGuid> guids) {
         this.guids = guids;
     }
 
-    public List<PlexMedia> getMedia() {
+    public @Nullable List<PlexMedia> getMedia() {
         return media;
     }
 
-    public void setMedia(List<PlexMedia> media) {
+    public void setMedia(@Nullable List<PlexMedia> media) {
         this.media = media;
     }
 }

@@ -19,6 +19,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(
@@ -27,84 +29,85 @@ import org.hibernate.annotations.UpdateTimestamp;
                 @UniqueConstraint(
                         name = "uk_tv_season_request_child_season",
                         columnNames = {"tv_child_request_id", "ombi_season_number"}))
+@NullMarked
 public class TvSeasonRequest {
 
     @Id
     @GeneratedValue
-    private Long id;
+    private @Nullable Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "tv_child_request_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    private TvChildRequest tvChildRequest;
+    private @Nullable TvChildRequest tvChildRequest;
 
     @Column(name = "ombi_season_request_id")
-    private Integer ombiSeasonRequestId;
+    private @Nullable Integer ombiSeasonRequestId;
 
     @Column(name = "ombi_season_number")
-    private Integer ombiSeasonNumber;
+    private @Nullable Integer ombiSeasonNumber;
 
-    private Boolean ombiSeasonAvailable;
+    private @Nullable Boolean ombiSeasonAvailable;
 
     @OneToMany(mappedBy = "tvSeasonRequest", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TvEpisodeRequest> episodeRequests = new ArrayList<>();
 
     @CreationTimestamp
-    private Instant createdAt;
+    private @Nullable Instant createdAt;
 
     @UpdateTimestamp
-    private Instant updatedAt;
+    private @Nullable Instant updatedAt;
 
     TvSeasonRequest() {}
 
     public TvSeasonRequest(
             TvChildRequest tvChildRequest,
-            Integer ombiSeasonRequestId,
-            Integer ombiSeasonNumber,
-            Boolean ombiSeasonAvailable) {
+            @Nullable Integer ombiSeasonRequestId,
+            @Nullable Integer ombiSeasonNumber,
+            @Nullable Boolean ombiSeasonAvailable) {
         this.tvChildRequest = tvChildRequest;
         this.ombiSeasonRequestId = ombiSeasonRequestId;
         this.ombiSeasonNumber = ombiSeasonNumber;
         this.ombiSeasonAvailable = ombiSeasonAvailable;
     }
 
-    public Long getId() {
+    public @Nullable Long getId() {
         return this.id;
     }
 
-    public void setId(Long id) {
+    public void setId(@Nullable Long id) {
         this.id = id;
     }
 
-    public TvChildRequest getTvChildRequest() {
+    public @Nullable TvChildRequest getTvChildRequest() {
         return this.tvChildRequest;
     }
 
-    public void setTvChildRequest(TvChildRequest tvChildRequest) {
+    public void setTvChildRequest(@Nullable TvChildRequest tvChildRequest) {
         this.tvChildRequest = tvChildRequest;
     }
 
-    public Integer getOmbiSeasonRequestId() {
+    public @Nullable Integer getOmbiSeasonRequestId() {
         return this.ombiSeasonRequestId;
     }
 
-    public void setOmbiSeasonRequestId(Integer ombiSeasonRequestId) {
+    public void setOmbiSeasonRequestId(@Nullable Integer ombiSeasonRequestId) {
         this.ombiSeasonRequestId = ombiSeasonRequestId;
     }
 
-    public Integer getOmbiSeasonNumber() {
+    public @Nullable Integer getOmbiSeasonNumber() {
         return this.ombiSeasonNumber;
     }
 
-    public void setOmbiSeasonNumber(Integer ombiSeasonNumber) {
+    public void setOmbiSeasonNumber(@Nullable Integer ombiSeasonNumber) {
         this.ombiSeasonNumber = ombiSeasonNumber;
     }
 
-    public Boolean getOmbiSeasonAvailable() {
+    public @Nullable Boolean getOmbiSeasonAvailable() {
         return this.ombiSeasonAvailable;
     }
 
-    public void setOmbiSeasonAvailable(Boolean ombiSeasonAvailable) {
+    public void setOmbiSeasonAvailable(@Nullable Boolean ombiSeasonAvailable) {
         this.ombiSeasonAvailable = ombiSeasonAvailable;
     }
 
@@ -116,11 +119,11 @@ public class TvSeasonRequest {
         this.episodeRequests = episodeRequests;
     }
 
-    public Instant getCreatedAt() {
+    public @Nullable Instant getCreatedAt() {
         return this.createdAt;
     }
 
-    public Instant getUpdatedAt() {
+    public @Nullable Instant getUpdatedAt() {
         return this.updatedAt;
     }
 

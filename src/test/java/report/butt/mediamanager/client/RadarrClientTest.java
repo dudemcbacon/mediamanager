@@ -11,6 +11,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -22,6 +23,7 @@ import report.butt.mediamanager.model.radarr.RadarrCommand;
 import report.butt.mediamanager.model.radarr.RadarrHealthItem;
 import report.butt.mediamanager.model.radarr.RadarrQueue;
 
+@NullMarked
 class RadarrClientTest {
 
     private static final String BASE = "http://radarr";

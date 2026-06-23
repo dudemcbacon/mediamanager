@@ -1,6 +1,7 @@
 package report.butt.mediamanager.security;
 
 import com.vaadin.flow.spring.security.VaadinSecurityConfigurer;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -14,6 +15,7 @@ import report.butt.mediamanager.route.LoginView;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@NullMarked
 public class SecurityConfig {
 
     @Bean

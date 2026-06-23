@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -35,6 +36,7 @@ import report.butt.mediamanager.repository.TvSeasonRequestRepository;
             "jobrunr.dashboard.enabled=false"
         })
 @Transactional
+@NullMarked
 class TvHierarchyServiceTest {
 
     @Autowired

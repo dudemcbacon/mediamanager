@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 @Controller
+@NullMarked
 public class MovieController {
 
     private static final Logger log = LoggerFactory.getLogger(MovieController.class);
@@ -364,7 +366,7 @@ public class MovieController {
             return "redirect:/movies";
         }
 
-        Integer profileId = radarrClient.getQualityProfileIdByName(ANY_QUALITY_PROFILE);
+        @Nullable Integer profileId = radarrClient.getQualityProfileIdByName(ANY_QUALITY_PROFILE);
         if (profileId == null) {
             log.warn("No Radarr quality profile named '{}'; cannot change quality profile", ANY_QUALITY_PROFILE);
             return "redirect:/movies";

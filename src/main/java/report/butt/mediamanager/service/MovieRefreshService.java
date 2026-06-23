@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ import report.butt.mediamanager.util.DateTimeUtils;
 import report.butt.mediamanager.util.LocalFileInspector;
 
 @Service
+@NullMarked
 public class MovieRefreshService {
 
     private static final Logger log = LoggerFactory.getLogger(MovieRefreshService.class);
@@ -176,10 +178,10 @@ public class MovieRefreshService {
 
     private void applyUpdates(
             MovieRequest movieRequest,
-            OmbiMovieRequest ombiMovie,
-            Movie radarrMovie,
+            @Nullable OmbiMovieRequest ombiMovie,
+            @Nullable Movie radarrMovie,
             @Nullable Map<Integer, PlexMetadata> plexByTmdb,
-            Map<Integer, String> qualityProfilesById) {
+            @Nullable Map<Integer, String> qualityProfilesById) {
         if (ombiMovie != null) {
             String ombiUserName = ombiMovie.getRequestedUser() == null
                     ? null
@@ -227,7 +229,8 @@ public class MovieRefreshService {
         movieRequest.setLocalFileSize(result.sizeBytes());
     }
 
-    private void applyPlexUpdates(MovieRequest movieRequest, Movie radarrMovie, Map<Integer, PlexMetadata> plexByTmdb) {
+    private void applyPlexUpdates(
+            MovieRequest movieRequest, Movie radarrMovie, @Nullable Map<Integer, PlexMetadata> plexByTmdb) {
         try {
             MetadataResult plexResult;
             if (plexByTmdb != null) {
@@ -240,7 +243,7 @@ public class MovieRefreshService {
                         radarrMovie.getTmdbId(), radarrMovie.getTitle(), radarrMovie.getYear());
             }
             movieRequest.setPlexMetadataUrl(plexResult.url());
-            PlexMetadata plexMetadata = plexResult.metadata();
+            @Nullable PlexMetadata plexMetadata = plexResult.metadata();
             if (plexMetadata != null) {
                 log.info("Plex match found for tmdbId {}: {}", radarrMovie.getTmdbId(), plexMetadata.getTitle());
                 movieRequest.setPlexMetadataId(plexMetadata.getRatingKey());

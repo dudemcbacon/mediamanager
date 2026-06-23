@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -40,6 +41,7 @@ import report.butt.mediamanager.repository.TvSeasonRequestRepository;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
+@NullMarked
 class TvRefreshServiceTest {
 
     private final TvRequestRepository repository = mock(TvRequestRepository.class);

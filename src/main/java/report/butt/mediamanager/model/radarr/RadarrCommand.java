@@ -2,117 +2,120 @@ package report.butt.mediamanager.model.radarr;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@NullMarked
 public class RadarrCommand {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("name")
-    private String name;
+    private @Nullable String name;
 
     @JsonProperty("commandName")
-    private String commandName;
+    private @Nullable String commandName;
 
     @JsonProperty("priority")
-    private String priority;
+    private @Nullable String priority;
 
     @JsonProperty("status")
-    private String status;
+    private @Nullable String status;
 
     @JsonProperty("result")
-    private String result;
+    private @Nullable String result;
 
     @JsonProperty("queued")
-    private String queued;
+    private @Nullable String queued;
 
     @JsonProperty("started")
-    private String started;
+    private @Nullable String started;
 
     @JsonProperty("trigger")
-    private String trigger;
+    private @Nullable String trigger;
 
     @JsonProperty("stateChangeTime")
-    private String stateChangeTime;
+    private @Nullable String stateChangeTime;
 
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 
-    public String getName() {
+    public @Nullable String getName() {
         return name;
     }
 
-    public void setName(String name) {
+    public void setName(@Nullable String name) {
         this.name = name;
     }
 
-    public String getCommandName() {
+    public @Nullable String getCommandName() {
         return commandName;
     }
 
-    public void setCommandName(String commandName) {
+    public void setCommandName(@Nullable String commandName) {
         this.commandName = commandName;
     }
 
-    public String getPriority() {
+    public @Nullable String getPriority() {
         return priority;
     }
 
-    public void setPriority(String priority) {
+    public void setPriority(@Nullable String priority) {
         this.priority = priority;
     }
 
-    public String getStatus() {
+    public @Nullable String getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(@Nullable String status) {
         this.status = status;
     }
 
-    public String getResult() {
+    public @Nullable String getResult() {
         return result;
     }
 
-    public void setResult(String result) {
+    public void setResult(@Nullable String result) {
         this.result = result;
     }
 
-    public String getQueued() {
+    public @Nullable String getQueued() {
         return queued;
     }
 
-    public void setQueued(String queued) {
+    public void setQueued(@Nullable String queued) {
         this.queued = queued;
     }
 
-    public String getStarted() {
+    public @Nullable String getStarted() {
         return started;
     }
 
-    public void setStarted(String started) {
+    public void setStarted(@Nullable String started) {
         this.started = started;
     }
 
-    public String getTrigger() {
+    public @Nullable String getTrigger() {
         return trigger;
     }
 
-    public void setTrigger(String trigger) {
+    public void setTrigger(@Nullable String trigger) {
         this.trigger = trigger;
     }
 
-    public String getStateChangeTime() {
+    public @Nullable String getStateChangeTime() {
         return stateChangeTime;
     }
 
-    public void setStateChangeTime(String stateChangeTime) {
+    public void setStateChangeTime(@Nullable String stateChangeTime) {
         this.stateChangeTime = stateChangeTime;
     }
 }

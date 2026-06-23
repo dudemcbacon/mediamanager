@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,12 +39,16 @@ import report.butt.mediamanager.route.TvHierarchyRow.SeasonRow;
 import report.butt.mediamanager.security.SecurityUtils;
 import report.butt.mediamanager.validation.EpisodeValidator;
 
+@NullMarked
 class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
 
     private static final Logger log = LoggerFactory.getLogger(TvHierarchyTreeGrid.class);
 
     /** A queued episode's Sonarr protocol joined to its Deluge torrent or SABnzbd slot (either may be null). */
-    record EpisodeDownload(String protocol, DelugeTorrent torrent, SabnzbdSlot slot) {}
+    record EpisodeDownload(
+            @Nullable String protocol,
+            @Nullable DelugeTorrent torrent,
+            @Nullable SabnzbdSlot slot) {}
 
     // Resolved at construction and replaced in {@link #applyDownloadStatus} when the parent's poll lands fresh queue
     // data, so the Type/Progress/Peers renderers never touch the lazy TvSeasonRequest association off the UI thread.

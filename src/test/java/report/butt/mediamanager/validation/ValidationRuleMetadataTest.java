@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import report.butt.mediamanager.model.RequestType;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
@@ -13,6 +14,7 @@ import report.butt.mediamanager.repository.TvSeasonRequestRepository;
  * Exercises the metadata methods (sortOrder, shortName, title, description, supportedType) on every
  * ValidationRule/Validator implementation to drive instruction coverage for those methods.
  */
+@NullMarked
 class ValidationRuleMetadataTest {
 
     @Test

@@ -10,51 +10,54 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.processing.Generated;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({"movieFileCount", "sizeOnDisk", "releaseGroups"})
 @Generated("jsonschema2pojo")
+@NullMarked
 public class Statistics {
 
     @JsonProperty("movieFileCount")
-    private Integer movieFileCount;
+    private @Nullable Integer movieFileCount;
 
     @JsonProperty("sizeOnDisk")
-    private Long sizeOnDisk;
+    private @Nullable Long sizeOnDisk;
 
     @JsonProperty("releaseGroups")
-    private List<Object> releaseGroups;
+    private @Nullable List<Object> releaseGroups;
 
     @JsonIgnore
     private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
     @JsonProperty("movieFileCount")
-    public Integer getMovieFileCount() {
+    public @Nullable Integer getMovieFileCount() {
         return movieFileCount;
     }
 
     @JsonProperty("movieFileCount")
-    public void setMovieFileCount(Integer movieFileCount) {
+    public void setMovieFileCount(@Nullable Integer movieFileCount) {
         this.movieFileCount = movieFileCount;
     }
 
     @JsonProperty("sizeOnDisk")
-    public Long getSizeOnDisk() {
+    public @Nullable Long getSizeOnDisk() {
         return sizeOnDisk;
     }
 
     @JsonProperty("sizeOnDisk")
-    public void setSizeOnDisk(Long sizeOnDisk) {
+    public void setSizeOnDisk(@Nullable Long sizeOnDisk) {
         this.sizeOnDisk = sizeOnDisk;
     }
 
     @JsonProperty("releaseGroups")
-    public List<Object> getReleaseGroups() {
+    public @Nullable List<Object> getReleaseGroups() {
         return releaseGroups;
     }
 
     @JsonProperty("releaseGroups")
-    public void setReleaseGroups(List<Object> releaseGroups) {
+    public void setReleaseGroups(@Nullable List<Object> releaseGroups) {
         this.releaseGroups = releaseGroups;
     }
 

@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +80,7 @@ import report.butt.mediamanager.validation.Validator;
 // Each such future handles its own success and failure in the callback (log + toast) and is intentionally not
 // awaited — blocking on it would freeze the UI thread — so FutureReturnValueIgnored is suppressed class-wide.
 @SuppressWarnings("FutureReturnValueIgnored")
+@NullMarked
 public class MovieRequestView extends VerticalLayout {
 
     private static final Logger log = LoggerFactory.getLogger(MovieRequestView.class);
@@ -119,7 +121,7 @@ public class MovieRequestView extends VerticalLayout {
     private final String ombiUrl;
     private final String radarrUrl;
     private final String plexUrl;
-    private final String plexMachineIdentifier;
+    private final @Nullable String plexMachineIdentifier;
     private final PlexClient plexClient;
     private final DelugeClient delugeClient;
     private final SabnzbdClient sabnzbdClient;
@@ -632,7 +634,8 @@ public class MovieRequestView extends VerticalLayout {
      * record's protocol picks which client to look in. Rebuilds the movie-to-download indexes from scratch; the caller
      * re-renders so the Status column updates.
      */
-    private void applyDownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {
+    private void applyDownloadStatus(
+            @Nullable Map<String, DelugeTorrent> torrents, @Nullable Map<String, SabnzbdSlot> slots) {
         torrentByMovieId.clear();
         slotByMovieId.clear();
         Map<String, DelugeTorrent> byLowerHash = new HashMap<>();
@@ -729,7 +732,7 @@ public class MovieRequestView extends VerticalLayout {
     }
 
     private void openPlexQueryUrlDialog(MovieRequest mr) {
-        String url = plexClient.movieQueryUrl(mr.getTitle());
+        @Nullable String url = plexClient.movieQueryUrl(mr.getTitle());
         RequestViewSupport.openTextDialog(
                 "Plex query URL for \"" + mr.getTitle() + "\"", url == null ? "Plex query URL unavailable" : url);
     }
@@ -782,7 +785,7 @@ public class MovieRequestView extends VerticalLayout {
     }
 
     private @Nullable String plexAppHref(MovieRequest mr) {
-        String ratingKey = mr.getPlexMetadataId();
+        @Nullable String ratingKey = mr.getPlexMetadataId();
         if (ratingKey == null || ratingKey.isBlank() || plexMachineIdentifier == null) {
             return null;
         }
@@ -796,7 +799,7 @@ public class MovieRequestView extends VerticalLayout {
     }
 
     /** Updates the queue card's number, per-state breakdown tooltip, and severity background. */
-    private void updateRadarrQueueCard(RadarrQueue queue) {
+    private void updateRadarrQueueCard(@Nullable RadarrQueue queue) {
         if (queue == null) {
             RequestViewSupport.updateQueueCard(radarrQueueCard, radarrQueueValue, radarrQueueTooltip, null, null);
             return;
@@ -814,7 +817,7 @@ public class MovieRequestView extends VerticalLayout {
      * Indexes the current queue by Radarr movie id: the download state drives the Status icon, and the download id
      * links a movie to its Deluge torrent (downloadId == Deluge torrent hash).
      */
-    private void updateQueueMaps(RadarrQueue queue) {
+    private void updateQueueMaps(@Nullable RadarrQueue queue) {
         queueStateByMovieId.clear();
         downloadIdByMovieId.clear();
         protocolByMovieId.clear();

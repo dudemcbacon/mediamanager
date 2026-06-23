@@ -17,6 +17,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import report.butt.mediamanager.model.MovieRequest;
@@ -36,6 +38,7 @@ import report.butt.mediamanager.route.RequestViewSupport.Section;
 // Each such future handles its own success and failure in the callback (log + toast) and is intentionally not
 // awaited — blocking on it would freeze the UI thread — so FutureReturnValueIgnored is suppressed class-wide.
 @SuppressWarnings("FutureReturnValueIgnored")
+@NullMarked
 public class StatsView extends VerticalLayout {
 
     private static final Logger log = LoggerFactory.getLogger(StatsView.class);
@@ -163,7 +166,7 @@ public class StatsView extends VerticalLayout {
                 .toList();
     }
 
-    static String userKey(String ombiUserName) {
+    static String userKey(@Nullable String ombiUserName) {
         return ombiUserName == null || ombiUserName.isBlank() ? UNKNOWN_USER : ombiUserName;
     }
 

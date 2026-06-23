@@ -9,6 +9,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +51,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 @Controller
+@NullMarked
 public class TvController {
 
     private static final Logger log = LoggerFactory.getLogger(TvController.class);
@@ -190,7 +192,7 @@ public class TvController {
             return "redirect:/tv";
         }
 
-        Integer profileId = sonarrClient.getQualityProfileIdByName(ANY_QUALITY_PROFILE);
+        @Nullable Integer profileId = sonarrClient.getQualityProfileIdByName(ANY_QUALITY_PROFILE);
         if (profileId == null) {
             log.warn("No Sonarr quality profile named '{}'; cannot change quality profile", ANY_QUALITY_PROFILE);
             return "redirect:/tv";
@@ -461,7 +463,7 @@ public class TvController {
     }
 
     /** Triggers one Sonarr SeasonSearch per (distinct) season number under the given node. */
-    private void searchSeasons(Integer sonarrSeriesId, String label, List<TvSeasonRequest> seasons) {
+    private void searchSeasons(@Nullable Integer sonarrSeriesId, String label, List<TvSeasonRequest> seasons) {
         if (sonarrSeriesId == null) {
             log.warn("{} has no sonarrSeriesId; skipping season search", label);
             return;
@@ -492,7 +494,7 @@ public class TvController {
      * Sonarr EpisodeSearch. Sonarr's EpisodeSearch keys off its own episode ids, which we don't persist, so we look
      * them up from Sonarr at search time.
      */
-    private void searchEpisodes(Integer sonarrSeriesId, String label, Set<EpisodeKey> keys) {
+    private void searchEpisodes(@Nullable Integer sonarrSeriesId, String label, Set<EpisodeKey> keys) {
         if (sonarrSeriesId == null) {
             log.warn("{} has no sonarrSeriesId; skipping episode search", label);
             return;

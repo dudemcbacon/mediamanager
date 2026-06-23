@@ -12,13 +12,16 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @Entity
+@NullMarked
 public class Note {
 
     @Id
     @GeneratedValue
-    private Long id;
+    private @Nullable Long id;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String notes;
@@ -29,10 +32,10 @@ public class Note {
     private Request request;
 
     @CreationTimestamp
-    private Instant createdAt;
+    private @Nullable Instant createdAt;
 
     @UpdateTimestamp
-    private Instant updatedAt;
+    private @Nullable Instant updatedAt;
 
     Note() {}
 
@@ -41,7 +44,7 @@ public class Note {
         this.request = request;
     }
 
-    public Long getId() {
+    public @Nullable Long getId() {
         return id;
     }
 
@@ -61,11 +64,11 @@ public class Note {
         this.request = request;
     }
 
-    public Instant getCreatedAt() {
+    public @Nullable Instant getCreatedAt() {
         return createdAt;
     }
 
-    public Instant getUpdatedAt() {
+    public @Nullable Instant getUpdatedAt() {
         return updatedAt;
     }
 }

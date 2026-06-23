@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,7 @@ import report.butt.mediamanager.service.NotificationService.ZeroSeedDownload;
 // Each such future handles its own success and failure in the callback (log + toast) and is intentionally not
 // awaited — blocking on it would freeze the UI thread — so FutureReturnValueIgnored is suppressed class-wide.
 @SuppressWarnings("FutureReturnValueIgnored")
+@NullMarked
 public class NotificationsView extends VerticalLayout {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationsView.class);
@@ -312,7 +314,7 @@ public class NotificationsView extends VerticalLayout {
 
     // --- link building ---
 
-    private @Nullable String ombiHref(RequestLink link) {
+    private @Nullable String ombiHref(@Nullable RequestLink link) {
         if (link == null) {
             return null;
         }
@@ -324,7 +326,7 @@ public class NotificationsView extends VerticalLayout {
         return link.tmdbId() == null ? null : ombiUrl + "/details/movie/" + link.tmdbId();
     }
 
-    private @Nullable String arrHref(RequestLink link) {
+    private @Nullable String arrHref(@Nullable RequestLink link) {
         if (link == null) {
             return null;
         }
@@ -466,11 +468,11 @@ public class NotificationsView extends VerticalLayout {
         return String.format("%.1f%%", progress);
     }
 
-    private static String dateText(Instant instant) {
+    private static String dateText(@Nullable Instant instant) {
         return instant == null ? "—" : DATE.format(instant);
     }
 
-    private static String orDash(String value) {
+    private static String orDash(@Nullable String value) {
         return value == null || value.isBlank() ? "—" : value;
     }
 }

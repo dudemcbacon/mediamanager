@@ -15,6 +15,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 // Exactly one of (request_id, tv_episode_id) is set: a validation belongs to either a request or a
@@ -32,45 +34,46 @@ import org.hibernate.annotations.UpdateTimestamp;
                 @CheckConstraint(
                         name = "chk_validation_request_xor_episode",
                         constraint = "(request_id IS NULL) <> (tv_episode_id IS NULL)"))
+@NullMarked
 public class Validation {
     @Id
     @GeneratedValue
-    private Long id;
+    private @Nullable Long id;
 
     private String validationName;
-    private Boolean result;
+    private @Nullable Boolean result;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "request_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
-    private Request request;
+    private @Nullable Request request;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tv_episode_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
-    private TvEpisodeRequest tvEpisode;
+    private @Nullable TvEpisodeRequest tvEpisode;
 
     @CreationTimestamp
-    private Instant createdAt;
+    private @Nullable Instant createdAt;
 
     @UpdateTimestamp
-    private Instant updatedAt;
+    private @Nullable Instant updatedAt;
 
     Validation() {}
 
-    public Validation(String validationName, Boolean result, Request request) {
+    public Validation(String validationName, @Nullable Boolean result, Request request) {
         this.validationName = validationName;
         this.result = result;
         this.request = request;
     }
 
-    public Validation(String validationName, Boolean result, TvEpisodeRequest tvEpisode) {
+    public Validation(String validationName, @Nullable Boolean result, TvEpisodeRequest tvEpisode) {
         this.validationName = validationName;
         this.result = result;
         this.tvEpisode = tvEpisode;
     }
 
-    public Long getId() {
+    public @Nullable Long getId() {
         return this.id;
     }
 
@@ -78,11 +81,11 @@ public class Validation {
         return this.validationName;
     }
 
-    public Boolean getResult() {
+    public @Nullable Boolean getResult() {
         return this.result;
     }
 
-    public void setId(Long id) {
+    public void setId(@Nullable Long id) {
         this.id = id;
     }
 
@@ -90,31 +93,31 @@ public class Validation {
         this.validationName = validationName;
     }
 
-    public void setResult(Boolean result) {
+    public void setResult(@Nullable Boolean result) {
         this.result = result;
     }
 
-    public Request getRequest() {
+    public @Nullable Request getRequest() {
         return this.request;
     }
 
-    public TvEpisodeRequest getTvEpisode() {
+    public @Nullable TvEpisodeRequest getTvEpisode() {
         return this.tvEpisode;
     }
 
-    public Instant getCreatedAt() {
+    public @Nullable Instant getCreatedAt() {
         return this.createdAt;
     }
 
-    public Instant getUpdatedAt() {
+    public @Nullable Instant getUpdatedAt() {
         return this.updatedAt;
     }
 
-    public void setRequest(Request request) {
+    public void setRequest(@Nullable Request request) {
         this.request = request;
     }
 
-    public void setTvEpisode(TvEpisodeRequest tvEpisode) {
+    public void setTvEpisode(@Nullable TvEpisodeRequest tvEpisode) {
         this.tvEpisode = tvEpisode;
     }
 

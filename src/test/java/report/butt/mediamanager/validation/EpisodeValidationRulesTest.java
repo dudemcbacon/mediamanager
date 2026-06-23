@@ -6,11 +6,13 @@ import static org.mockito.Mockito.mock;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import report.butt.mediamanager.model.TvEpisodeRequest;
 import report.butt.mediamanager.model.TvSeasonRequest;
 
 /** Unit tests for EpisodeValidator implementations: EpisodePathsMatch and EpisodeSearchedRecently. */
+@NullMarked
 class EpisodeValidationRulesTest {
 
     // --- EpisodePathsMatch ---

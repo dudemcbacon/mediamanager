@@ -16,6 +16,7 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import org.jspecify.annotations.NullMarked;
 import report.butt.mediamanager.security.AppUser;
 import report.butt.mediamanager.security.Role;
 import report.butt.mediamanager.security.SecurityUtils;
@@ -25,6 +26,7 @@ import report.butt.mediamanager.security.UserAdminService;
 @Route("users")
 @PageTitle("Users")
 @RolesAllowed("ADMIN")
+@NullMarked
 public class UserAdminView extends VerticalLayout {
 
     private static final DateTimeFormatter DATE =

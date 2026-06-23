@@ -12,45 +12,48 @@ import java.util.ArrayList;
 import java.util.List;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
- * One ffprobe scan of a request's local media file: the container-level {@code format} data from
- * {@code ffprobe -show_format}. The per-stream {@code -show_streams} data hangs off {@link #streams}.
- * {@link #requestId}/{@link #requestType} are a soft reference to the owning {@link Request} (the
- * discriminator value, e.g. {@code MOVIE}) rather than a foreign key, so a scan outlives its request.
+ * One ffprobe scan of a request's local media file: the container-level {@code format} data from {@code ffprobe
+ * -show_format}. The per-stream {@code -show_streams} data hangs off {@link #streams}.
+ * {@link #requestId}/{@link #requestType} are a soft reference to the owning {@link Request} (the discriminator value,
+ * e.g. {@code MOVIE}) rather than a foreign key, so a scan outlives its request.
  */
 @Entity
 @Table(name = "ffprobe_scans")
+@NullMarked
 public class FfprobeScan {
 
     @Id
     @GeneratedValue
-    private Long id;
+    private @Nullable Long id;
 
     private Long requestId;
     private String requestType;
 
     @Column(columnDefinition = "TEXT")
-    private String filename;
+    private @Nullable String filename;
 
-    private Integer nbStreams;
-    private Integer nbPrograms;
-    private String formatName;
-    private String formatLongName;
-    private Double startTime;
-    private Double duration;
-    private Long size;
-    private Long bitRate;
-    private Integer probeScore;
+    private @Nullable Integer nbStreams;
+    private @Nullable Integer nbPrograms;
+    private @Nullable String formatName;
+    private @Nullable String formatLongName;
+    private @Nullable Double startTime;
+    private @Nullable Double duration;
+    private @Nullable Long size;
+    private @Nullable Long bitRate;
+    private @Nullable Integer probeScore;
 
     @OneToMany(mappedBy = "ffprobeScan", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FfprobeStream> streams = new ArrayList<>();
 
     @CreationTimestamp
-    private Instant createdAt;
+    private @Nullable Instant createdAt;
 
     @UpdateTimestamp
-    private Instant updatedAt;
+    private @Nullable Instant updatedAt;
 
     FfprobeScan() {}
 
@@ -65,11 +68,11 @@ public class FfprobeScan {
         this.streams.add(stream);
     }
 
-    public Long getId() {
+    public @Nullable Long getId() {
         return this.id;
     }
 
-    public void setId(Long id) {
+    public void setId(@Nullable Long id) {
         this.id = id;
     }
 
@@ -89,83 +92,83 @@ public class FfprobeScan {
         this.requestType = requestType;
     }
 
-    public String getFilename() {
+    public @Nullable String getFilename() {
         return this.filename;
     }
 
-    public void setFilename(String filename) {
+    public void setFilename(@Nullable String filename) {
         this.filename = filename;
     }
 
-    public Integer getNbStreams() {
+    public @Nullable Integer getNbStreams() {
         return this.nbStreams;
     }
 
-    public void setNbStreams(Integer nbStreams) {
+    public void setNbStreams(@Nullable Integer nbStreams) {
         this.nbStreams = nbStreams;
     }
 
-    public Integer getNbPrograms() {
+    public @Nullable Integer getNbPrograms() {
         return this.nbPrograms;
     }
 
-    public void setNbPrograms(Integer nbPrograms) {
+    public void setNbPrograms(@Nullable Integer nbPrograms) {
         this.nbPrograms = nbPrograms;
     }
 
-    public String getFormatName() {
+    public @Nullable String getFormatName() {
         return this.formatName;
     }
 
-    public void setFormatName(String formatName) {
+    public void setFormatName(@Nullable String formatName) {
         this.formatName = formatName;
     }
 
-    public String getFormatLongName() {
+    public @Nullable String getFormatLongName() {
         return this.formatLongName;
     }
 
-    public void setFormatLongName(String formatLongName) {
+    public void setFormatLongName(@Nullable String formatLongName) {
         this.formatLongName = formatLongName;
     }
 
-    public Double getStartTime() {
+    public @Nullable Double getStartTime() {
         return this.startTime;
     }
 
-    public void setStartTime(Double startTime) {
+    public void setStartTime(@Nullable Double startTime) {
         this.startTime = startTime;
     }
 
-    public Double getDuration() {
+    public @Nullable Double getDuration() {
         return this.duration;
     }
 
-    public void setDuration(Double duration) {
+    public void setDuration(@Nullable Double duration) {
         this.duration = duration;
     }
 
-    public Long getSize() {
+    public @Nullable Long getSize() {
         return this.size;
     }
 
-    public void setSize(Long size) {
+    public void setSize(@Nullable Long size) {
         this.size = size;
     }
 
-    public Long getBitRate() {
+    public @Nullable Long getBitRate() {
         return this.bitRate;
     }
 
-    public void setBitRate(Long bitRate) {
+    public void setBitRate(@Nullable Long bitRate) {
         this.bitRate = bitRate;
     }
 
-    public Integer getProbeScore() {
+    public @Nullable Integer getProbeScore() {
         return this.probeScore;
     }
 
-    public void setProbeScore(Integer probeScore) {
+    public void setProbeScore(@Nullable Integer probeScore) {
         this.probeScore = probeScore;
     }
 
@@ -177,11 +180,11 @@ public class FfprobeScan {
         this.streams = streams;
     }
 
-    public Instant getCreatedAt() {
+    public @Nullable Instant getCreatedAt() {
         return this.createdAt;
     }
 
-    public Instant getUpdatedAt() {
+    public @Nullable Instant getUpdatedAt() {
         return this.updatedAt;
     }
 

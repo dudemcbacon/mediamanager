@@ -1,11 +1,13 @@
 package report.butt.mediamanager.validation;
 
 import java.util.Objects;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
 
 @Component
+@NullMarked
 public class TmdbIdsMatch implements Validator<MovieRequest> {
     @Override
     public Boolean validate(MovieRequest request) {

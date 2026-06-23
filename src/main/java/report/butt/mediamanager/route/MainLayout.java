@@ -16,6 +16,7 @@ import com.vaadin.flow.spring.security.AuthenticationContext;
 import jakarta.annotation.security.PermitAll;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.info.BuildProperties;
 import report.butt.mediamanager.security.SecurityUtils;
@@ -27,6 +28,7 @@ import report.butt.mediamanager.security.SecurityUtils;
  */
 @Layout
 @PermitAll
+@NullMarked
 public class MainLayout extends AppLayout {
 
     public MainLayout(AuthenticationContext authenticationContext, ObjectProvider<BuildProperties> buildProperties) {

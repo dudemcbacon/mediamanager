@@ -11,6 +11,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -22,6 +23,7 @@ import report.butt.mediamanager.model.sonarr.SonarrCommand;
 import report.butt.mediamanager.model.sonarr.SonarrHealthItem;
 import report.butt.mediamanager.model.sonarr.SonarrQueue;
 
+@NullMarked
 class SonarrClientTest {
 
     private static final String BASE = "http://sonarr";

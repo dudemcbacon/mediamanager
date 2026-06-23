@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import report.butt.mediamanager.model.TvChildRequest;
@@ -17,6 +18,7 @@ import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
 
 @Service
+@NullMarked
 public class TvHierarchyService {
 
     private static final Comparator<TvSeasonRequest> SEASON_ORDER =

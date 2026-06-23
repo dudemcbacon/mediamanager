@@ -4,8 +4,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 
+@NullMarked
 class ScheduledRefreshJobTest {
 
     private final MovieRefreshService movieRefreshService = mock(MovieRefreshService.class);

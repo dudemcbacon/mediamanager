@@ -2,139 +2,142 @@ package report.butt.mediamanager.model.sonarr;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@NullMarked
 public class Series {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("title")
-    private String title;
+    private @Nullable String title;
 
     @JsonProperty("titleSlug")
-    private String titleSlug;
+    private @Nullable String titleSlug;
 
     @JsonProperty("tvdbId")
-    private Integer tvdbId;
+    private @Nullable Integer tvdbId;
 
     @JsonProperty("year")
-    private Integer year;
+    private @Nullable Integer year;
 
     @JsonProperty("qualityProfileId")
-    private Integer qualityProfileId;
+    private @Nullable Integer qualityProfileId;
 
     @JsonProperty("monitored")
-    private Boolean monitored;
+    private @Nullable Boolean monitored;
 
     @JsonProperty("monitorNewItems")
-    private String monitorNewItems;
+    private @Nullable String monitorNewItems;
 
     @JsonProperty("path")
-    private String path;
+    private @Nullable String path;
 
     @JsonProperty("rootFolderPath")
-    private String rootFolderPath;
+    private @Nullable String rootFolderPath;
 
     @JsonProperty("originalLanguage")
-    private SonarrLanguage originalLanguage;
+    private @Nullable SonarrLanguage originalLanguage;
 
     @JsonProperty("statistics")
-    private SeriesStatistics statistics;
+    private @Nullable SeriesStatistics statistics;
 
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 
-    public String getTitle() {
+    public @Nullable String getTitle() {
         return title;
     }
 
-    public void setTitle(String title) {
+    public void setTitle(@Nullable String title) {
         this.title = title;
     }
 
-    public String getTitleSlug() {
+    public @Nullable String getTitleSlug() {
         return titleSlug;
     }
 
-    public void setTitleSlug(String titleSlug) {
+    public void setTitleSlug(@Nullable String titleSlug) {
         this.titleSlug = titleSlug;
     }
 
-    public Integer getTvdbId() {
+    public @Nullable Integer getTvdbId() {
         return tvdbId;
     }
 
-    public void setTvdbId(Integer tvdbId) {
+    public void setTvdbId(@Nullable Integer tvdbId) {
         this.tvdbId = tvdbId;
     }
 
-    public Integer getYear() {
+    public @Nullable Integer getYear() {
         return year;
     }
 
-    public void setYear(Integer year) {
+    public void setYear(@Nullable Integer year) {
         this.year = year;
     }
 
-    public Integer getQualityProfileId() {
+    public @Nullable Integer getQualityProfileId() {
         return qualityProfileId;
     }
 
-    public void setQualityProfileId(Integer qualityProfileId) {
+    public void setQualityProfileId(@Nullable Integer qualityProfileId) {
         this.qualityProfileId = qualityProfileId;
     }
 
-    public Boolean getMonitored() {
+    public @Nullable Boolean getMonitored() {
         return monitored;
     }
 
-    public void setMonitored(Boolean monitored) {
+    public void setMonitored(@Nullable Boolean monitored) {
         this.monitored = monitored;
     }
 
-    public String getMonitorNewItems() {
+    public @Nullable String getMonitorNewItems() {
         return monitorNewItems;
     }
 
-    public void setMonitorNewItems(String monitorNewItems) {
+    public void setMonitorNewItems(@Nullable String monitorNewItems) {
         this.monitorNewItems = monitorNewItems;
     }
 
-    public String getPath() {
+    public @Nullable String getPath() {
         return path;
     }
 
-    public void setPath(String path) {
+    public void setPath(@Nullable String path) {
         this.path = path;
     }
 
-    public String getRootFolderPath() {
+    public @Nullable String getRootFolderPath() {
         return rootFolderPath;
     }
 
-    public void setRootFolderPath(String rootFolderPath) {
+    public void setRootFolderPath(@Nullable String rootFolderPath) {
         this.rootFolderPath = rootFolderPath;
     }
 
-    public SonarrLanguage getOriginalLanguage() {
+    public @Nullable SonarrLanguage getOriginalLanguage() {
         return originalLanguage;
     }
 
-    public void setOriginalLanguage(SonarrLanguage originalLanguage) {
+    public void setOriginalLanguage(@Nullable SonarrLanguage originalLanguage) {
         this.originalLanguage = originalLanguage;
     }
 
-    public SeriesStatistics getStatistics() {
+    public @Nullable SeriesStatistics getStatistics() {
         return statistics;
     }
 
-    public void setStatistics(SeriesStatistics statistics) {
+    public void setStatistics(@Nullable SeriesStatistics statistics) {
         this.statistics = statistics;
     }
 }

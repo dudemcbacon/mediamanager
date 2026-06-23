@@ -5,11 +5,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.concurrent.DelegatingSecurityContextExecutorService;
 
 @Configuration
+@NullMarked
 public class AsyncExecutorConfig {
 
     /**

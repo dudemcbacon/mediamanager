@@ -18,6 +18,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(
@@ -26,47 +28,48 @@ import org.hibernate.annotations.UpdateTimestamp;
                 @UniqueConstraint(
                         name = "uk_tv_child_request_ombi_id",
                         columnNames = {"ombi_request_id"}))
+@NullMarked
 public class TvChildRequest {
 
     private static final String OMBI_AVAILABLE_STATUS = "Common.Available";
 
     @Id
     @GeneratedValue
-    private Long id;
+    private @Nullable Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "parent_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    private TvRequest parent;
+    private @Nullable TvRequest parent;
 
-    private Integer ombiParentRequestId;
+    private @Nullable Integer ombiParentRequestId;
 
-    private String title;
-    private Integer tvdbId;
-    private Boolean ombiAvailable;
-    private Integer ombiRequestId;
-    private String ombiRequestStatus;
-    private String ombiUserName;
-    private Integer ombiTotalSeasons;
+    private @Nullable String title;
+    private @Nullable Integer tvdbId;
+    private @Nullable Boolean ombiAvailable;
+    private @Nullable Integer ombiRequestId;
+    private @Nullable String ombiRequestStatus;
+    private @Nullable String ombiUserName;
+    private @Nullable Integer ombiTotalSeasons;
 
     @OneToMany(mappedBy = "tvChildRequest", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TvSeasonRequest> seasonRequests = new ArrayList<>();
 
     @CreationTimestamp
-    private Instant createdAt;
+    private @Nullable Instant createdAt;
 
     @UpdateTimestamp
-    private Instant updatedAt;
+    private @Nullable Instant updatedAt;
 
     TvChildRequest() {}
 
     public TvChildRequest(
             TvRequest parent,
-            String title,
-            Integer tvdbId,
-            Boolean ombiAvailable,
-            Integer ombiRequestId,
-            String ombiRequestStatus) {
+            @Nullable String title,
+            @Nullable Integer tvdbId,
+            @Nullable Boolean ombiAvailable,
+            @Nullable Integer ombiRequestId,
+            @Nullable String ombiRequestStatus) {
         this.parent = parent;
         this.title = title;
         this.tvdbId = tvdbId;
@@ -76,83 +79,83 @@ public class TvChildRequest {
         this.ombiParentRequestId = parent.getOmbiRequestId();
     }
 
-    public Long getId() {
+    public @Nullable Long getId() {
         return this.id;
     }
 
-    public void setId(Long id) {
+    public void setId(@Nullable Long id) {
         this.id = id;
     }
 
-    public TvRequest getParent() {
+    public @Nullable TvRequest getParent() {
         return this.parent;
     }
 
-    public void setParent(TvRequest parent) {
+    public void setParent(@Nullable TvRequest parent) {
         this.parent = parent;
     }
 
-    public Integer getOmbiParentRequestId() {
+    public @Nullable Integer getOmbiParentRequestId() {
         return this.ombiParentRequestId;
     }
 
-    public void setOmbiParentRequestId(Integer ombiParentRequestId) {
+    public void setOmbiParentRequestId(@Nullable Integer ombiParentRequestId) {
         this.ombiParentRequestId = ombiParentRequestId;
     }
 
-    public String getTitle() {
+    public @Nullable String getTitle() {
         return this.title;
     }
 
-    public void setTitle(String title) {
+    public void setTitle(@Nullable String title) {
         this.title = title;
     }
 
-    public Integer getTvdbId() {
+    public @Nullable Integer getTvdbId() {
         return this.tvdbId;
     }
 
-    public void setTvdbId(Integer tvdbId) {
+    public void setTvdbId(@Nullable Integer tvdbId) {
         this.tvdbId = tvdbId;
     }
 
-    public Boolean getOmbiAvailable() {
+    public @Nullable Boolean getOmbiAvailable() {
         return this.ombiAvailable;
     }
 
-    public void setOmbiAvailable(Boolean ombiAvailable) {
+    public void setOmbiAvailable(@Nullable Boolean ombiAvailable) {
         this.ombiAvailable = ombiAvailable;
     }
 
-    public Integer getOmbiRequestId() {
+    public @Nullable Integer getOmbiRequestId() {
         return this.ombiRequestId;
     }
 
-    public void setOmbiRequestId(Integer ombiRequestId) {
+    public void setOmbiRequestId(@Nullable Integer ombiRequestId) {
         this.ombiRequestId = ombiRequestId;
     }
 
-    public String getOmbiRequestStatus() {
+    public @Nullable String getOmbiRequestStatus() {
         return this.ombiRequestStatus;
     }
 
-    public void setOmbiRequestStatus(String ombiRequestStatus) {
+    public void setOmbiRequestStatus(@Nullable String ombiRequestStatus) {
         this.ombiRequestStatus = ombiRequestStatus;
     }
 
-    public String getOmbiUserName() {
+    public @Nullable String getOmbiUserName() {
         return this.ombiUserName;
     }
 
-    public void setOmbiUserName(String ombiUserName) {
+    public void setOmbiUserName(@Nullable String ombiUserName) {
         this.ombiUserName = ombiUserName;
     }
 
-    public Integer getOmbiTotalSeasons() {
+    public @Nullable Integer getOmbiTotalSeasons() {
         return this.ombiTotalSeasons;
     }
 
-    public void setOmbiTotalSeasons(Integer ombiTotalSeasons) {
+    public void setOmbiTotalSeasons(@Nullable Integer ombiTotalSeasons) {
         this.ombiTotalSeasons = ombiTotalSeasons;
     }
 
@@ -164,11 +167,11 @@ public class TvChildRequest {
         this.seasonRequests = seasonRequests;
     }
 
-    public Instant getCreatedAt() {
+    public @Nullable Instant getCreatedAt() {
         return this.createdAt;
     }
 
-    public Instant getUpdatedAt() {
+    public @Nullable Instant getUpdatedAt() {
         return this.updatedAt;
     }
 

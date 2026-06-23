@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.client.SonarrClient;
@@ -22,6 +23,7 @@ import report.butt.mediamanager.model.sonarr.SonarrQueueRecord;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 
+@NullMarked
 class DownloadCleanupServiceTest {
 
     private final RadarrClient radarrClient = mock(RadarrClient.class);

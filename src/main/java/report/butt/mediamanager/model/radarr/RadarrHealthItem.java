@@ -2,51 +2,54 @@ package report.butt.mediamanager.model.radarr;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@NullMarked
 public class RadarrHealthItem {
 
     @JsonProperty("source")
-    private String source;
+    private @Nullable String source;
 
     @JsonProperty("type")
-    private String type;
+    private @Nullable String type;
 
     @JsonProperty("message")
-    private String message;
+    private @Nullable String message;
 
     @JsonProperty("wikiUrl")
-    private String wikiUrl;
+    private @Nullable String wikiUrl;
 
-    public String getSource() {
+    public @Nullable String getSource() {
         return source;
     }
 
-    public void setSource(String source) {
+    public void setSource(@Nullable String source) {
         this.source = source;
     }
 
-    public String getType() {
+    public @Nullable String getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(@Nullable String type) {
         this.type = type;
     }
 
-    public String getMessage() {
+    public @Nullable String getMessage() {
         return message;
     }
 
-    public void setMessage(String message) {
+    public void setMessage(@Nullable String message) {
         this.message = message;
     }
 
-    public String getWikiUrl() {
+    public @Nullable String getWikiUrl() {
         return wikiUrl;
     }
 
-    public void setWikiUrl(String wikiUrl) {
+    public void setWikiUrl(@Nullable String wikiUrl) {
         this.wikiUrl = wikiUrl;
     }
 }

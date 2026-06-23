@@ -11,6 +11,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,14 +19,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
+@NullMarked
 public class PlexCacheService {
 
     private static final Logger log = LoggerFactory.getLogger(PlexCacheService.class);
     private static final Pattern KEY_PATTERN = Pattern.compile("[A-Za-z0-9_-]+");
     public static final String URL_PREFIX = "/plex-cache/";
 
-    private final String configuredDir;
-    private Path cacheDir;
+    private final @Nullable String configuredDir;
+    private @Nullable Path cacheDir;
 
     public PlexCacheService(@Value("${plex.cache.dir:}") String configuredDir) {
         this.configuredDir = configuredDir;
@@ -59,7 +61,7 @@ public class PlexCacheService {
         return URL_PREFIX + key + ".json";
     }
 
-    public @Nullable Path resolve(String filename) {
+    public @Nullable Path resolve(@Nullable String filename) {
         if (filename == null || !filename.endsWith(".json")) {
             return null;
         }
@@ -99,7 +101,7 @@ public class PlexCacheService {
         }
     }
 
-    private static void validateKey(String key) {
+    private static void validateKey(@Nullable String key) {
         if (key == null || !KEY_PATTERN.matcher(key).matches()) {
             throw new IllegalArgumentException("Invalid cache key: " + key);
         }

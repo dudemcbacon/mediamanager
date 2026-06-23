@@ -1,6 +1,7 @@
 package report.butt.mediamanager.security;
 
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -9,6 +10,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 @Service
+@NullMarked
 public class AppUserDetailsService implements UserDetailsService {
 
     private final AppUserRepository repository;

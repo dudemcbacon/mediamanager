@@ -8,11 +8,13 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 
+@NullMarked
 class MovieRequestControllerTest {
 
     private final MovieRequestRepository repository = mock(MovieRequestRepository.class);

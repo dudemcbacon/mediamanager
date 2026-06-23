@@ -9,6 +9,8 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.processing.Generated;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({
@@ -29,203 +31,204 @@ import javax.annotation.processing.Generated;
     "subtitles"
 })
 @Generated("jsonschema2pojo")
+@NullMarked
 public class MediaInfo {
 
     @JsonProperty("audioBitrate")
-    private Integer audioBitrate;
+    private @Nullable Integer audioBitrate;
 
     @JsonProperty("audioChannels")
-    private Double audioChannels;
+    private @Nullable Double audioChannels;
 
     @JsonProperty("audioCodec")
-    private String audioCodec;
+    private @Nullable String audioCodec;
 
     @JsonProperty("audioLanguages")
-    private String audioLanguages;
+    private @Nullable String audioLanguages;
 
     @JsonProperty("audioStreamCount")
-    private Integer audioStreamCount;
+    private @Nullable Integer audioStreamCount;
 
     @JsonProperty("videoBitDepth")
-    private Integer videoBitDepth;
+    private @Nullable Integer videoBitDepth;
 
     @JsonProperty("videoBitrate")
-    private Integer videoBitrate;
+    private @Nullable Integer videoBitrate;
 
     @JsonProperty("videoCodec")
-    private String videoCodec;
+    private @Nullable String videoCodec;
 
     @JsonProperty("videoFps")
-    private Double videoFps;
+    private @Nullable Double videoFps;
 
     @JsonProperty("videoDynamicRange")
-    private String videoDynamicRange;
+    private @Nullable String videoDynamicRange;
 
     @JsonProperty("videoDynamicRangeType")
-    private String videoDynamicRangeType;
+    private @Nullable String videoDynamicRangeType;
 
     @JsonProperty("resolution")
-    private String resolution;
+    private @Nullable String resolution;
 
     @JsonProperty("runTime")
-    private String runTime;
+    private @Nullable String runTime;
 
     @JsonProperty("scanType")
-    private String scanType;
+    private @Nullable String scanType;
 
     @JsonProperty("subtitles")
-    private String subtitles;
+    private @Nullable String subtitles;
 
     @JsonIgnore
     private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
     @JsonProperty("audioBitrate")
-    public Integer getAudioBitrate() {
+    public @Nullable Integer getAudioBitrate() {
         return audioBitrate;
     }
 
     @JsonProperty("audioBitrate")
-    public void setAudioBitrate(Integer audioBitrate) {
+    public void setAudioBitrate(@Nullable Integer audioBitrate) {
         this.audioBitrate = audioBitrate;
     }
 
     @JsonProperty("audioChannels")
-    public Double getAudioChannels() {
+    public @Nullable Double getAudioChannels() {
         return audioChannels;
     }
 
     @JsonProperty("audioChannels")
-    public void setAudioChannels(Double audioChannels) {
+    public void setAudioChannels(@Nullable Double audioChannels) {
         this.audioChannels = audioChannels;
     }
 
     @JsonProperty("audioCodec")
-    public String getAudioCodec() {
+    public @Nullable String getAudioCodec() {
         return audioCodec;
     }
 
     @JsonProperty("audioCodec")
-    public void setAudioCodec(String audioCodec) {
+    public void setAudioCodec(@Nullable String audioCodec) {
         this.audioCodec = audioCodec;
     }
 
     @JsonProperty("audioLanguages")
-    public String getAudioLanguages() {
+    public @Nullable String getAudioLanguages() {
         return audioLanguages;
     }
 
     @JsonProperty("audioLanguages")
-    public void setAudioLanguages(String audioLanguages) {
+    public void setAudioLanguages(@Nullable String audioLanguages) {
         this.audioLanguages = audioLanguages;
     }
 
     @JsonProperty("audioStreamCount")
-    public Integer getAudioStreamCount() {
+    public @Nullable Integer getAudioStreamCount() {
         return audioStreamCount;
     }
 
     @JsonProperty("audioStreamCount")
-    public void setAudioStreamCount(Integer audioStreamCount) {
+    public void setAudioStreamCount(@Nullable Integer audioStreamCount) {
         this.audioStreamCount = audioStreamCount;
     }
 
     @JsonProperty("videoBitDepth")
-    public Integer getVideoBitDepth() {
+    public @Nullable Integer getVideoBitDepth() {
         return videoBitDepth;
     }
 
     @JsonProperty("videoBitDepth")
-    public void setVideoBitDepth(Integer videoBitDepth) {
+    public void setVideoBitDepth(@Nullable Integer videoBitDepth) {
         this.videoBitDepth = videoBitDepth;
     }
 
     @JsonProperty("videoBitrate")
-    public Integer getVideoBitrate() {
+    public @Nullable Integer getVideoBitrate() {
         return videoBitrate;
     }
 
     @JsonProperty("videoBitrate")
-    public void setVideoBitrate(Integer videoBitrate) {
+    public void setVideoBitrate(@Nullable Integer videoBitrate) {
         this.videoBitrate = videoBitrate;
     }
 
     @JsonProperty("videoCodec")
-    public String getVideoCodec() {
+    public @Nullable String getVideoCodec() {
         return videoCodec;
     }
 
     @JsonProperty("videoCodec")
-    public void setVideoCodec(String videoCodec) {
+    public void setVideoCodec(@Nullable String videoCodec) {
         this.videoCodec = videoCodec;
     }
 
     @JsonProperty("videoFps")
-    public Double getVideoFps() {
+    public @Nullable Double getVideoFps() {
         return videoFps;
     }
 
     @JsonProperty("videoFps")
-    public void setVideoFps(Double videoFps) {
+    public void setVideoFps(@Nullable Double videoFps) {
         this.videoFps = videoFps;
     }
 
     @JsonProperty("videoDynamicRange")
-    public String getVideoDynamicRange() {
+    public @Nullable String getVideoDynamicRange() {
         return videoDynamicRange;
     }
 
     @JsonProperty("videoDynamicRange")
-    public void setVideoDynamicRange(String videoDynamicRange) {
+    public void setVideoDynamicRange(@Nullable String videoDynamicRange) {
         this.videoDynamicRange = videoDynamicRange;
     }
 
     @JsonProperty("videoDynamicRangeType")
-    public String getVideoDynamicRangeType() {
+    public @Nullable String getVideoDynamicRangeType() {
         return videoDynamicRangeType;
     }
 
     @JsonProperty("videoDynamicRangeType")
-    public void setVideoDynamicRangeType(String videoDynamicRangeType) {
+    public void setVideoDynamicRangeType(@Nullable String videoDynamicRangeType) {
         this.videoDynamicRangeType = videoDynamicRangeType;
     }
 
     @JsonProperty("resolution")
-    public String getResolution() {
+    public @Nullable String getResolution() {
         return resolution;
     }
 
     @JsonProperty("resolution")
-    public void setResolution(String resolution) {
+    public void setResolution(@Nullable String resolution) {
         this.resolution = resolution;
     }
 
     @JsonProperty("runTime")
-    public String getRunTime() {
+    public @Nullable String getRunTime() {
         return runTime;
     }
 
     @JsonProperty("runTime")
-    public void setRunTime(String runTime) {
+    public void setRunTime(@Nullable String runTime) {
         this.runTime = runTime;
     }
 
     @JsonProperty("scanType")
-    public String getScanType() {
+    public @Nullable String getScanType() {
         return scanType;
     }
 
     @JsonProperty("scanType")
-    public void setScanType(String scanType) {
+    public void setScanType(@Nullable String scanType) {
         this.scanType = scanType;
     }
 
     @JsonProperty("subtitles")
-    public String getSubtitles() {
+    public @Nullable String getSubtitles() {
         return subtitles;
     }
 
     @JsonProperty("subtitles")
-    public void setSubtitles(String subtitles) {
+    public void setSubtitles(@Nullable String subtitles) {
         this.subtitles = subtitles;
     }
 

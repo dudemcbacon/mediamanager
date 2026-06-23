@@ -3,73 +3,76 @@ package report.butt.mediamanager.model.ombi;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@NullMarked
 public class OmbiTvSeasonRequest {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("seasonNumber")
-    private Integer seasonNumber;
+    private @Nullable Integer seasonNumber;
 
     @JsonProperty("overview")
-    private String overview;
+    private @Nullable String overview;
 
     @JsonProperty("episodes")
-    private List<OmbiTvEpisode> episodes;
+    private @Nullable List<OmbiTvEpisode> episodes;
 
     @JsonProperty("childRequestId")
-    private Integer childRequestId;
+    private @Nullable Integer childRequestId;
 
     @JsonProperty("seasonAvailable")
-    private Boolean seasonAvailable;
+    private @Nullable Boolean seasonAvailable;
 
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 
-    public Integer getSeasonNumber() {
+    public @Nullable Integer getSeasonNumber() {
         return seasonNumber;
     }
 
-    public void setSeasonNumber(Integer seasonNumber) {
+    public void setSeasonNumber(@Nullable Integer seasonNumber) {
         this.seasonNumber = seasonNumber;
     }
 
-    public String getOverview() {
+    public @Nullable String getOverview() {
         return overview;
     }
 
-    public void setOverview(String overview) {
+    public void setOverview(@Nullable String overview) {
         this.overview = overview;
     }
 
-    public List<OmbiTvEpisode> getEpisodes() {
+    public @Nullable List<OmbiTvEpisode> getEpisodes() {
         return episodes;
     }
 
-    public void setEpisodes(List<OmbiTvEpisode> episodes) {
+    public void setEpisodes(@Nullable List<OmbiTvEpisode> episodes) {
         this.episodes = episodes;
     }
 
-    public Integer getChildRequestId() {
+    public @Nullable Integer getChildRequestId() {
         return childRequestId;
     }
 
-    public void setChildRequestId(Integer childRequestId) {
+    public void setChildRequestId(@Nullable Integer childRequestId) {
         this.childRequestId = childRequestId;
     }
 
-    public Boolean getSeasonAvailable() {
+    public @Nullable Boolean getSeasonAvailable() {
         return seasonAvailable;
     }
 
-    public void setSeasonAvailable(Boolean seasonAvailable) {
+    public void setSeasonAvailable(@Nullable Boolean seasonAvailable) {
         this.seasonAvailable = seasonAvailable;
     }
 }

@@ -9,51 +9,54 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.processing.Generated;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({"coverType", "url", "remoteUrl"})
 @Generated("jsonschema2pojo")
+@NullMarked
 public class Image {
 
     @JsonProperty("coverType")
-    private String coverType;
+    private @Nullable String coverType;
 
     @JsonProperty("url")
-    private String url;
+    private @Nullable String url;
 
     @JsonProperty("remoteUrl")
-    private String remoteUrl;
+    private @Nullable String remoteUrl;
 
     @JsonIgnore
     private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
     @JsonProperty("coverType")
-    public String getCoverType() {
+    public @Nullable String getCoverType() {
         return coverType;
     }
 
     @JsonProperty("coverType")
-    public void setCoverType(String coverType) {
+    public void setCoverType(@Nullable String coverType) {
         this.coverType = coverType;
     }
 
     @JsonProperty("url")
-    public String getUrl() {
+    public @Nullable String getUrl() {
         return url;
     }
 
     @JsonProperty("url")
-    public void setUrl(String url) {
+    public void setUrl(@Nullable String url) {
         this.url = url;
     }
 
     @JsonProperty("remoteUrl")
-    public String getRemoteUrl() {
+    public @Nullable String getRemoteUrl() {
         return remoteUrl;
     }
 
     @JsonProperty("remoteUrl")
-    public void setRemoteUrl(String remoteUrl) {
+    public void setRemoteUrl(@Nullable String remoteUrl) {
         this.remoteUrl = remoteUrl;
     }
 

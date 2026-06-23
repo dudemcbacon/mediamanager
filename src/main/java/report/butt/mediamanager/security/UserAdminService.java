@@ -1,6 +1,8 @@
 package report.butt.mediamanager.security;
 
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
  * lockout guards: an admin can't disable or delete their own account, and the last enabled admin can't be removed.
  */
 @Service
+@NullMarked
 public class UserAdminService {
 
     private final AppUserRepository repository;
@@ -24,7 +27,7 @@ public class UserAdminService {
         return repository.findAll();
     }
 
-    public void create(String username, String rawPassword, Role role) {
+    public void create(@Nullable String username, @Nullable String rawPassword, @Nullable Role role) {
         String trimmed = username == null ? "" : username.trim();
         if (trimmed.isBlank()) {
             throw new IllegalArgumentException("Username is required.");
@@ -41,7 +44,7 @@ public class UserAdminService {
         repository.save(new AppUser(trimmed, passwordEncoder.encode(rawPassword), role.name()));
     }
 
-    public void resetPassword(Long id, String rawPassword) {
+    public void resetPassword(Long id, @Nullable String rawPassword) {
         if (rawPassword == null || rawPassword.isBlank()) {
             throw new IllegalArgumentException("Password is required.");
         }

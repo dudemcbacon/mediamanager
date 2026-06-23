@@ -15,6 +15,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(
@@ -23,185 +25,187 @@ import org.hibernate.annotations.UpdateTimestamp;
                 @UniqueConstraint(
                         name = "uk_tv_episode_request_season_episode",
                         columnNames = {"tv_season_request_id", "ombi_episode_number"}))
+@NullMarked
 public class TvEpisodeRequest {
 
     @Id
     @GeneratedValue
-    private Long id;
+    private @Nullable Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "tv_season_request_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    private TvSeasonRequest tvSeasonRequest;
+    private @Nullable TvSeasonRequest tvSeasonRequest;
 
     @Column(name = "ombi_episode_id")
-    private Integer ombiEpisodeId;
+    private @Nullable Integer ombiEpisodeId;
 
     @Column(name = "ombi_episode_number")
-    private Integer ombiEpisodeNumber;
+    private @Nullable Integer ombiEpisodeNumber;
 
-    private String ombiTitle;
-    private Boolean ombiAvailable;
-    private Boolean ombiApproved;
-    private Boolean ombiRequested;
-    private String ombiRequestStatus;
-
-    @Column(columnDefinition = "TEXT")
-    private String sonarrPath;
+    private @Nullable String ombiTitle;
+    private @Nullable Boolean ombiAvailable;
+    private @Nullable Boolean ombiApproved;
+    private @Nullable Boolean ombiRequested;
+    private @Nullable String ombiRequestStatus;
 
     @Column(columnDefinition = "TEXT")
-    private String plexPath;
+    private @Nullable String sonarrPath;
+
+    @Column(columnDefinition = "TEXT")
+    private @Nullable String plexPath;
 
     /** Size in bytes of the episode's Plex media file, when known. */
-    private Long plexMediaSize;
+    private @Nullable Long plexMediaSize;
 
     /** Whether {@link #sonarrPath} resolves to an existing file on the local filesystem (prefix applied). */
-    private Boolean localFilePathAvailable;
+    private @Nullable Boolean localFilePathAvailable;
 
     /** Size in bytes of the local file, when {@link #localFilePathAvailable} is true; otherwise null. */
-    private Long localFileSize;
+    private @Nullable Long localFileSize;
 
-    private Instant sonarrLastSearchTime;
+    private @Nullable Instant sonarrLastSearchTime;
 
     @CreationTimestamp
-    private Instant createdAt;
+    private @Nullable Instant createdAt;
 
     @UpdateTimestamp
-    private Instant updatedAt;
+    private @Nullable Instant updatedAt;
 
     TvEpisodeRequest() {}
 
-    public TvEpisodeRequest(TvSeasonRequest tvSeasonRequest, Integer ombiEpisodeId, Integer ombiEpisodeNumber) {
+    public TvEpisodeRequest(
+            TvSeasonRequest tvSeasonRequest, @Nullable Integer ombiEpisodeId, @Nullable Integer ombiEpisodeNumber) {
         this.tvSeasonRequest = tvSeasonRequest;
         this.ombiEpisodeId = ombiEpisodeId;
         this.ombiEpisodeNumber = ombiEpisodeNumber;
     }
 
-    public Long getId() {
+    public @Nullable Long getId() {
         return this.id;
     }
 
-    public void setId(Long id) {
+    public void setId(@Nullable Long id) {
         this.id = id;
     }
 
-    public TvSeasonRequest getTvSeasonRequest() {
+    public @Nullable TvSeasonRequest getTvSeasonRequest() {
         return this.tvSeasonRequest;
     }
 
-    public void setTvSeasonRequest(TvSeasonRequest tvSeasonRequest) {
+    public void setTvSeasonRequest(@Nullable TvSeasonRequest tvSeasonRequest) {
         this.tvSeasonRequest = tvSeasonRequest;
     }
 
-    public Integer getOmbiEpisodeId() {
+    public @Nullable Integer getOmbiEpisodeId() {
         return this.ombiEpisodeId;
     }
 
-    public void setOmbiEpisodeId(Integer ombiEpisodeId) {
+    public void setOmbiEpisodeId(@Nullable Integer ombiEpisodeId) {
         this.ombiEpisodeId = ombiEpisodeId;
     }
 
-    public Integer getOmbiEpisodeNumber() {
+    public @Nullable Integer getOmbiEpisodeNumber() {
         return this.ombiEpisodeNumber;
     }
 
-    public void setOmbiEpisodeNumber(Integer ombiEpisodeNumber) {
+    public void setOmbiEpisodeNumber(@Nullable Integer ombiEpisodeNumber) {
         this.ombiEpisodeNumber = ombiEpisodeNumber;
     }
 
-    public String getOmbiTitle() {
+    public @Nullable String getOmbiTitle() {
         return this.ombiTitle;
     }
 
-    public void setOmbiTitle(String ombiTitle) {
+    public void setOmbiTitle(@Nullable String ombiTitle) {
         this.ombiTitle = ombiTitle;
     }
 
-    public Boolean getOmbiAvailable() {
+    public @Nullable Boolean getOmbiAvailable() {
         return this.ombiAvailable;
     }
 
-    public void setOmbiAvailable(Boolean ombiAvailable) {
+    public void setOmbiAvailable(@Nullable Boolean ombiAvailable) {
         this.ombiAvailable = ombiAvailable;
     }
 
-    public Boolean getOmbiApproved() {
+    public @Nullable Boolean getOmbiApproved() {
         return this.ombiApproved;
     }
 
-    public void setOmbiApproved(Boolean ombiApproved) {
+    public void setOmbiApproved(@Nullable Boolean ombiApproved) {
         this.ombiApproved = ombiApproved;
     }
 
-    public Boolean getOmbiRequested() {
+    public @Nullable Boolean getOmbiRequested() {
         return this.ombiRequested;
     }
 
-    public void setOmbiRequested(Boolean ombiRequested) {
+    public void setOmbiRequested(@Nullable Boolean ombiRequested) {
         this.ombiRequested = ombiRequested;
     }
 
-    public String getOmbiRequestStatus() {
+    public @Nullable String getOmbiRequestStatus() {
         return this.ombiRequestStatus;
     }
 
-    public void setOmbiRequestStatus(String ombiRequestStatus) {
+    public void setOmbiRequestStatus(@Nullable String ombiRequestStatus) {
         this.ombiRequestStatus = ombiRequestStatus;
     }
 
-    public String getSonarrPath() {
+    public @Nullable String getSonarrPath() {
         return this.sonarrPath;
     }
 
-    public void setSonarrPath(String sonarrPath) {
+    public void setSonarrPath(@Nullable String sonarrPath) {
         this.sonarrPath = sonarrPath;
     }
 
-    public String getPlexPath() {
+    public @Nullable String getPlexPath() {
         return this.plexPath;
     }
 
-    public void setPlexPath(String plexPath) {
+    public void setPlexPath(@Nullable String plexPath) {
         this.plexPath = plexPath;
     }
 
-    public Long getPlexMediaSize() {
+    public @Nullable Long getPlexMediaSize() {
         return this.plexMediaSize;
     }
 
-    public void setPlexMediaSize(Long plexMediaSize) {
+    public void setPlexMediaSize(@Nullable Long plexMediaSize) {
         this.plexMediaSize = plexMediaSize;
     }
 
-    public Boolean getLocalFilePathAvailable() {
+    public @Nullable Boolean getLocalFilePathAvailable() {
         return this.localFilePathAvailable;
     }
 
-    public void setLocalFilePathAvailable(Boolean localFilePathAvailable) {
+    public void setLocalFilePathAvailable(@Nullable Boolean localFilePathAvailable) {
         this.localFilePathAvailable = localFilePathAvailable;
     }
 
-    public Long getLocalFileSize() {
+    public @Nullable Long getLocalFileSize() {
         return this.localFileSize;
     }
 
-    public void setLocalFileSize(Long localFileSize) {
+    public void setLocalFileSize(@Nullable Long localFileSize) {
         this.localFileSize = localFileSize;
     }
 
-    public Instant getSonarrLastSearchTime() {
+    public @Nullable Instant getSonarrLastSearchTime() {
         return this.sonarrLastSearchTime;
     }
 
-    public void setSonarrLastSearchTime(Instant sonarrLastSearchTime) {
+    public void setSonarrLastSearchTime(@Nullable Instant sonarrLastSearchTime) {
         this.sonarrLastSearchTime = sonarrLastSearchTime;
     }
 
-    public Instant getCreatedAt() {
+    public @Nullable Instant getCreatedAt() {
         return this.createdAt;
     }
 
-    public Instant getUpdatedAt() {
+    public @Nullable Instant getUpdatedAt() {
         return this.updatedAt;
     }
 

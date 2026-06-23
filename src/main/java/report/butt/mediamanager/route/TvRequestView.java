@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,6 +85,7 @@ import report.butt.mediamanager.validation.Validator;
 // ImmutableMemberCollection is suppressed class-wide too: the collection fields and nested snapshot records are
 // internal data carriers, populated once and never mutated.
 @SuppressWarnings({"FutureReturnValueIgnored", "ImmutableMemberCollection"})
+@NullMarked
 public class TvRequestView extends VerticalLayout {
 
     private static final Logger log = LoggerFactory.getLogger(TvRequestView.class);
@@ -124,7 +126,7 @@ public class TvRequestView extends VerticalLayout {
     private final String ombiUrl;
     private final String sonarrUrl;
     private final String plexUrl;
-    private final String plexMachineIdentifier;
+    private final @Nullable String plexMachineIdentifier;
     private final PlexClient plexClient;
     private final DelugeClient delugeClient;
     private final SabnzbdClient sabnzbdClient;
@@ -765,7 +767,8 @@ public class TvRequestView extends VerticalLayout {
      * is the Deluge torrent hash (matched case-insensitively) for torrents or the SABnzbd {@code nzo_id} for usenet,
      * and the record's protocol picks which client to look in.
      */
-    private void applyDownloadStatus(Map<String, DelugeTorrent> torrents, Map<String, SabnzbdSlot> slots) {
+    private void applyDownloadStatus(
+            @Nullable Map<String, DelugeTorrent> torrents, @Nullable Map<String, SabnzbdSlot> slots) {
         torrentByEpisode.clear();
         slotByEpisode.clear();
         Map<String, DelugeTorrent> byLowerHash = new HashMap<>();
@@ -796,7 +799,7 @@ public class TvRequestView extends VerticalLayout {
      * and per-series protocols (for the main grid's Status badges). The queue is fetched with
      * {@code includeEpisode=true}, so each record carries its episode number.
      */
-    private void updateQueueMaps(SonarrQueue queue) {
+    private void updateQueueMaps(@Nullable SonarrQueue queue) {
         protocolByEpisode.clear();
         downloadIdByEpisode.clear();
         protocolsBySeriesId.clear();
@@ -955,7 +958,7 @@ public class TvRequestView extends VerticalLayout {
     }
 
     private @Nullable String plexAppHref(TvRequest mr) {
-        String ratingKey = mr.getPlexMetadataId();
+        @Nullable String ratingKey = mr.getPlexMetadataId();
         if (ratingKey == null || ratingKey.isBlank() || plexMachineIdentifier == null) {
             return null;
         }
@@ -969,7 +972,7 @@ public class TvRequestView extends VerticalLayout {
     }
 
     /** Updates the queue card's number, per-state breakdown tooltip, and severity background. */
-    private void updateSonarrQueueCard(SonarrQueue queue) {
+    private void updateSonarrQueueCard(@Nullable SonarrQueue queue) {
         if (queue == null) {
             RequestViewSupport.updateQueueCard(sonarrQueueCard, sonarrQueueValue, sonarrQueueTooltip, null, null);
             return;
@@ -1039,7 +1042,7 @@ public class TvRequestView extends VerticalLayout {
     private static final List<String> DETAIL_PRIORITY_FIELDS = List.of("id", "title", "tvdbId");
 
     /** Builds the per-episode download lookup for one series, keyed by season+episode for the tree grid. */
-    private Map<EpisodeKey, TvHierarchyTreeGrid.EpisodeDownload> episodeDownloadsForSeries(Integer seriesId) {
+    private Map<EpisodeKey, TvHierarchyTreeGrid.EpisodeDownload> episodeDownloadsForSeries(@Nullable Integer seriesId) {
         Map<EpisodeKey, TvHierarchyTreeGrid.EpisodeDownload> downloads = new HashMap<>();
         if (seriesId == null) {
             return downloads;

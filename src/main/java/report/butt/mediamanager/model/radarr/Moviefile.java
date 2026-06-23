@@ -10,6 +10,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.processing.Generated;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({
@@ -27,164 +29,165 @@ import javax.annotation.processing.Generated;
     "id"
 })
 @Generated("jsonschema2pojo")
+@NullMarked
 public class Moviefile {
 
     @JsonProperty("movieId")
-    private Integer movieId;
+    private @Nullable Integer movieId;
 
     @JsonProperty("relativePath")
-    private String relativePath;
+    private @Nullable String relativePath;
 
     @JsonProperty("path")
-    private String path;
+    private @Nullable String path;
 
     @JsonProperty("size")
-    private Long size;
+    private @Nullable Long size;
 
     @JsonProperty("dateAdded")
-    private String dateAdded;
+    private @Nullable String dateAdded;
 
     @JsonProperty("edition")
-    private String edition;
+    private @Nullable String edition;
 
     @JsonProperty("languages")
-    private List<Language> languages;
+    private @Nullable List<Language> languages;
 
     @JsonProperty("quality")
-    private Quality quality;
+    private @Nullable Quality quality;
 
     @JsonProperty("indexerFlags")
-    private Integer indexerFlags;
+    private @Nullable Integer indexerFlags;
 
     @JsonProperty("mediaInfo")
-    private MediaInfo mediaInfo;
+    private @Nullable MediaInfo mediaInfo;
 
     @JsonProperty("qualityCutoffNotMet")
-    private Boolean qualityCutoffNotMet;
+    private @Nullable Boolean qualityCutoffNotMet;
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonIgnore
     private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
     @JsonProperty("movieId")
-    public Integer getMovieId() {
+    public @Nullable Integer getMovieId() {
         return movieId;
     }
 
     @JsonProperty("movieId")
-    public void setMovieId(Integer movieId) {
+    public void setMovieId(@Nullable Integer movieId) {
         this.movieId = movieId;
     }
 
     @JsonProperty("relativePath")
-    public String getRelativePath() {
+    public @Nullable String getRelativePath() {
         return relativePath;
     }
 
     @JsonProperty("relativePath")
-    public void setRelativePath(String relativePath) {
+    public void setRelativePath(@Nullable String relativePath) {
         this.relativePath = relativePath;
     }
 
     @JsonProperty("path")
-    public String getPath() {
+    public @Nullable String getPath() {
         return path;
     }
 
     @JsonProperty("path")
-    public void setPath(String path) {
+    public void setPath(@Nullable String path) {
         this.path = path;
     }
 
     @JsonProperty("size")
-    public Long getSize() {
+    public @Nullable Long getSize() {
         return size;
     }
 
     @JsonProperty("size")
-    public void setSize(Long size) {
+    public void setSize(@Nullable Long size) {
         this.size = size;
     }
 
     @JsonProperty("dateAdded")
-    public String getDateAdded() {
+    public @Nullable String getDateAdded() {
         return dateAdded;
     }
 
     @JsonProperty("dateAdded")
-    public void setDateAdded(String dateAdded) {
+    public void setDateAdded(@Nullable String dateAdded) {
         this.dateAdded = dateAdded;
     }
 
     @JsonProperty("edition")
-    public String getEdition() {
+    public @Nullable String getEdition() {
         return edition;
     }
 
     @JsonProperty("edition")
-    public void setEdition(String edition) {
+    public void setEdition(@Nullable String edition) {
         this.edition = edition;
     }
 
     @JsonProperty("languages")
-    public List<Language> getLanguages() {
+    public @Nullable List<Language> getLanguages() {
         return languages;
     }
 
     @JsonProperty("languages")
-    public void setLanguages(List<Language> languages) {
+    public void setLanguages(@Nullable List<Language> languages) {
         this.languages = languages;
     }
 
     @JsonProperty("quality")
-    public Quality getQuality() {
+    public @Nullable Quality getQuality() {
         return quality;
     }
 
     @JsonProperty("quality")
-    public void setQuality(Quality quality) {
+    public void setQuality(@Nullable Quality quality) {
         this.quality = quality;
     }
 
     @JsonProperty("indexerFlags")
-    public Integer getIndexerFlags() {
+    public @Nullable Integer getIndexerFlags() {
         return indexerFlags;
     }
 
     @JsonProperty("indexerFlags")
-    public void setIndexerFlags(Integer indexerFlags) {
+    public void setIndexerFlags(@Nullable Integer indexerFlags) {
         this.indexerFlags = indexerFlags;
     }
 
     @JsonProperty("mediaInfo")
-    public MediaInfo getMediaInfo() {
+    public @Nullable MediaInfo getMediaInfo() {
         return mediaInfo;
     }
 
     @JsonProperty("mediaInfo")
-    public void setMediaInfo(MediaInfo mediaInfo) {
+    public void setMediaInfo(@Nullable MediaInfo mediaInfo) {
         this.mediaInfo = mediaInfo;
     }
 
     @JsonProperty("qualityCutoffNotMet")
-    public Boolean getQualityCutoffNotMet() {
+    public @Nullable Boolean getQualityCutoffNotMet() {
         return qualityCutoffNotMet;
     }
 
     @JsonProperty("qualityCutoffNotMet")
-    public void setQualityCutoffNotMet(Boolean qualityCutoffNotMet) {
+    public void setQualityCutoffNotMet(@Nullable Boolean qualityCutoffNotMet) {
         this.qualityCutoffNotMet = qualityCutoffNotMet;
     }
 
     @JsonProperty("id")
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
     @JsonProperty("id")
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 

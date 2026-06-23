@@ -1,6 +1,7 @@
 package report.butt.mediamanager.controller;
 
 import java.nio.file.Path;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import report.butt.mediamanager.service.PlexCacheService;
 
 @RestController
+@NullMarked
 public class PlexCacheController {
 
     private final PlexCacheService plexCacheService;

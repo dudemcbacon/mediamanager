@@ -8,6 +8,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -19,6 +20,7 @@ import report.butt.mediamanager.model.ombi.OmbiReprocessResponse;
 import report.butt.mediamanager.model.ombi.OmbiTvRequest;
 import report.butt.mediamanager.model.ombi.OmbiTvSearchResult;
 
+@NullMarked
 class OmbiClientTest {
 
     private static final String BASE = "http://ombi";

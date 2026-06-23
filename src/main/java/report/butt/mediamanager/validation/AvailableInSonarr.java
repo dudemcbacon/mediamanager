@@ -1,10 +1,12 @@
 package report.butt.mediamanager.validation;
 
+import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import report.butt.mediamanager.model.RequestType;
 import report.butt.mediamanager.model.TvRequest;
 
 @Component
+@NullMarked
 public class AvailableInSonarr implements Validator<TvRequest> {
     @Override
     public Boolean validate(TvRequest request) {

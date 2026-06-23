@@ -8,46 +8,53 @@ import java.time.Instant;
 import java.util.Objects;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "tv_request")
 @DiscriminatorValue("TV")
 @OnDelete(action = OnDeleteAction.CASCADE)
+@NullMarked
 public class TvRequest extends Request {
 
-    private Integer tvdbId;
-    private Integer plexTvdbId;
+    private @Nullable Integer tvdbId;
+    private @Nullable Integer plexTvdbId;
 
     // Not unique: a show can be requested in Ombi more than once (e.g. removed and re-requested,
     // yielding a new Ombi request id) while still mapping to the same Sonarr series. We persist one
     // row per Ombi request, so multiple rows may share a sonarrSeriesId.
-    private Integer sonarrSeriesId;
+    private @Nullable Integer sonarrSeriesId;
 
-    private String sonarrTitleSlug;
+    private @Nullable String sonarrTitleSlug;
 
-    private Boolean sonarrMonitored;
-    private String sonarrMonitoredAll;
-
-    @Column(columnDefinition = "TEXT")
-    private String sonarrPath;
+    private @Nullable Boolean sonarrMonitored;
+    private @Nullable String sonarrMonitoredAll;
 
     @Column(columnDefinition = "TEXT")
-    private String sonarrRootFolderPath;
+    private @Nullable String sonarrPath;
 
-    private Integer sonarrEpisodeFileCount;
-    private Integer sonarrEpisodeCount;
-    private Integer sonarrTotalEpisodeCount;
-    private Instant sonarrLastSearched;
-    private String sonarrOriginalLanguage;
-    private String sonarrQualityProfile;
+    @Column(columnDefinition = "TEXT")
+    private @Nullable String sonarrRootFolderPath;
 
-    private Integer ombiTotalSeasons;
-    private Integer ombiExternalProviderId;
+    private @Nullable Integer sonarrEpisodeFileCount;
+    private @Nullable Integer sonarrEpisodeCount;
+    private @Nullable Integer sonarrTotalEpisodeCount;
+    private @Nullable Instant sonarrLastSearched;
+    private @Nullable String sonarrOriginalLanguage;
+    private @Nullable String sonarrQualityProfile;
+
+    private @Nullable Integer ombiTotalSeasons;
+    private @Nullable Integer ombiExternalProviderId;
 
     TvRequest() {}
 
     public TvRequest(
-            String title, Integer tvdbId, Boolean ombiAvailable, Integer ombiRequestId, String ombiRequestStatus) {
+            @Nullable String title,
+            @Nullable Integer tvdbId,
+            @Nullable Boolean ombiAvailable,
+            @Nullable Integer ombiRequestId,
+            @Nullable String ombiRequestStatus) {
         setTitle(title);
         setTvdbId(tvdbId);
         setOmbiAvailable(ombiAvailable);
@@ -55,131 +62,131 @@ public class TvRequest extends Request {
         setOmbiRequestStatus(ombiRequestStatus);
     }
 
-    public Integer getTvdbId() {
+    public @Nullable Integer getTvdbId() {
         return this.tvdbId;
     }
 
-    public void setTvdbId(Integer tvdbId) {
+    public void setTvdbId(@Nullable Integer tvdbId) {
         this.tvdbId = tvdbId;
     }
 
-    public Integer getPlexTvdbId() {
+    public @Nullable Integer getPlexTvdbId() {
         return this.plexTvdbId;
     }
 
-    public void setPlexTvdbId(Integer plexTvdbId) {
+    public void setPlexTvdbId(@Nullable Integer plexTvdbId) {
         this.plexTvdbId = plexTvdbId;
     }
 
-    public Integer getSonarrSeriesId() {
+    public @Nullable Integer getSonarrSeriesId() {
         return this.sonarrSeriesId;
     }
 
-    public void setSonarrSeriesId(Integer sonarrSeriesId) {
+    public void setSonarrSeriesId(@Nullable Integer sonarrSeriesId) {
         this.sonarrSeriesId = sonarrSeriesId;
     }
 
-    public String getSonarrTitleSlug() {
+    public @Nullable String getSonarrTitleSlug() {
         return this.sonarrTitleSlug;
     }
 
-    public void setSonarrTitleSlug(String sonarrTitleSlug) {
+    public void setSonarrTitleSlug(@Nullable String sonarrTitleSlug) {
         this.sonarrTitleSlug = sonarrTitleSlug;
     }
 
-    public Boolean getSonarrMonitored() {
+    public @Nullable Boolean getSonarrMonitored() {
         return this.sonarrMonitored;
     }
 
-    public void setSonarrMonitored(Boolean sonarrMonitored) {
+    public void setSonarrMonitored(@Nullable Boolean sonarrMonitored) {
         this.sonarrMonitored = sonarrMonitored;
     }
 
-    public String getSonarrMonitoredAll() {
+    public @Nullable String getSonarrMonitoredAll() {
         return this.sonarrMonitoredAll;
     }
 
-    public void setSonarrMonitoredAll(String sonarrMonitoredAll) {
+    public void setSonarrMonitoredAll(@Nullable String sonarrMonitoredAll) {
         this.sonarrMonitoredAll = sonarrMonitoredAll;
     }
 
-    public String getSonarrPath() {
+    public @Nullable String getSonarrPath() {
         return this.sonarrPath;
     }
 
-    public void setSonarrPath(String sonarrPath) {
+    public void setSonarrPath(@Nullable String sonarrPath) {
         this.sonarrPath = sonarrPath;
     }
 
-    public String getSonarrRootFolderPath() {
+    public @Nullable String getSonarrRootFolderPath() {
         return this.sonarrRootFolderPath;
     }
 
-    public void setSonarrRootFolderPath(String sonarrRootFolderPath) {
+    public void setSonarrRootFolderPath(@Nullable String sonarrRootFolderPath) {
         this.sonarrRootFolderPath = sonarrRootFolderPath;
     }
 
-    public Integer getSonarrEpisodeFileCount() {
+    public @Nullable Integer getSonarrEpisodeFileCount() {
         return this.sonarrEpisodeFileCount;
     }
 
-    public void setSonarrEpisodeFileCount(Integer sonarrEpisodeFileCount) {
+    public void setSonarrEpisodeFileCount(@Nullable Integer sonarrEpisodeFileCount) {
         this.sonarrEpisodeFileCount = sonarrEpisodeFileCount;
     }
 
-    public Integer getSonarrEpisodeCount() {
+    public @Nullable Integer getSonarrEpisodeCount() {
         return this.sonarrEpisodeCount;
     }
 
-    public void setSonarrEpisodeCount(Integer sonarrEpisodeCount) {
+    public void setSonarrEpisodeCount(@Nullable Integer sonarrEpisodeCount) {
         this.sonarrEpisodeCount = sonarrEpisodeCount;
     }
 
-    public Integer getSonarrTotalEpisodeCount() {
+    public @Nullable Integer getSonarrTotalEpisodeCount() {
         return this.sonarrTotalEpisodeCount;
     }
 
-    public void setSonarrTotalEpisodeCount(Integer sonarrTotalEpisodeCount) {
+    public void setSonarrTotalEpisodeCount(@Nullable Integer sonarrTotalEpisodeCount) {
         this.sonarrTotalEpisodeCount = sonarrTotalEpisodeCount;
     }
 
-    public Instant getSonarrLastSearched() {
+    public @Nullable Instant getSonarrLastSearched() {
         return this.sonarrLastSearched;
     }
 
-    public void setSonarrLastSearched(Instant sonarrLastSearched) {
+    public void setSonarrLastSearched(@Nullable Instant sonarrLastSearched) {
         this.sonarrLastSearched = sonarrLastSearched;
     }
 
-    public String getSonarrOriginalLanguage() {
+    public @Nullable String getSonarrOriginalLanguage() {
         return this.sonarrOriginalLanguage;
     }
 
-    public void setSonarrOriginalLanguage(String sonarrOriginalLanguage) {
+    public void setSonarrOriginalLanguage(@Nullable String sonarrOriginalLanguage) {
         this.sonarrOriginalLanguage = sonarrOriginalLanguage;
     }
 
-    public String getSonarrQualityProfile() {
+    public @Nullable String getSonarrQualityProfile() {
         return this.sonarrQualityProfile;
     }
 
-    public void setSonarrQualityProfile(String sonarrQualityProfile) {
+    public void setSonarrQualityProfile(@Nullable String sonarrQualityProfile) {
         this.sonarrQualityProfile = sonarrQualityProfile;
     }
 
-    public Integer getOmbiTotalSeasons() {
+    public @Nullable Integer getOmbiTotalSeasons() {
         return this.ombiTotalSeasons;
     }
 
-    public void setOmbiTotalSeasons(Integer ombiTotalSeasons) {
+    public void setOmbiTotalSeasons(@Nullable Integer ombiTotalSeasons) {
         this.ombiTotalSeasons = ombiTotalSeasons;
     }
 
-    public Integer getOmbiExternalProviderId() {
+    public @Nullable Integer getOmbiExternalProviderId() {
         return this.ombiExternalProviderId;
     }
 
-    public void setOmbiExternalProviderId(Integer ombiExternalProviderId) {
+    public void setOmbiExternalProviderId(@Nullable Integer ombiExternalProviderId) {
         this.ombiExternalProviderId = ombiExternalProviderId;
     }
 

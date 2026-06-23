@@ -3,172 +3,175 @@ package report.butt.mediamanager.model.ombi;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@NullMarked
 public class OmbiTvRequest {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("tvDbId")
-    private Integer tvDbId;
+    private @Nullable Integer tvDbId;
 
     @JsonProperty("externalProviderId")
-    private Integer externalProviderId;
+    private @Nullable Integer externalProviderId;
 
     @JsonProperty("imdbId")
-    private String imdbId;
+    private @Nullable String imdbId;
 
     @JsonProperty("qualityOverride")
-    private Integer qualityOverride;
+    private @Nullable Integer qualityOverride;
 
     @JsonProperty("rootFolder")
-    private Integer rootFolder;
+    private @Nullable Integer rootFolder;
 
     @JsonProperty("languageProfile")
-    private Integer languageProfile;
+    private @Nullable Integer languageProfile;
 
     @JsonProperty("overview")
-    private String overview;
+    private @Nullable String overview;
 
     @JsonProperty("title")
-    private String title;
+    private @Nullable String title;
 
     @JsonProperty("posterPath")
-    private String posterPath;
+    private @Nullable String posterPath;
 
     @JsonProperty("background")
-    private String background;
+    private @Nullable String background;
 
     @JsonProperty("releaseDate")
-    private String releaseDate;
+    private @Nullable String releaseDate;
 
     @JsonProperty("status")
-    private String status;
+    private @Nullable String status;
 
     @JsonProperty("totalSeasons")
-    private Integer totalSeasons;
+    private @Nullable Integer totalSeasons;
 
     @JsonProperty("childRequests")
-    private List<OmbiTvChildRequest> childRequests;
+    private @Nullable List<OmbiTvChildRequest> childRequests;
 
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 
-    public Integer getTvDbId() {
+    public @Nullable Integer getTvDbId() {
         return tvDbId;
     }
 
-    public void setTvDbId(Integer tvDbId) {
+    public void setTvDbId(@Nullable Integer tvDbId) {
         this.tvDbId = tvDbId;
     }
 
-    public Integer getExternalProviderId() {
+    public @Nullable Integer getExternalProviderId() {
         return externalProviderId;
     }
 
-    public void setExternalProviderId(Integer externalProviderId) {
+    public void setExternalProviderId(@Nullable Integer externalProviderId) {
         this.externalProviderId = externalProviderId;
     }
 
-    public String getImdbId() {
+    public @Nullable String getImdbId() {
         return imdbId;
     }
 
-    public void setImdbId(String imdbId) {
+    public void setImdbId(@Nullable String imdbId) {
         this.imdbId = imdbId;
     }
 
-    public Integer getQualityOverride() {
+    public @Nullable Integer getQualityOverride() {
         return qualityOverride;
     }
 
-    public void setQualityOverride(Integer qualityOverride) {
+    public void setQualityOverride(@Nullable Integer qualityOverride) {
         this.qualityOverride = qualityOverride;
     }
 
-    public Integer getRootFolder() {
+    public @Nullable Integer getRootFolder() {
         return rootFolder;
     }
 
-    public void setRootFolder(Integer rootFolder) {
+    public void setRootFolder(@Nullable Integer rootFolder) {
         this.rootFolder = rootFolder;
     }
 
-    public Integer getLanguageProfile() {
+    public @Nullable Integer getLanguageProfile() {
         return languageProfile;
     }
 
-    public void setLanguageProfile(Integer languageProfile) {
+    public void setLanguageProfile(@Nullable Integer languageProfile) {
         this.languageProfile = languageProfile;
     }
 
-    public String getOverview() {
+    public @Nullable String getOverview() {
         return overview;
     }
 
-    public void setOverview(String overview) {
+    public void setOverview(@Nullable String overview) {
         this.overview = overview;
     }
 
-    public String getTitle() {
+    public @Nullable String getTitle() {
         return title;
     }
 
-    public void setTitle(String title) {
+    public void setTitle(@Nullable String title) {
         this.title = title;
     }
 
-    public String getPosterPath() {
+    public @Nullable String getPosterPath() {
         return posterPath;
     }
 
-    public void setPosterPath(String posterPath) {
+    public void setPosterPath(@Nullable String posterPath) {
         this.posterPath = posterPath;
     }
 
-    public String getBackground() {
+    public @Nullable String getBackground() {
         return background;
     }
 
-    public void setBackground(String background) {
+    public void setBackground(@Nullable String background) {
         this.background = background;
     }
 
-    public String getReleaseDate() {
+    public @Nullable String getReleaseDate() {
         return releaseDate;
     }
 
-    public void setReleaseDate(String releaseDate) {
+    public void setReleaseDate(@Nullable String releaseDate) {
         this.releaseDate = releaseDate;
     }
 
-    public String getStatus() {
+    public @Nullable String getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(@Nullable String status) {
         this.status = status;
     }
 
-    public Integer getTotalSeasons() {
+    public @Nullable Integer getTotalSeasons() {
         return totalSeasons;
     }
 
-    public void setTotalSeasons(Integer totalSeasons) {
+    public void setTotalSeasons(@Nullable Integer totalSeasons) {
         this.totalSeasons = totalSeasons;
     }
 
-    public List<OmbiTvChildRequest> getChildRequests() {
+    public @Nullable List<OmbiTvChildRequest> getChildRequests() {
         return childRequests;
     }
 
-    public void setChildRequests(List<OmbiTvChildRequest> childRequests) {
+    public void setChildRequests(@Nullable List<OmbiTvChildRequest> childRequests) {
         this.childRequests = childRequests;
     }
 }

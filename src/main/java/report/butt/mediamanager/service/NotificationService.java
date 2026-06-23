@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +51,7 @@ import report.butt.mediamanager.repository.TvRequestRepository;
  * {@link ScheduledRefreshJob} and on demand from the movie/TV views ("Test Notifications").
  */
 @Service
+@NullMarked
 public class NotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
@@ -79,8 +81,8 @@ public class NotificationService {
     private final MovieRequestRepository movieRequestRepository;
     private final TvRequestRepository tvRequestRepository;
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
-    private final String from;
-    private final String to;
+    private final @Nullable String from;
+    private final @Nullable String to;
     private final int stuckDownloadDays;
     private final int overdueRequestDays;
     private final int unsearchedDays;
@@ -282,8 +284,8 @@ public class NotificationService {
     }
 
     private static List<ImportBlocked> findImportBlocked(
-            RadarrQueue radarrQueue,
-            SonarrQueue sonarrQueue,
+            @Nullable RadarrQueue radarrQueue,
+            @Nullable SonarrQueue sonarrQueue,
             Map<Integer, String> movieTitleByRadarrId,
             Map<Integer, String> tvTitleBySonarrId) {
         List<ImportBlocked> blocked = new ArrayList<>();
@@ -332,8 +334,8 @@ public class NotificationService {
     private record TorrentRequest(String display, RequestLink link) {}
 
     private static Map<String, TorrentRequest> mapTorrentsToRequests(
-            RadarrQueue radarrQueue,
-            SonarrQueue sonarrQueue,
+            @Nullable RadarrQueue radarrQueue,
+            @Nullable SonarrQueue sonarrQueue,
             Map<Integer, MovieRequest> movieByRadarrId,
             Map<Integer, TvRequest> tvBySeriesId) {
         Map<String, TorrentRequest> byHash = new HashMap<>();
@@ -392,7 +394,7 @@ public class NotificationService {
     // --- helpers ---
 
     /** Runs an external fetch, recording the integration as unreachable (once) and returning null if it throws. */
-    private static <X> X tryFetch(String integration, List<String> unreachable, Supplier<X> call) {
+    private static <X> @Nullable X tryFetch(String integration, List<String> unreachable, Supplier<X> call) {
         try {
             return call.get();
         } catch (RuntimeException e) {
@@ -408,7 +410,7 @@ public class NotificationService {
         return !Objects.equals(r.getStale(), true) && !r.isAvailable();
     }
 
-    private static boolean beforeOrNull(Instant value, Instant threshold) {
+    private static boolean beforeOrNull(@Nullable Instant value, Instant threshold) {
         return value == null || value.isBefore(threshold);
     }
 
@@ -440,7 +442,7 @@ public class NotificationService {
         return counts;
     }
 
-    private static String label(String title, String fallback) {
+    private static String label(@Nullable String title, @Nullable String fallback) {
         if (title != null && !title.isBlank()) {
             return title;
         }
@@ -452,7 +454,7 @@ public class NotificationService {
         return user == null || user.isBlank() ? "unknown" : user;
     }
 
-    private static int nz(Integer value) {
+    private static int nz(@Nullable Integer value) {
         return value == null ? 0 : value;
     }
 
@@ -506,7 +508,7 @@ public class NotificationService {
         return "[" + h.source() + "] " + typePart + (h.message() == null ? "" : h.message());
     }
 
-    static String lastSearchedText(Instant when) {
+    static String lastSearchedText(@Nullable Instant when) {
         return when == null ? "never searched" : "last searched " + DATE.format(when);
     }
 
@@ -687,11 +689,12 @@ public class NotificationService {
             int totalEpisodes,
             RequestLink link) {}
 
-    public record UnsearchedRow(String title, Instant lastSearched, Integer searchId) {}
+    public record UnsearchedRow(String title, @Nullable Instant lastSearched, Integer searchId) {}
 
     public record NewRequestRow(String type, String title, Instant requested) {}
 
-    public record HealthIssue(String source, String type, String message) {}
+    public record HealthIssue(
+            String source, @Nullable String type, @Nullable String message) {}
 
     /** All findings from one detection run, in structured form. */
     // Internal data carrier; its collection components are never mutated after construction.

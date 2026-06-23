@@ -11,6 +11,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.processing.Generated;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({
@@ -48,103 +50,104 @@ import javax.annotation.processing.Generated;
     "accessFailedCount"
 })
 @Generated("jsonschema2pojo")
+@NullMarked
 public class User implements Serializable {
 
     @JsonProperty("alias")
-    private String alias;
+    private @Nullable String alias;
 
     @JsonProperty("userType")
-    private Integer userType;
+    private @Nullable Integer userType;
 
     @JsonProperty("providerUserId")
-    private String providerUserId;
+    private @Nullable String providerUserId;
 
     @JsonProperty("lastLoggedIn")
-    private String lastLoggedIn;
+    private @Nullable String lastLoggedIn;
 
     @JsonProperty("language")
-    private Object language;
+    private @Nullable Object language;
 
     @JsonProperty("streamingCountry")
-    private String streamingCountry;
+    private @Nullable String streamingCountry;
 
     @JsonProperty("movieRequestLimit")
-    private Integer movieRequestLimit;
+    private @Nullable Integer movieRequestLimit;
 
     @JsonProperty("episodeRequestLimit")
-    private Integer episodeRequestLimit;
+    private @Nullable Integer episodeRequestLimit;
 
     @JsonProperty("musicRequestLimit")
-    private Integer musicRequestLimit;
+    private @Nullable Integer musicRequestLimit;
 
     @JsonProperty("movieRequestLimitType")
-    private Object movieRequestLimitType;
+    private @Nullable Object movieRequestLimitType;
 
     @JsonProperty("episodeRequestLimitType")
-    private Object episodeRequestLimitType;
+    private @Nullable Object episodeRequestLimitType;
 
     @JsonProperty("musicRequestLimitType")
-    private Object musicRequestLimitType;
+    private @Nullable Object musicRequestLimitType;
 
     @JsonProperty("userAccessToken")
-    private String userAccessToken;
+    private @Nullable String userAccessToken;
 
     @JsonProperty("mediaServerToken")
-    private Object mediaServerToken;
+    private @Nullable Object mediaServerToken;
 
     @JsonProperty("notificationUserIds")
-    private List<Object> notificationUserIds;
+    private @Nullable List<Object> notificationUserIds;
 
     @JsonProperty("userNotificationPreferences")
-    private Object userNotificationPreferences;
+    private @Nullable Object userNotificationPreferences;
 
     @JsonProperty("isEmbyConnect")
-    private Boolean isEmbyConnect;
+    private @Nullable Boolean isEmbyConnect;
 
     @JsonProperty("userAlias")
-    private String userAlias;
+    private @Nullable String userAlias;
 
     @JsonProperty("emailLogin")
-    private Boolean emailLogin;
+    private @Nullable Boolean emailLogin;
 
     @JsonProperty("isSystemUser")
-    private Boolean isSystemUser;
+    private @Nullable Boolean isSystemUser;
 
     @JsonProperty("id")
-    private String id;
+    private @Nullable String id;
 
     @JsonProperty("userName")
-    private String userName;
+    private @Nullable String userName;
 
     @JsonProperty("normalizedUserName")
-    private String normalizedUserName;
+    private @Nullable String normalizedUserName;
 
     @JsonProperty("email")
-    private String email;
+    private @Nullable String email;
 
     @JsonProperty("normalizedEmail")
-    private String normalizedEmail;
+    private @Nullable String normalizedEmail;
 
     @JsonProperty("emailConfirmed")
-    private Boolean emailConfirmed;
+    private @Nullable Boolean emailConfirmed;
 
     @JsonProperty("phoneNumber")
-    private Object phoneNumber;
+    private @Nullable Object phoneNumber;
 
     @JsonProperty("phoneNumberConfirmed")
-    private Boolean phoneNumberConfirmed;
+    private @Nullable Boolean phoneNumberConfirmed;
 
     @JsonProperty("twoFactorEnabled")
-    private Boolean twoFactorEnabled;
+    private @Nullable Boolean twoFactorEnabled;
 
     @JsonProperty("lockoutEnd")
-    private Object lockoutEnd;
+    private @Nullable Object lockoutEnd;
 
     @JsonProperty("lockoutEnabled")
-    private Boolean lockoutEnabled;
+    private @Nullable Boolean lockoutEnabled;
 
     @JsonProperty("accessFailedCount")
-    private Integer accessFailedCount;
+    private @Nullable Integer accessFailedCount;
 
     @JsonIgnore
     private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();

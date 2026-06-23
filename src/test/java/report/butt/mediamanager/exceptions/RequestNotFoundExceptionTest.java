@@ -2,8 +2,10 @@ package report.butt.mediamanager.exceptions;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 
+@NullMarked
 class RequestNotFoundExceptionTest {
 
     @Test

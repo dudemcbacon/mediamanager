@@ -7,11 +7,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.route.StatsView.RequesterCount;
 
+@NullMarked
 class StatsViewLeaderboardTest {
 
     private static MovieRequest requestedBy(@Nullable String username) {

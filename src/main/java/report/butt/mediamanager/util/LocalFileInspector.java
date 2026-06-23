@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
  * with {@code mediamanager.local-file-system-prefix} (empty by default) so it can be remapped when the media volume is
  * mounted at a different root than the *arr app sees.
  */
+@NullMarked
 public final class LocalFileInspector {
 
     private static final Logger log = LoggerFactory.getLogger(LocalFileInspector.class);
@@ -28,7 +30,7 @@ public final class LocalFileInspector {
      * Resolves {@code prefix + reportedPath} and reports its local availability and size. A null/blank path, a
      * non-existent file, or any I/O / invalid-path error all yield an unavailable result with no size.
      */
-    public static Result inspect(String prefix, String reportedPath) {
+    public static Result inspect(String prefix, @Nullable String reportedPath) {
         if (reportedPath == null || reportedPath.isBlank()) {
             return Result.UNAVAILABLE;
         }

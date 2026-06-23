@@ -1,5 +1,8 @@
 package report.butt.mediamanager.validation;
 
+import org.jspecify.annotations.NullMarked;
+
+@NullMarked
 public interface ValidationRule<T> {
     Boolean validate(T target);
 

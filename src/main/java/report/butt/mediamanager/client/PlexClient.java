@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,7 @@ import report.butt.mediamanager.service.PlexCacheService;
 import tools.jackson.databind.ObjectMapper;
 
 @Service
+@NullMarked
 public class PlexClient {
 
     private static final Logger log = LoggerFactory.getLogger(PlexClient.class);
@@ -33,12 +35,12 @@ public class PlexClient {
     private final ObjectMapper objectMapper;
     private final PlexCacheService plexCacheService;
     private final String plexToken;
-    private final String plexUrl;
+    private final @Nullable String plexUrl;
     private final String plexTvSectionName;
     private final String plexMoviesSectionName;
     private String machineIdentifier;
-    private String tvSectionId;
-    private String moviesSectionId;
+    private @Nullable String tvSectionId;
+    private @Nullable String moviesSectionId;
 
     public PlexClient(
             RestClient.Builder builder,
@@ -168,7 +170,7 @@ public class PlexClient {
     }
 
     /** The per-item Plex query URL used to look up a movie, without the X-Plex-Token. */
-    public String movieQueryUrl(String title) {
+    public @Nullable String movieQueryUrl(String title) {
         return UriComponentsBuilder.fromUriString(this.plexUrl)
                 .path("/library/all")
                 .queryParam("type", 1)
@@ -294,7 +296,7 @@ public class PlexClient {
         return indexed;
     }
 
-    public String cacheMovieMetadata(int tmdbId, PlexMetadata metadata) {
+    public String cacheMovieMetadata(int tmdbId, @Nullable PlexMetadata metadata) {
         var container = new PlexMediaContainer();
         container.setMetadata(metadata == null ? List.of() : List.of(metadata));
         var wrapper = new PlexSearchResponse();
@@ -483,7 +485,7 @@ public class PlexClient {
         return indexed;
     }
 
-    public String cacheTvMetadata(int tvdbId, PlexMetadata metadata) {
+    public String cacheTvMetadata(int tvdbId, @Nullable PlexMetadata metadata) {
         var container = new PlexMediaContainer();
         container.setMetadata(metadata == null ? List.of() : List.of(metadata));
         var wrapper = new PlexSearchResponse();
@@ -515,7 +517,7 @@ public class PlexClient {
         return "tv-" + tvdbId;
     }
 
-    private @Nullable PlexSearchResponse parse(String body) {
+    private @Nullable PlexSearchResponse parse(@Nullable String body) {
         if (body == null || body.isBlank()) {
             return null;
         }

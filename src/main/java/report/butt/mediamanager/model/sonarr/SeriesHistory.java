@@ -2,73 +2,76 @@ package report.butt.mediamanager.model.sonarr;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@NullMarked
 public class SeriesHistory {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("seriesId")
-    private Integer seriesId;
+    private @Nullable Integer seriesId;
 
     @JsonProperty("episodeId")
-    private Integer episodeId;
+    private @Nullable Integer episodeId;
 
     @JsonProperty("sourceTitle")
-    private String sourceTitle;
+    private @Nullable String sourceTitle;
 
     @JsonProperty("date")
-    private String date;
+    private @Nullable String date;
 
     @JsonProperty("eventType")
-    private String eventType;
+    private @Nullable String eventType;
 
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 
-    public Integer getSeriesId() {
+    public @Nullable Integer getSeriesId() {
         return seriesId;
     }
 
-    public void setSeriesId(Integer seriesId) {
+    public void setSeriesId(@Nullable Integer seriesId) {
         this.seriesId = seriesId;
     }
 
-    public Integer getEpisodeId() {
+    public @Nullable Integer getEpisodeId() {
         return episodeId;
     }
 
-    public void setEpisodeId(Integer episodeId) {
+    public void setEpisodeId(@Nullable Integer episodeId) {
         this.episodeId = episodeId;
     }
 
-    public String getSourceTitle() {
+    public @Nullable String getSourceTitle() {
         return sourceTitle;
     }
 
-    public void setSourceTitle(String sourceTitle) {
+    public void setSourceTitle(@Nullable String sourceTitle) {
         this.sourceTitle = sourceTitle;
     }
 
-    public String getDate() {
+    public @Nullable String getDate() {
         return date;
     }
 
-    public void setDate(String date) {
+    public void setDate(@Nullable String date) {
         this.date = date;
     }
 
-    public String getEventType() {
+    public @Nullable String getEventType() {
         return eventType;
     }
 
-    public void setEventType(String eventType) {
+    public void setEventType(@Nullable String eventType) {
         this.eventType = eventType;
     }
 }

@@ -16,6 +16,7 @@ import net.bramp.ffmpeg.probe.FFmpegProbeResult;
 import net.bramp.ffmpeg.probe.FFmpegStream;
 import net.bramp.ffmpeg.shared.CodecType;
 import org.apache.commons.lang3.math.Fraction;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
@@ -27,6 +28,7 @@ import report.butt.mediamanager.repository.FfprobeScanRepository;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 
+@NullMarked
 class FfprobeScanServiceTest {
 
     private final FfprobeScanRepository ffprobeScanRepository = mock(FfprobeScanRepository.class);

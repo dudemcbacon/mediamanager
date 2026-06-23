@@ -1,10 +1,12 @@
 package report.butt.mediamanager.security;
 
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /** Small read-only helpers for the currently authenticated user, used to gate UI actions by role. */
+@NullMarked
 public final class SecurityUtils {
 
     private SecurityUtils() {}

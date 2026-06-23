@@ -12,6 +12,7 @@ import net.bramp.ffmpeg.probe.FFmpegFormat;
 import net.bramp.ffmpeg.probe.FFmpegProbeResult;
 import net.bramp.ffmpeg.probe.FFmpegStream;
 import org.apache.commons.lang3.math.Fraction;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,7 @@ import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
  * same resolution {@code MovieRefreshService} uses for its local-file check).
  */
 @Service
+@NullMarked
 public class FfprobeScanService {
 
     private static final Logger log = LoggerFactory.getLogger(FfprobeScanService.class);
@@ -192,7 +194,7 @@ public class FfprobeScanService {
     }
 
     /** ffprobe frame rates are {@code num/denom}; {@link Fraction#toString()} preserves that form. */
-    private static @Nullable String fraction(Fraction value) {
+    private static @Nullable String fraction(@Nullable Fraction value) {
         return value == null ? null : value.toString();
     }
 }

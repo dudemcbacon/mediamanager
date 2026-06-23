@@ -15,6 +15,8 @@ import java.util.Map;
 import java.util.Objects;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(
@@ -25,206 +27,207 @@ import org.hibernate.annotations.UpdateTimestamp;
                         columnNames = {"ombi_request_id", "request_type"}))
 @Inheritance(strategy = InheritanceType.JOINED)
 @DiscriminatorColumn(name = "request_type")
+@NullMarked
 public abstract class Request {
 
     protected static final String OMBI_AVAILABLE_STATUS = "Common.Available";
 
     @Id
     @GeneratedValue
-    private Long id;
+    private @Nullable Long id;
 
-    private String title;
-    private Boolean ombiAvailable;
+    private @Nullable String title;
+    private @Nullable Boolean ombiAvailable;
 
-    private Integer ombiRequestId;
-    private String ombiRequestStatus;
-    private String ombiUserName;
-    private Instant ombiRequestedDate;
+    private @Nullable Integer ombiRequestId;
+    private @Nullable String ombiRequestStatus;
+    private @Nullable String ombiUserName;
+    private @Nullable Instant ombiRequestedDate;
 
-    private Boolean stale;
-
-    @Column(columnDefinition = "TEXT")
-    private String staleReason;
-
-    private Instant markedStaleAt;
+    private @Nullable Boolean stale;
 
     @Column(columnDefinition = "TEXT")
-    private String plexMetadataUrl;
+    private @Nullable String staleReason;
 
-    private String plexMetadataId;
-    private Long plexAddedAt;
-    private Long plexUpdatedAt;
-    private Integer plexMediaId;
+    private @Nullable Instant markedStaleAt;
 
     @Column(columnDefinition = "TEXT")
-    private String plexMediaFilename;
+    private @Nullable String plexMetadataUrl;
 
-    private Long plexMediaSize;
-    private Long plexMediaDuration;
+    private @Nullable String plexMetadataId;
+    private @Nullable Long plexAddedAt;
+    private @Nullable Long plexUpdatedAt;
+    private @Nullable Integer plexMediaId;
+
+    @Column(columnDefinition = "TEXT")
+    private @Nullable String plexMediaFilename;
+
+    private @Nullable Long plexMediaSize;
+    private @Nullable Long plexMediaDuration;
 
     @CreationTimestamp
-    private Instant createdAt;
+    private @Nullable Instant createdAt;
 
     @UpdateTimestamp
-    private Instant updatedAt;
+    private @Nullable Instant updatedAt;
 
     public abstract boolean isAvailable();
 
-    public Long getId() {
+    public @Nullable Long getId() {
         return this.id;
     }
 
-    public String getTitle() {
+    public @Nullable String getTitle() {
         return this.title;
     }
 
-    public Boolean getOmbiAvailable() {
+    public @Nullable Boolean getOmbiAvailable() {
         return this.ombiAvailable;
     }
 
-    public Integer getOmbiRequestId() {
+    public @Nullable Integer getOmbiRequestId() {
         return this.ombiRequestId;
     }
 
-    public String getOmbiRequestStatus() {
+    public @Nullable String getOmbiRequestStatus() {
         return this.ombiRequestStatus;
     }
 
-    public void setId(Long id) {
+    public void setId(@Nullable Long id) {
         this.id = id;
     }
 
-    public void setTitle(String title) {
+    public void setTitle(@Nullable String title) {
         this.title = title;
     }
 
-    public void setOmbiAvailable(Boolean ombiAvailable) {
+    public void setOmbiAvailable(@Nullable Boolean ombiAvailable) {
         this.ombiAvailable = ombiAvailable;
     }
 
-    public void setOmbiRequestId(Integer ombiRequestId) {
+    public void setOmbiRequestId(@Nullable Integer ombiRequestId) {
         this.ombiRequestId = ombiRequestId;
     }
 
-    public void setOmbiRequestStatus(String ombiRequestStatus) {
+    public void setOmbiRequestStatus(@Nullable String ombiRequestStatus) {
         this.ombiRequestStatus = ombiRequestStatus;
     }
 
-    public String getOmbiUserName() {
+    public @Nullable String getOmbiUserName() {
         return this.ombiUserName;
     }
 
-    public void setOmbiUserName(String ombiUserName) {
+    public void setOmbiUserName(@Nullable String ombiUserName) {
         this.ombiUserName = ombiUserName;
     }
 
-    public Instant getOmbiRequestedDate() {
+    public @Nullable Instant getOmbiRequestedDate() {
         return this.ombiRequestedDate;
     }
 
-    public void setOmbiRequestedDate(Instant ombiRequestedDate) {
+    public void setOmbiRequestedDate(@Nullable Instant ombiRequestedDate) {
         this.ombiRequestedDate = ombiRequestedDate;
     }
 
-    public Boolean getStale() {
+    public @Nullable Boolean getStale() {
         return this.stale;
     }
 
-    public void setStale(Boolean stale) {
+    public void setStale(@Nullable Boolean stale) {
         this.stale = stale;
     }
 
-    public String getStaleReason() {
+    public @Nullable String getStaleReason() {
         return this.staleReason;
     }
 
-    public void setStaleReason(String staleReason) {
+    public void setStaleReason(@Nullable String staleReason) {
         this.staleReason = staleReason;
     }
 
-    public Instant getMarkedStaleAt() {
+    public @Nullable Instant getMarkedStaleAt() {
         return this.markedStaleAt;
     }
 
-    public void setMarkedStaleAt(Instant markedStaleAt) {
+    public void setMarkedStaleAt(@Nullable Instant markedStaleAt) {
         this.markedStaleAt = markedStaleAt;
     }
 
-    public String getPlexMetadataUrl() {
+    public @Nullable String getPlexMetadataUrl() {
         return this.plexMetadataUrl;
     }
 
-    public void setPlexMetadataUrl(String plexMetadataUrl) {
+    public void setPlexMetadataUrl(@Nullable String plexMetadataUrl) {
         this.plexMetadataUrl = plexMetadataUrl;
     }
 
-    public String getPlexMetadataId() {
+    public @Nullable String getPlexMetadataId() {
         return this.plexMetadataId;
     }
 
-    public void setPlexMetadataId(String plexMetadataId) {
+    public void setPlexMetadataId(@Nullable String plexMetadataId) {
         this.plexMetadataId = plexMetadataId;
     }
 
-    public Long getPlexAddedAt() {
+    public @Nullable Long getPlexAddedAt() {
         return this.plexAddedAt;
     }
 
-    public void setPlexAddedAt(Long plexAddedAt) {
+    public void setPlexAddedAt(@Nullable Long plexAddedAt) {
         this.plexAddedAt = plexAddedAt;
     }
 
-    public Long getPlexUpdatedAt() {
+    public @Nullable Long getPlexUpdatedAt() {
         return this.plexUpdatedAt;
     }
 
-    public void setPlexUpdatedAt(Long plexUpdatedAt) {
+    public void setPlexUpdatedAt(@Nullable Long plexUpdatedAt) {
         this.plexUpdatedAt = plexUpdatedAt;
     }
 
-    public Integer getPlexMediaId() {
+    public @Nullable Integer getPlexMediaId() {
         return this.plexMediaId;
     }
 
-    public void setPlexMediaId(Integer plexMediaId) {
+    public void setPlexMediaId(@Nullable Integer plexMediaId) {
         this.plexMediaId = plexMediaId;
     }
 
-    public String getPlexMediaFilename() {
+    public @Nullable String getPlexMediaFilename() {
         return this.plexMediaFilename;
     }
 
-    public void setPlexMediaFilename(String plexMediaFilename) {
+    public void setPlexMediaFilename(@Nullable String plexMediaFilename) {
         this.plexMediaFilename = plexMediaFilename;
     }
 
-    public Long getPlexMediaSize() {
+    public @Nullable Long getPlexMediaSize() {
         return this.plexMediaSize;
     }
 
-    public void setPlexMediaSize(Long plexMediaSize) {
+    public void setPlexMediaSize(@Nullable Long plexMediaSize) {
         this.plexMediaSize = plexMediaSize;
     }
 
-    public Long getPlexMediaDuration() {
+    public @Nullable Long getPlexMediaDuration() {
         return this.plexMediaDuration;
     }
 
-    public void setPlexMediaDuration(Long plexMediaDuration) {
+    public void setPlexMediaDuration(@Nullable Long plexMediaDuration) {
         this.plexMediaDuration = plexMediaDuration;
     }
 
-    public Instant getCreatedAt() {
+    public @Nullable Instant getCreatedAt() {
         return this.createdAt;
     }
 
-    public Instant getUpdatedAt() {
+    public @Nullable Instant getUpdatedAt() {
         return this.updatedAt;
     }
 
     public boolean isValid(Collection<String> validatorNames, Map<String, Validation> latestByName) {
         return validatorNames.stream().allMatch(name -> {
-            Validation v = latestByName.get(name);
+            @Nullable Validation v = latestByName.get(name);
             return v != null && Objects.equals(v.getResult(), true);
         });
     }

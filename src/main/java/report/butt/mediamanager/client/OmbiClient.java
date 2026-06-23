@@ -1,6 +1,8 @@
 package report.butt.mediamanager.client;
 
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
@@ -13,6 +15,7 @@ import report.butt.mediamanager.model.ombi.OmbiTvRequest;
 import report.butt.mediamanager.model.ombi.OmbiTvSearchResult;
 
 @Service
+@NullMarked
 public class OmbiClient {
 
     private final RestClient restClient;
@@ -63,7 +66,7 @@ public class OmbiClient {
                 .body(new ParameterizedTypeReference<List<OmbiTvRequest>>() {});
     }
 
-    public OmbiTvSearchResult searchTv(Integer externalProviderId) {
+    public @Nullable OmbiTvSearchResult searchTv(Integer externalProviderId) {
         return restClient
                 .get()
                 .uri("/api/v2/search/Tv/{externalProviderId}", externalProviderId)

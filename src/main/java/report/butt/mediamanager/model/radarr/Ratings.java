@@ -9,77 +9,80 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.processing.Generated;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({"imdb", "tmdb", "metacritic", "rottenTomatoes", "trakt"})
 @Generated("jsonschema2pojo")
+@NullMarked
 public class Ratings {
 
     @JsonProperty("imdb")
-    private Imdb imdb;
+    private @Nullable Imdb imdb;
 
     @JsonProperty("tmdb")
-    private Tmdb tmdb;
+    private @Nullable Tmdb tmdb;
 
     @JsonProperty("metacritic")
-    private Metacritic metacritic;
+    private @Nullable Metacritic metacritic;
 
     @JsonProperty("rottenTomatoes")
-    private RottenTomatoes rottenTomatoes;
+    private @Nullable RottenTomatoes rottenTomatoes;
 
     @JsonProperty("trakt")
-    private Trakt trakt;
+    private @Nullable Trakt trakt;
 
     @JsonIgnore
     private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
     @JsonProperty("imdb")
-    public Imdb getImdb() {
+    public @Nullable Imdb getImdb() {
         return imdb;
     }
 
     @JsonProperty("imdb")
-    public void setImdb(Imdb imdb) {
+    public void setImdb(@Nullable Imdb imdb) {
         this.imdb = imdb;
     }
 
     @JsonProperty("tmdb")
-    public Tmdb getTmdb() {
+    public @Nullable Tmdb getTmdb() {
         return tmdb;
     }
 
     @JsonProperty("tmdb")
-    public void setTmdb(Tmdb tmdb) {
+    public void setTmdb(@Nullable Tmdb tmdb) {
         this.tmdb = tmdb;
     }
 
     @JsonProperty("metacritic")
-    public Metacritic getMetacritic() {
+    public @Nullable Metacritic getMetacritic() {
         return metacritic;
     }
 
     @JsonProperty("metacritic")
-    public void setMetacritic(Metacritic metacritic) {
+    public void setMetacritic(@Nullable Metacritic metacritic) {
         this.metacritic = metacritic;
     }
 
     @JsonProperty("rottenTomatoes")
-    public RottenTomatoes getRottenTomatoes() {
+    public @Nullable RottenTomatoes getRottenTomatoes() {
         return rottenTomatoes;
     }
 
     @JsonProperty("rottenTomatoes")
-    public void setRottenTomatoes(RottenTomatoes rottenTomatoes) {
+    public void setRottenTomatoes(@Nullable RottenTomatoes rottenTomatoes) {
         this.rottenTomatoes = rottenTomatoes;
     }
 
     @JsonProperty("trakt")
-    public Trakt getTrakt() {
+    public @Nullable Trakt getTrakt() {
         return trakt;
     }
 
     @JsonProperty("trakt")
-    public void setTrakt(Trakt trakt) {
+    public void setTrakt(@Nullable Trakt trakt) {
         this.trakt = trakt;
     }
 

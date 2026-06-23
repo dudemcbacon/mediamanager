@@ -9,10 +9,12 @@ import static org.mockito.Mockito.when;
 
 import java.util.Objects;
 import java.util.Optional;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
+@NullMarked
 class AppUserDetailsServiceTest {
 
     private final AppUserRepository repository = mock(AppUserRepository.class);

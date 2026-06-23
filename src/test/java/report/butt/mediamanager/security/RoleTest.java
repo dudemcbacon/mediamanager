@@ -2,8 +2,10 @@ package report.butt.mediamanager.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 
+@NullMarked
 class RoleTest {
 
     @Test

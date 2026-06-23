@@ -1,6 +1,7 @@
 package report.butt.mediamanager.controller;
 
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,6 +14,7 @@ import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 
 @RestController
+@NullMarked
 public class MovieRequestController {
 
     private final MovieRequestRepository repository;

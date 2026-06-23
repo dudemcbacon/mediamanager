@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,6 +22,7 @@ import report.butt.mediamanager.repository.ValidationRepository;
 // Safe: the only unchecked conversion is the raw mock(JpaRepository.class) assigned to the parameterized
 // `repo` field below; a Mockito mock holds no real generic state, so it can't cause heap pollution.
 @SuppressWarnings("unchecked")
+@NullMarked
 class RequestAdminServiceTest {
 
     private final ValidationRepository validationRepository = mock(ValidationRepository.class);

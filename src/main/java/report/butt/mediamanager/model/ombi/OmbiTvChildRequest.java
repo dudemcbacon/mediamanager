@@ -3,293 +3,296 @@ package report.butt.mediamanager.model.ombi;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@NullMarked
 public class OmbiTvChildRequest {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("parentRequestId")
-    private Integer parentRequestId;
+    private @Nullable Integer parentRequestId;
 
     @JsonProperty("title")
-    private String title;
+    private @Nullable String title;
 
     @JsonProperty("issueId")
-    private Integer issueId;
+    private @Nullable Integer issueId;
 
     @JsonProperty("issues")
-    private Object issues;
+    private @Nullable Object issues;
 
     @JsonProperty("seriesType")
-    private Integer seriesType;
+    private @Nullable Integer seriesType;
 
     @JsonProperty("subscribed")
-    private Boolean subscribed;
+    private @Nullable Boolean subscribed;
 
     @JsonProperty("showSubscribe")
-    private Boolean showSubscribe;
+    private @Nullable Boolean showSubscribe;
 
     @JsonProperty("releaseYear")
-    private String releaseYear;
+    private @Nullable String releaseYear;
 
     @JsonProperty("seasonRequests")
-    private List<OmbiTvSeasonRequest> seasonRequests;
+    private @Nullable List<OmbiTvSeasonRequest> seasonRequests;
 
     @JsonProperty("approved")
-    private Boolean approved;
+    private @Nullable Boolean approved;
 
     @JsonProperty("markedAsApproved")
-    private String markedAsApproved;
+    private @Nullable String markedAsApproved;
 
     @JsonProperty("requestedDate")
-    private String requestedDate;
+    private @Nullable String requestedDate;
 
     @JsonProperty("available")
-    private Boolean available;
+    private @Nullable Boolean available;
 
     @JsonProperty("markedAsAvailable")
-    private String markedAsAvailable;
+    private @Nullable String markedAsAvailable;
 
     @JsonProperty("requestedUserId")
-    private String requestedUserId;
+    private @Nullable String requestedUserId;
 
     @JsonProperty("denied")
-    private Boolean denied;
+    private @Nullable Boolean denied;
 
     @JsonProperty("markedAsDenied")
-    private String markedAsDenied;
+    private @Nullable String markedAsDenied;
 
     @JsonProperty("deniedReason")
-    private String deniedReason;
+    private @Nullable String deniedReason;
 
     @JsonProperty("requestType")
-    private Integer requestType;
+    private @Nullable Integer requestType;
 
     @JsonProperty("requestedByAlias")
-    private String requestedByAlias;
+    private @Nullable String requestedByAlias;
 
     @JsonProperty("requestedUser")
-    private User requestedUser;
+    private @Nullable User requestedUser;
 
     @JsonProperty("source")
-    private Integer source;
+    private @Nullable Integer source;
 
     @JsonProperty("canApprove")
-    private Boolean canApprove;
+    private @Nullable Boolean canApprove;
 
     @JsonProperty("requestedUserPlayedProgress")
-    private Integer requestedUserPlayedProgress;
+    private @Nullable Integer requestedUserPlayedProgress;
 
     @JsonProperty("requestStatus")
-    private String requestStatus;
+    private @Nullable String requestStatus;
 
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 
-    public Integer getParentRequestId() {
+    public @Nullable Integer getParentRequestId() {
         return parentRequestId;
     }
 
-    public void setParentRequestId(Integer parentRequestId) {
+    public void setParentRequestId(@Nullable Integer parentRequestId) {
         this.parentRequestId = parentRequestId;
     }
 
-    public String getTitle() {
+    public @Nullable String getTitle() {
         return title;
     }
 
-    public void setTitle(String title) {
+    public void setTitle(@Nullable String title) {
         this.title = title;
     }
 
-    public Integer getIssueId() {
+    public @Nullable Integer getIssueId() {
         return issueId;
     }
 
-    public void setIssueId(Integer issueId) {
+    public void setIssueId(@Nullable Integer issueId) {
         this.issueId = issueId;
     }
 
-    public Object getIssues() {
+    public @Nullable Object getIssues() {
         return issues;
     }
 
-    public void setIssues(Object issues) {
+    public void setIssues(@Nullable Object issues) {
         this.issues = issues;
     }
 
-    public Integer getSeriesType() {
+    public @Nullable Integer getSeriesType() {
         return seriesType;
     }
 
-    public void setSeriesType(Integer seriesType) {
+    public void setSeriesType(@Nullable Integer seriesType) {
         this.seriesType = seriesType;
     }
 
-    public Boolean getSubscribed() {
+    public @Nullable Boolean getSubscribed() {
         return subscribed;
     }
 
-    public void setSubscribed(Boolean subscribed) {
+    public void setSubscribed(@Nullable Boolean subscribed) {
         this.subscribed = subscribed;
     }
 
-    public Boolean getShowSubscribe() {
+    public @Nullable Boolean getShowSubscribe() {
         return showSubscribe;
     }
 
-    public void setShowSubscribe(Boolean showSubscribe) {
+    public void setShowSubscribe(@Nullable Boolean showSubscribe) {
         this.showSubscribe = showSubscribe;
     }
 
-    public String getReleaseYear() {
+    public @Nullable String getReleaseYear() {
         return releaseYear;
     }
 
-    public void setReleaseYear(String releaseYear) {
+    public void setReleaseYear(@Nullable String releaseYear) {
         this.releaseYear = releaseYear;
     }
 
-    public List<OmbiTvSeasonRequest> getSeasonRequests() {
+    public @Nullable List<OmbiTvSeasonRequest> getSeasonRequests() {
         return seasonRequests;
     }
 
-    public void setSeasonRequests(List<OmbiTvSeasonRequest> seasonRequests) {
+    public void setSeasonRequests(@Nullable List<OmbiTvSeasonRequest> seasonRequests) {
         this.seasonRequests = seasonRequests;
     }
 
-    public Boolean getApproved() {
+    public @Nullable Boolean getApproved() {
         return approved;
     }
 
-    public void setApproved(Boolean approved) {
+    public void setApproved(@Nullable Boolean approved) {
         this.approved = approved;
     }
 
-    public String getMarkedAsApproved() {
+    public @Nullable String getMarkedAsApproved() {
         return markedAsApproved;
     }
 
-    public void setMarkedAsApproved(String markedAsApproved) {
+    public void setMarkedAsApproved(@Nullable String markedAsApproved) {
         this.markedAsApproved = markedAsApproved;
     }
 
-    public String getRequestedDate() {
+    public @Nullable String getRequestedDate() {
         return requestedDate;
     }
 
-    public void setRequestedDate(String requestedDate) {
+    public void setRequestedDate(@Nullable String requestedDate) {
         this.requestedDate = requestedDate;
     }
 
-    public Boolean getAvailable() {
+    public @Nullable Boolean getAvailable() {
         return available;
     }
 
-    public void setAvailable(Boolean available) {
+    public void setAvailable(@Nullable Boolean available) {
         this.available = available;
     }
 
-    public String getMarkedAsAvailable() {
+    public @Nullable String getMarkedAsAvailable() {
         return markedAsAvailable;
     }
 
-    public void setMarkedAsAvailable(String markedAsAvailable) {
+    public void setMarkedAsAvailable(@Nullable String markedAsAvailable) {
         this.markedAsAvailable = markedAsAvailable;
     }
 
-    public String getRequestedUserId() {
+    public @Nullable String getRequestedUserId() {
         return requestedUserId;
     }
 
-    public void setRequestedUserId(String requestedUserId) {
+    public void setRequestedUserId(@Nullable String requestedUserId) {
         this.requestedUserId = requestedUserId;
     }
 
-    public Boolean getDenied() {
+    public @Nullable Boolean getDenied() {
         return denied;
     }
 
-    public void setDenied(Boolean denied) {
+    public void setDenied(@Nullable Boolean denied) {
         this.denied = denied;
     }
 
-    public String getMarkedAsDenied() {
+    public @Nullable String getMarkedAsDenied() {
         return markedAsDenied;
     }
 
-    public void setMarkedAsDenied(String markedAsDenied) {
+    public void setMarkedAsDenied(@Nullable String markedAsDenied) {
         this.markedAsDenied = markedAsDenied;
     }
 
-    public String getDeniedReason() {
+    public @Nullable String getDeniedReason() {
         return deniedReason;
     }
 
-    public void setDeniedReason(String deniedReason) {
+    public void setDeniedReason(@Nullable String deniedReason) {
         this.deniedReason = deniedReason;
     }
 
-    public Integer getRequestType() {
+    public @Nullable Integer getRequestType() {
         return requestType;
     }
 
-    public void setRequestType(Integer requestType) {
+    public void setRequestType(@Nullable Integer requestType) {
         this.requestType = requestType;
     }
 
-    public String getRequestedByAlias() {
+    public @Nullable String getRequestedByAlias() {
         return requestedByAlias;
     }
 
-    public void setRequestedByAlias(String requestedByAlias) {
+    public void setRequestedByAlias(@Nullable String requestedByAlias) {
         this.requestedByAlias = requestedByAlias;
     }
 
-    public User getRequestedUser() {
+    public @Nullable User getRequestedUser() {
         return requestedUser;
     }
 
-    public void setRequestedUser(User requestedUser) {
+    public void setRequestedUser(@Nullable User requestedUser) {
         this.requestedUser = requestedUser;
     }
 
-    public Integer getSource() {
+    public @Nullable Integer getSource() {
         return source;
     }
 
-    public void setSource(Integer source) {
+    public void setSource(@Nullable Integer source) {
         this.source = source;
     }
 
-    public Boolean getCanApprove() {
+    public @Nullable Boolean getCanApprove() {
         return canApprove;
     }
 
-    public void setCanApprove(Boolean canApprove) {
+    public void setCanApprove(@Nullable Boolean canApprove) {
         this.canApprove = canApprove;
     }
 
-    public Integer getRequestedUserPlayedProgress() {
+    public @Nullable Integer getRequestedUserPlayedProgress() {
         return requestedUserPlayedProgress;
     }
 
-    public void setRequestedUserPlayedProgress(Integer requestedUserPlayedProgress) {
+    public void setRequestedUserPlayedProgress(@Nullable Integer requestedUserPlayedProgress) {
         this.requestedUserPlayedProgress = requestedUserPlayedProgress;
     }
 
-    public String getRequestStatus() {
+    public @Nullable String getRequestStatus() {
         return requestStatus;
     }
 
-    public void setRequestStatus(String requestStatus) {
+    public void setRequestStatus(@Nullable String requestStatus) {
         this.requestStatus = requestStatus;
     }
 }

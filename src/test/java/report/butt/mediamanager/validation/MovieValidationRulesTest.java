@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import report.butt.mediamanager.model.MovieRequest;
 
@@ -12,6 +13,7 @@ import report.butt.mediamanager.model.MovieRequest;
  * Unit tests for all movie ValidationRule implementations. Each rule is exercised for its passing path, failing path,
  * and edge branches.
  */
+@NullMarked
 class MovieValidationRulesTest {
 
     // --- AvailableInOmbi ---
@@ -390,9 +392,9 @@ class MovieValidationRulesTest {
     void availableInOmbi_metadataIsConsistent() {
         var rule = new AvailableInOmbi();
         assertTrue(rule.sortOrder() > 0);
-        assertTrue(rule.shortName() != null && !rule.shortName().isBlank());
-        assertTrue(rule.title() != null && !rule.title().isBlank());
-        assertTrue(rule.description() != null && !rule.description().isBlank());
+        assertFalse(rule.shortName().isBlank());
+        assertFalse(rule.title().isBlank());
+        assertFalse(rule.description().isBlank());
     }
 
     // --- helpers ---

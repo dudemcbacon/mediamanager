@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import org.springframework.ui.ConcurrentModel;
 import report.butt.mediamanager.client.OmbiClient;
@@ -37,6 +38,7 @@ import report.butt.mediamanager.service.ValidatorService;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
+@NullMarked
 class MovieControllerTest {
 
     private final MovieRequestRepository movieRequestRepository = mock(MovieRequestRepository.class);

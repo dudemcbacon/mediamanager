@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,7 @@ import report.butt.mediamanager.util.DateTimeUtils;
 import report.butt.mediamanager.util.LocalFileInspector;
 
 @Service
+@NullMarked
 public class TvRefreshService {
 
     private static final Logger log = LoggerFactory.getLogger(TvRefreshService.class);
@@ -292,7 +294,8 @@ public class TvRefreshService {
     }
 
     /** The Sonarr-sourced fields recorded per episode: the media file path and last search time. */
-    private record SonarrEpisodeData(String path, Instant lastSearchTime) {}
+    private record SonarrEpisodeData(
+            @Nullable String path, @Nullable Instant lastSearchTime) {}
 
     /**
      * Fetches per-episode Sonarr data for many series concurrently (bounded by {@link #SONARR_FETCH_CONCURRENCY}),
@@ -325,7 +328,7 @@ public class TvRefreshService {
      * number. Sonarr has no bulk episode-file endpoint, so this is one call per matched series. Degrades to an empty
      * map when the series is unmatched or the lookup fails.
      */
-    private Map<EpisodeKey, SonarrEpisodeData> resolveSonarrEpisodes(Series series) {
+    private Map<EpisodeKey, SonarrEpisodeData> resolveSonarrEpisodes(@Nullable Series series) {
         if (series == null || series.getId() == null) {
             return Map.of();
         }
@@ -484,10 +487,10 @@ public class TvRefreshService {
 
     private void applyUpdates(
             TvRequest tvRequest,
-            OmbiTvRequest ombiTv,
-            Series series,
+            @Nullable OmbiTvRequest ombiTv,
+            @Nullable Series series,
             @Nullable Map<Integer, PlexMetadata> showsByTvdb,
-            Map<Integer, String> qualityProfilesById) {
+            @Nullable Map<Integer, String> qualityProfilesById) {
         if (ombiTv != null) {
             backfillTotalSeasons(ombiTv);
             OmbiTvChildRequest firstChild = firstChild(ombiTv);
@@ -728,7 +731,7 @@ public class TvRefreshService {
             return;
         }
         try {
-            OmbiTvSearchResult search = ombiClient.searchTv(ombiTv.getExternalProviderId());
+            @Nullable OmbiTvSearchResult search = ombiClient.searchTv(ombiTv.getExternalProviderId());
             if (search != null && search.getSeasonRequests() != null) {
                 ombiTv.setTotalSeasons(search.getSeasonRequests().size());
             }
@@ -744,7 +747,7 @@ public class TvRefreshService {
         }
     }
 
-    private static @Nullable OmbiTvChildRequest firstChild(OmbiTvRequest ombiTv) {
+    private static @Nullable OmbiTvChildRequest firstChild(@Nullable OmbiTvRequest ombiTv) {
         if (ombiTv == null
                 || ombiTv.getChildRequests() == null
                 || ombiTv.getChildRequests().isEmpty()) {
@@ -753,7 +756,8 @@ public class TvRefreshService {
         return ombiTv.getChildRequests().get(0);
     }
 
-    private void applyPlexUpdates(TvRequest tvRequest, Series series, Map<Integer, PlexMetadata> showsByTvdb) {
+    private void applyPlexUpdates(
+            TvRequest tvRequest, Series series, @Nullable Map<Integer, PlexMetadata> showsByTvdb) {
         try {
             MetadataResult plexResult;
             if (showsByTvdb != null) {
@@ -764,7 +768,7 @@ public class TvRefreshService {
                 plexResult = plexClient.getShowByTvdbId(series.getTvdbId(), series.getTitle(), series.getYear());
             }
             tvRequest.setPlexMetadataUrl(plexResult.url());
-            PlexMetadata plexMetadata = plexResult.metadata();
+            @Nullable PlexMetadata plexMetadata = plexResult.metadata();
             if (plexMetadata != null) {
                 log.info("Plex match found for tvdbId {}: {}", series.getTvdbId(), plexMetadata.getTitle());
                 tvRequest.setPlexMetadataId(plexMetadata.getRatingKey());

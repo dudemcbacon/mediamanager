@@ -9,51 +9,54 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.processing.Generated;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({"votes", "value", "type"})
 @Generated("jsonschema2pojo")
+@NullMarked
 public class Imdb {
 
     @JsonProperty("votes")
-    private Integer votes;
+    private @Nullable Integer votes;
 
     @JsonProperty("value")
-    private Double value;
+    private @Nullable Double value;
 
     @JsonProperty("type")
-    private String type;
+    private @Nullable String type;
 
     @JsonIgnore
     private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
     @JsonProperty("votes")
-    public Integer getVotes() {
+    public @Nullable Integer getVotes() {
         return votes;
     }
 
     @JsonProperty("votes")
-    public void setVotes(Integer votes) {
+    public void setVotes(@Nullable Integer votes) {
         this.votes = votes;
     }
 
     @JsonProperty("value")
-    public Double getValue() {
+    public @Nullable Double getValue() {
         return value;
     }
 
     @JsonProperty("value")
-    public void setValue(Double value) {
+    public void setValue(@Nullable Double value) {
         this.value = value;
     }
 
     @JsonProperty("type")
-    public String getType() {
+    public @Nullable String getType() {
         return type;
     }
 
     @JsonProperty("type")
-    public void setType(String type) {
+    public void setType(@Nullable String type) {
         this.type = type;
     }
 

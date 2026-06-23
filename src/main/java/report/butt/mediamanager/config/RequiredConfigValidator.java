@@ -3,6 +3,7 @@ package report.butt.mediamanager.config;
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @ConditionalOnProperty(name = "mediamanager.validate-required-config", matchIfMissing = true)
+@NullMarked
 public class RequiredConfigValidator {
 
     static final List<String> REQUIRED_KEYS = List.of(

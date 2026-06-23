@@ -9,51 +9,54 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.processing.Generated;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({"version", "real", "isRepack"})
 @Generated("jsonschema2pojo")
+@NullMarked
 public class Revision {
 
     @JsonProperty("version")
-    private Integer version;
+    private @Nullable Integer version;
 
     @JsonProperty("real")
-    private Integer real;
+    private @Nullable Integer real;
 
     @JsonProperty("isRepack")
-    private Boolean isRepack;
+    private @Nullable Boolean isRepack;
 
     @JsonIgnore
     private Map<String, Object> additionalProperties = new LinkedHashMap<String, Object>();
 
     @JsonProperty("version")
-    public Integer getVersion() {
+    public @Nullable Integer getVersion() {
         return version;
     }
 
     @JsonProperty("version")
-    public void setVersion(Integer version) {
+    public void setVersion(@Nullable Integer version) {
         this.version = version;
     }
 
     @JsonProperty("real")
-    public Integer getReal() {
+    public @Nullable Integer getReal() {
         return real;
     }
 
     @JsonProperty("real")
-    public void setReal(Integer real) {
+    public void setReal(@Nullable Integer real) {
         this.real = real;
     }
 
     @JsonProperty("isRepack")
-    public Boolean getIsRepack() {
+    public @Nullable Boolean getIsRepack() {
         return isRepack;
     }
 
     @JsonProperty("isRepack")
-    public void setIsRepack(Boolean isRepack) {
+    public void setIsRepack(@Nullable Boolean isRepack) {
         this.isRepack = isRepack;
     }
 

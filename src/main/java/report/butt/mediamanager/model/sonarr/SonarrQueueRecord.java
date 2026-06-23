@@ -2,85 +2,88 @@ package report.butt.mediamanager.model.sonarr;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@NullMarked
 public class SonarrQueueRecord {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("seriesId")
-    private Integer seriesId;
+    private @Nullable Integer seriesId;
 
     @JsonProperty("seasonNumber")
-    private Integer seasonNumber;
+    private @Nullable Integer seasonNumber;
 
     @JsonProperty("trackedDownloadState")
-    private String trackedDownloadState;
+    private @Nullable String trackedDownloadState;
 
     @JsonProperty("downloadId")
-    private String downloadId;
+    private @Nullable String downloadId;
 
     @JsonProperty("protocol")
-    private String protocol;
+    private @Nullable String protocol;
 
     /** Populated only when the queue is fetched with {@code includeEpisode=true}; carries episodeNumber. */
     @JsonProperty("episode")
-    private Episode episode;
+    private @Nullable Episode episode;
 
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 
-    public Integer getSeriesId() {
+    public @Nullable Integer getSeriesId() {
         return seriesId;
     }
 
-    public void setSeriesId(Integer seriesId) {
+    public void setSeriesId(@Nullable Integer seriesId) {
         this.seriesId = seriesId;
     }
 
-    public Integer getSeasonNumber() {
+    public @Nullable Integer getSeasonNumber() {
         return seasonNumber;
     }
 
-    public void setSeasonNumber(Integer seasonNumber) {
+    public void setSeasonNumber(@Nullable Integer seasonNumber) {
         this.seasonNumber = seasonNumber;
     }
 
-    public String getTrackedDownloadState() {
+    public @Nullable String getTrackedDownloadState() {
         return trackedDownloadState;
     }
 
-    public void setTrackedDownloadState(String trackedDownloadState) {
+    public void setTrackedDownloadState(@Nullable String trackedDownloadState) {
         this.trackedDownloadState = trackedDownloadState;
     }
 
-    public String getDownloadId() {
+    public @Nullable String getDownloadId() {
         return downloadId;
     }
 
-    public void setDownloadId(String downloadId) {
+    public void setDownloadId(@Nullable String downloadId) {
         this.downloadId = downloadId;
     }
 
-    public String getProtocol() {
+    public @Nullable String getProtocol() {
         return protocol;
     }
 
-    public void setProtocol(String protocol) {
+    public void setProtocol(@Nullable String protocol) {
         this.protocol = protocol;
     }
 
-    public Episode getEpisode() {
+    public @Nullable Episode getEpisode() {
         return episode;
     }
 
-    public void setEpisode(Episode episode) {
+    public void setEpisode(@Nullable Episode episode) {
         this.episode = episode;
     }
 }

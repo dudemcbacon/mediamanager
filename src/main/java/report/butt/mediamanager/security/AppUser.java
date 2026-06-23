@@ -8,14 +8,17 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "app_user")
+@NullMarked
 public class AppUser {
 
     @Id
     @GeneratedValue
-    private Long id;
+    private @Nullable Long id;
 
     @Column(unique = true, nullable = false)
     private String username;
@@ -30,10 +33,10 @@ public class AppUser {
     private boolean enabled;
 
     @CreationTimestamp
-    private Instant createdAt;
+    private @Nullable Instant createdAt;
 
     @UpdateTimestamp
-    private Instant updatedAt;
+    private @Nullable Instant updatedAt;
 
     AppUser() {}
 
@@ -44,7 +47,7 @@ public class AppUser {
         this.enabled = true;
     }
 
-    public Long getId() {
+    public @Nullable Long getId() {
         return id;
     }
 
@@ -80,11 +83,11 @@ public class AppUser {
         this.enabled = enabled;
     }
 
-    public Instant getCreatedAt() {
+    public @Nullable Instant getCreatedAt() {
         return createdAt;
     }
 
-    public Instant getUpdatedAt() {
+    public @Nullable Instant getUpdatedAt() {
         return updatedAt;
     }
 }

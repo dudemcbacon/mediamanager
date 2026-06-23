@@ -2,39 +2,42 @@ package report.butt.mediamanager.model.plex;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
+@NullMarked
 public class PlexMedia {
 
     @JsonProperty("id")
-    private Integer id;
+    private @Nullable Integer id;
 
     @JsonProperty("duration")
-    private Long duration;
+    private @Nullable Long duration;
 
     @JsonProperty("Part")
-    private List<PlexPart> part;
+    private @Nullable List<PlexPart> part;
 
-    public Integer getId() {
+    public @Nullable Integer getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(@Nullable Integer id) {
         this.id = id;
     }
 
-    public Long getDuration() {
+    public @Nullable Long getDuration() {
         return duration;
     }
 
-    public void setDuration(Long duration) {
+    public void setDuration(@Nullable Long duration) {
         this.duration = duration;
     }
 
-    public List<PlexPart> getPart() {
+    public @Nullable List<PlexPart> getPart() {
         return part;
     }
 
-    public void setPart(List<PlexPart> part) {
+    public void setPart(@Nullable List<PlexPart> part) {
         this.part = part;
     }
 }

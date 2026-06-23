@@ -1,17 +1,20 @@
 package report.butt.mediamanager.model.plex;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
+@NullMarked
 public class PlexSearchResponse {
 
     @JsonProperty("MediaContainer")
-    private PlexMediaContainer mediaContainer;
+    private @Nullable PlexMediaContainer mediaContainer;
 
-    public PlexMediaContainer getMediaContainer() {
+    public @Nullable PlexMediaContainer getMediaContainer() {
         return mediaContainer;
     }
 
-    public void setMediaContainer(PlexMediaContainer mediaContainer) {
+    public void setMediaContainer(@Nullable PlexMediaContainer mediaContainer) {
         this.mediaContainer = mediaContainer;
     }
 }

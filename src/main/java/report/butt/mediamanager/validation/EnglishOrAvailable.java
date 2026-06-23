@@ -1,10 +1,12 @@
 package report.butt.mediamanager.validation;
 
+import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.RequestType;
 
 @Component
+@NullMarked
 public class EnglishOrAvailable implements Validator<MovieRequest> {
     @Override
     public Boolean validate(MovieRequest request) {
