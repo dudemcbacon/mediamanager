@@ -41,9 +41,8 @@ import report.butt.mediamanager.model.ombi.OmbiTvSearchResult;
 import report.butt.mediamanager.model.ombi.OmbiTvSeasonRequest;
 import report.butt.mediamanager.model.plex.EpisodeKey;
 import report.butt.mediamanager.model.plex.PlexEpisodeData;
-import report.butt.mediamanager.model.plex.PlexMedia;
 import report.butt.mediamanager.model.plex.PlexMetadata;
-import report.butt.mediamanager.model.plex.PlexPart;
+import report.butt.mediamanager.model.plex.PlexMetadataSupport;
 import report.butt.mediamanager.model.sonarr.Episode;
 import report.butt.mediamanager.model.sonarr.EpisodeFile;
 import report.butt.mediamanager.model.sonarr.Series;
@@ -564,7 +563,7 @@ public class TvRefreshService {
                 if (seasonNumber == null || episodeNumber == null) {
                     continue;
                 }
-                PlexEpisodeData data = firstFile(episode);
+                PlexEpisodeData data = PlexMetadataSupport.firstFile(episode);
                 if (data != null) {
                     result.put(new EpisodeKey(seasonNumber, episodeNumber), data);
                 }
@@ -574,21 +573,6 @@ public class TvRefreshService {
             log.warn("Plex grandchildren lookup failed for plexMetadataId {}", plexMetadataId, e);
             return Map.of();
         }
-    }
-
-    private static @Nullable PlexEpisodeData firstFile(PlexMetadata episode) {
-        if (episode.getMedia() == null || episode.getMedia().isEmpty()) {
-            return null;
-        }
-        PlexMedia media = episode.getMedia().get(0);
-        if (media.getPart() == null || media.getPart().isEmpty()) {
-            return null;
-        }
-        PlexPart part = media.getPart().get(0);
-        if (part.getFile() == null) {
-            return null;
-        }
-        return new PlexEpisodeData(part.getFile(), part.getSize());
     }
 
     private static void applyChildUpdates(
@@ -778,25 +762,8 @@ public class TvRefreshService {
                 tvRequest.setPlexMetadataId(plexMetadata.getRatingKey());
                 tvRequest.setPlexAddedAt(plexMetadata.getAddedAt());
                 tvRequest.setPlexUpdatedAt(plexMetadata.getUpdatedAt());
-                if (plexMetadata.getGuids() != null) {
-                    plexMetadata.getGuids().stream()
-                            .map(g -> g.getId())
-                            .filter(id -> id != null && id.startsWith("tvdb://"))
-                            .map(id -> id.substring("tvdb://".length()))
-                            .mapToInt(Integer::parseInt)
-                            .findFirst()
-                            .ifPresent(tvRequest::setPlexTvdbId);
-                }
-                if (plexMetadata.getMedia() != null && !plexMetadata.getMedia().isEmpty()) {
-                    PlexMedia media = plexMetadata.getMedia().get(0);
-                    tvRequest.setPlexMediaId(media.getId());
-                    tvRequest.setPlexMediaDuration(media.getDuration());
-                    if (media.getPart() != null && !media.getPart().isEmpty()) {
-                        PlexPart part = media.getPart().get(0);
-                        tvRequest.setPlexMediaFilename(part.getFile());
-                        tvRequest.setPlexMediaSize(part.getSize());
-                    }
-                }
+                PlexMetadataSupport.parseGuidId(plexMetadata, "tvdb://").ifPresent(tvRequest::setPlexTvdbId);
+                PlexMetadataSupport.applyFirstMedia(tvRequest, plexMetadata);
             } else {
                 log.info("No Plex match found for tvdbId {}", series.getTvdbId());
             }

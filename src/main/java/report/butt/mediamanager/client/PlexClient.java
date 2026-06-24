@@ -18,9 +18,9 @@ import report.butt.mediamanager.model.plex.EpisodeKey;
 import report.butt.mediamanager.model.plex.PlexDirectory;
 import report.butt.mediamanager.model.plex.PlexEpisodeData;
 import report.butt.mediamanager.model.plex.PlexGuid;
-import report.butt.mediamanager.model.plex.PlexMedia;
 import report.butt.mediamanager.model.plex.PlexMediaContainer;
 import report.butt.mediamanager.model.plex.PlexMetadata;
+import report.butt.mediamanager.model.plex.PlexMetadataSupport;
 import report.butt.mediamanager.model.plex.PlexSearchResponse;
 import report.butt.mediamanager.service.PlexCacheService;
 import tools.jackson.databind.ObjectMapper;
@@ -474,7 +474,7 @@ public class PlexClient {
             if (showRatingKey == null || seasonNumber == null || episodeNumber == null) {
                 continue;
             }
-            PlexEpisodeData data = firstFile(episode);
+            PlexEpisodeData data = PlexMetadataSupport.firstFile(episode);
             if (data == null) {
                 continue;
             }
@@ -492,21 +492,6 @@ public class PlexClient {
         wrapper.setMediaContainer(container);
         String body = objectMapper.writeValueAsString(wrapper);
         return plexCacheService.store(tvCacheKey(tvdbId), body);
-    }
-
-    private static @Nullable PlexEpisodeData firstFile(PlexMetadata episode) {
-        if (episode.getMedia() == null || episode.getMedia().isEmpty()) {
-            return null;
-        }
-        PlexMedia media = episode.getMedia().get(0);
-        if (media.getPart() == null || media.getPart().isEmpty()) {
-            return null;
-        }
-        var part = media.getPart().get(0);
-        if (part.getFile() == null) {
-            return null;
-        }
-        return new PlexEpisodeData(part.getFile(), part.getSize());
     }
 
     public static String movieCacheKey(int tmdbId) {

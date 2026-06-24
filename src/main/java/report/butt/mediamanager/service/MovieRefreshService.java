@@ -25,9 +25,8 @@ import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.job.FfprobeScanJobRequest;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.ombi.OmbiMovieRequest;
-import report.butt.mediamanager.model.plex.PlexMedia;
 import report.butt.mediamanager.model.plex.PlexMetadata;
-import report.butt.mediamanager.model.plex.PlexPart;
+import report.butt.mediamanager.model.plex.PlexMetadataSupport;
 import report.butt.mediamanager.model.radarr.Movie;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.util.DateTimeUtils;
@@ -251,25 +250,8 @@ public class MovieRefreshService {
                 movieRequest.setPlexMetadataId(plexMetadata.getRatingKey());
                 movieRequest.setPlexAddedAt(plexMetadata.getAddedAt());
                 movieRequest.setPlexUpdatedAt(plexMetadata.getUpdatedAt());
-                if (plexMetadata.getGuids() != null) {
-                    plexMetadata.getGuids().stream()
-                            .map(g -> g.getId())
-                            .filter(id -> id != null && id.startsWith("tmdb://"))
-                            .map(id -> id.substring("tmdb://".length()))
-                            .mapToInt(Integer::parseInt)
-                            .findFirst()
-                            .ifPresent(movieRequest::setPlexTmdbid);
-                }
-                if (plexMetadata.getMedia() != null && !plexMetadata.getMedia().isEmpty()) {
-                    PlexMedia media = plexMetadata.getMedia().get(0);
-                    movieRequest.setPlexMediaId(media.getId());
-                    movieRequest.setPlexMediaDuration(media.getDuration());
-                    if (media.getPart() != null && !media.getPart().isEmpty()) {
-                        PlexPart part = media.getPart().get(0);
-                        movieRequest.setPlexMediaFilename(part.getFile());
-                        movieRequest.setPlexMediaSize(part.getSize());
-                    }
-                }
+                PlexMetadataSupport.parseGuidId(plexMetadata, "tmdb://").ifPresent(movieRequest::setPlexTmdbid);
+                PlexMetadataSupport.applyFirstMedia(movieRequest, plexMetadata);
             } else {
                 log.info("No Plex match found for tmdbId {}", radarrMovie.getTmdbId());
             }
