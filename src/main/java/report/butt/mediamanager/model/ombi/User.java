@@ -155,322 +155,322 @@ public class User implements Serializable {
     private static final long serialVersionUID = -4038896577704940927L;
 
     @JsonProperty("alias")
-    public String getAlias() {
+    public @Nullable String getAlias() {
         return alias;
     }
 
     @JsonProperty("alias")
-    public void setAlias(String alias) {
+    public void setAlias(@Nullable String alias) {
         this.alias = alias;
     }
 
     @JsonProperty("userType")
-    public Integer getUserType() {
+    public @Nullable Integer getUserType() {
         return userType;
     }
 
     @JsonProperty("userType")
-    public void setUserType(Integer userType) {
+    public void setUserType(@Nullable Integer userType) {
         this.userType = userType;
     }
 
     @JsonProperty("providerUserId")
-    public String getProviderUserId() {
+    public @Nullable String getProviderUserId() {
         return providerUserId;
     }
 
     @JsonProperty("providerUserId")
-    public void setProviderUserId(String providerUserId) {
+    public void setProviderUserId(@Nullable String providerUserId) {
         this.providerUserId = providerUserId;
     }
 
     @JsonProperty("lastLoggedIn")
-    public String getLastLoggedIn() {
+    public @Nullable String getLastLoggedIn() {
         return lastLoggedIn;
     }
 
     @JsonProperty("lastLoggedIn")
-    public void setLastLoggedIn(String lastLoggedIn) {
+    public void setLastLoggedIn(@Nullable String lastLoggedIn) {
         this.lastLoggedIn = lastLoggedIn;
     }
 
     @JsonProperty("language")
-    public Object getLanguage() {
+    public @Nullable Object getLanguage() {
         return language;
     }
 
     @JsonProperty("language")
-    public void setLanguage(Object language) {
+    public void setLanguage(@Nullable Object language) {
         this.language = language;
     }
 
     @JsonProperty("streamingCountry")
-    public String getStreamingCountry() {
+    public @Nullable String getStreamingCountry() {
         return streamingCountry;
     }
 
     @JsonProperty("streamingCountry")
-    public void setStreamingCountry(String streamingCountry) {
+    public void setStreamingCountry(@Nullable String streamingCountry) {
         this.streamingCountry = streamingCountry;
     }
 
     @JsonProperty("movieRequestLimit")
-    public Integer getMovieRequestLimit() {
+    public @Nullable Integer getMovieRequestLimit() {
         return movieRequestLimit;
     }
 
     @JsonProperty("movieRequestLimit")
-    public void setMovieRequestLimit(Integer movieRequestLimit) {
+    public void setMovieRequestLimit(@Nullable Integer movieRequestLimit) {
         this.movieRequestLimit = movieRequestLimit;
     }
 
     @JsonProperty("episodeRequestLimit")
-    public Integer getEpisodeRequestLimit() {
+    public @Nullable Integer getEpisodeRequestLimit() {
         return episodeRequestLimit;
     }
 
     @JsonProperty("episodeRequestLimit")
-    public void setEpisodeRequestLimit(Integer episodeRequestLimit) {
+    public void setEpisodeRequestLimit(@Nullable Integer episodeRequestLimit) {
         this.episodeRequestLimit = episodeRequestLimit;
     }
 
     @JsonProperty("musicRequestLimit")
-    public Integer getMusicRequestLimit() {
+    public @Nullable Integer getMusicRequestLimit() {
         return musicRequestLimit;
     }
 
     @JsonProperty("musicRequestLimit")
-    public void setMusicRequestLimit(Integer musicRequestLimit) {
+    public void setMusicRequestLimit(@Nullable Integer musicRequestLimit) {
         this.musicRequestLimit = musicRequestLimit;
     }
 
     @JsonProperty("movieRequestLimitType")
-    public Object getMovieRequestLimitType() {
+    public @Nullable Object getMovieRequestLimitType() {
         return movieRequestLimitType;
     }
 
     @JsonProperty("movieRequestLimitType")
-    public void setMovieRequestLimitType(Object movieRequestLimitType) {
+    public void setMovieRequestLimitType(@Nullable Object movieRequestLimitType) {
         this.movieRequestLimitType = movieRequestLimitType;
     }
 
     @JsonProperty("episodeRequestLimitType")
-    public Object getEpisodeRequestLimitType() {
+    public @Nullable Object getEpisodeRequestLimitType() {
         return episodeRequestLimitType;
     }
 
     @JsonProperty("episodeRequestLimitType")
-    public void setEpisodeRequestLimitType(Object episodeRequestLimitType) {
+    public void setEpisodeRequestLimitType(@Nullable Object episodeRequestLimitType) {
         this.episodeRequestLimitType = episodeRequestLimitType;
     }
 
     @JsonProperty("musicRequestLimitType")
-    public Object getMusicRequestLimitType() {
+    public @Nullable Object getMusicRequestLimitType() {
         return musicRequestLimitType;
     }
 
     @JsonProperty("musicRequestLimitType")
-    public void setMusicRequestLimitType(Object musicRequestLimitType) {
+    public void setMusicRequestLimitType(@Nullable Object musicRequestLimitType) {
         this.musicRequestLimitType = musicRequestLimitType;
     }
 
     @JsonProperty("userAccessToken")
-    public String getUserAccessToken() {
+    public @Nullable String getUserAccessToken() {
         return userAccessToken;
     }
 
     @JsonProperty("userAccessToken")
-    public void setUserAccessToken(String userAccessToken) {
+    public void setUserAccessToken(@Nullable String userAccessToken) {
         this.userAccessToken = userAccessToken;
     }
 
     @JsonProperty("mediaServerToken")
-    public Object getMediaServerToken() {
+    public @Nullable Object getMediaServerToken() {
         return mediaServerToken;
     }
 
     @JsonProperty("mediaServerToken")
-    public void setMediaServerToken(Object mediaServerToken) {
+    public void setMediaServerToken(@Nullable Object mediaServerToken) {
         this.mediaServerToken = mediaServerToken;
     }
 
     @JsonProperty("notificationUserIds")
-    public List<Object> getNotificationUserIds() {
+    public @Nullable List<Object> getNotificationUserIds() {
         return notificationUserIds;
     }
 
     @JsonProperty("notificationUserIds")
-    public void setNotificationUserIds(List<Object> notificationUserIds) {
+    public void setNotificationUserIds(@Nullable List<Object> notificationUserIds) {
         this.notificationUserIds = notificationUserIds;
     }
 
     @JsonProperty("userNotificationPreferences")
-    public Object getUserNotificationPreferences() {
+    public @Nullable Object getUserNotificationPreferences() {
         return userNotificationPreferences;
     }
 
     @JsonProperty("userNotificationPreferences")
-    public void setUserNotificationPreferences(Object userNotificationPreferences) {
+    public void setUserNotificationPreferences(@Nullable Object userNotificationPreferences) {
         this.userNotificationPreferences = userNotificationPreferences;
     }
 
     @JsonProperty("isEmbyConnect")
-    public Boolean getIsEmbyConnect() {
+    public @Nullable Boolean getIsEmbyConnect() {
         return isEmbyConnect;
     }
 
     @JsonProperty("isEmbyConnect")
-    public void setIsEmbyConnect(Boolean isEmbyConnect) {
+    public void setIsEmbyConnect(@Nullable Boolean isEmbyConnect) {
         this.isEmbyConnect = isEmbyConnect;
     }
 
     @JsonProperty("userAlias")
-    public String getUserAlias() {
+    public @Nullable String getUserAlias() {
         return userAlias;
     }
 
     @JsonProperty("userAlias")
-    public void setUserAlias(String userAlias) {
+    public void setUserAlias(@Nullable String userAlias) {
         this.userAlias = userAlias;
     }
 
     @JsonProperty("emailLogin")
-    public Boolean getEmailLogin() {
+    public @Nullable Boolean getEmailLogin() {
         return emailLogin;
     }
 
     @JsonProperty("emailLogin")
-    public void setEmailLogin(Boolean emailLogin) {
+    public void setEmailLogin(@Nullable Boolean emailLogin) {
         this.emailLogin = emailLogin;
     }
 
     @JsonProperty("isSystemUser")
-    public Boolean getIsSystemUser() {
+    public @Nullable Boolean getIsSystemUser() {
         return isSystemUser;
     }
 
     @JsonProperty("isSystemUser")
-    public void setIsSystemUser(Boolean isSystemUser) {
+    public void setIsSystemUser(@Nullable Boolean isSystemUser) {
         this.isSystemUser = isSystemUser;
     }
 
     @JsonProperty("id")
-    public String getId() {
+    public @Nullable String getId() {
         return id;
     }
 
     @JsonProperty("id")
-    public void setId(String id) {
+    public void setId(@Nullable String id) {
         this.id = id;
     }
 
     @JsonProperty("userName")
-    public String getUserName() {
+    public @Nullable String getUserName() {
         return userName;
     }
 
     @JsonProperty("userName")
-    public void setUserName(String userName) {
+    public void setUserName(@Nullable String userName) {
         this.userName = userName;
     }
 
     @JsonProperty("normalizedUserName")
-    public String getNormalizedUserName() {
+    public @Nullable String getNormalizedUserName() {
         return normalizedUserName;
     }
 
     @JsonProperty("normalizedUserName")
-    public void setNormalizedUserName(String normalizedUserName) {
+    public void setNormalizedUserName(@Nullable String normalizedUserName) {
         this.normalizedUserName = normalizedUserName;
     }
 
     @JsonProperty("email")
-    public String getEmail() {
+    public @Nullable String getEmail() {
         return email;
     }
 
     @JsonProperty("email")
-    public void setEmail(String email) {
+    public void setEmail(@Nullable String email) {
         this.email = email;
     }
 
     @JsonProperty("normalizedEmail")
-    public String getNormalizedEmail() {
+    public @Nullable String getNormalizedEmail() {
         return normalizedEmail;
     }
 
     @JsonProperty("normalizedEmail")
-    public void setNormalizedEmail(String normalizedEmail) {
+    public void setNormalizedEmail(@Nullable String normalizedEmail) {
         this.normalizedEmail = normalizedEmail;
     }
 
     @JsonProperty("emailConfirmed")
-    public Boolean getEmailConfirmed() {
+    public @Nullable Boolean getEmailConfirmed() {
         return emailConfirmed;
     }
 
     @JsonProperty("emailConfirmed")
-    public void setEmailConfirmed(Boolean emailConfirmed) {
+    public void setEmailConfirmed(@Nullable Boolean emailConfirmed) {
         this.emailConfirmed = emailConfirmed;
     }
 
     @JsonProperty("phoneNumber")
-    public Object getPhoneNumber() {
+    public @Nullable Object getPhoneNumber() {
         return phoneNumber;
     }
 
     @JsonProperty("phoneNumber")
-    public void setPhoneNumber(Object phoneNumber) {
+    public void setPhoneNumber(@Nullable Object phoneNumber) {
         this.phoneNumber = phoneNumber;
     }
 
     @JsonProperty("phoneNumberConfirmed")
-    public Boolean getPhoneNumberConfirmed() {
+    public @Nullable Boolean getPhoneNumberConfirmed() {
         return phoneNumberConfirmed;
     }
 
     @JsonProperty("phoneNumberConfirmed")
-    public void setPhoneNumberConfirmed(Boolean phoneNumberConfirmed) {
+    public void setPhoneNumberConfirmed(@Nullable Boolean phoneNumberConfirmed) {
         this.phoneNumberConfirmed = phoneNumberConfirmed;
     }
 
     @JsonProperty("twoFactorEnabled")
-    public Boolean getTwoFactorEnabled() {
+    public @Nullable Boolean getTwoFactorEnabled() {
         return twoFactorEnabled;
     }
 
     @JsonProperty("twoFactorEnabled")
-    public void setTwoFactorEnabled(Boolean twoFactorEnabled) {
+    public void setTwoFactorEnabled(@Nullable Boolean twoFactorEnabled) {
         this.twoFactorEnabled = twoFactorEnabled;
     }
 
     @JsonProperty("lockoutEnd")
-    public Object getLockoutEnd() {
+    public @Nullable Object getLockoutEnd() {
         return lockoutEnd;
     }
 
     @JsonProperty("lockoutEnd")
-    public void setLockoutEnd(Object lockoutEnd) {
+    public void setLockoutEnd(@Nullable Object lockoutEnd) {
         this.lockoutEnd = lockoutEnd;
     }
 
     @JsonProperty("lockoutEnabled")
-    public Boolean getLockoutEnabled() {
+    public @Nullable Boolean getLockoutEnabled() {
         return lockoutEnabled;
     }
 
     @JsonProperty("lockoutEnabled")
-    public void setLockoutEnabled(Boolean lockoutEnabled) {
+    public void setLockoutEnabled(@Nullable Boolean lockoutEnabled) {
         this.lockoutEnabled = lockoutEnabled;
     }
 
     @JsonProperty("accessFailedCount")
-    public Integer getAccessFailedCount() {
+    public @Nullable Integer getAccessFailedCount() {
         return accessFailedCount;
     }
 
     @JsonProperty("accessFailedCount")
-    public void setAccessFailedCount(Integer accessFailedCount) {
+    public void setAccessFailedCount(@Nullable Integer accessFailedCount) {
         this.accessFailedCount = accessFailedCount;
     }
 

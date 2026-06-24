@@ -81,7 +81,7 @@ public class DownloadCleanupService {
             for (RadarrQueueRecord record : radarrQueue.getRecords()) {
                 if (matches(record.getId(), record.getDownloadId(), hashes)) {
                     log.info("Deleting Radarr queue item {} ({})", record.getId(), record.getDownloadId());
-                    radarrClient.deleteQueueItem(record.getId());
+                    radarrClient.deleteQueueItem(Objects.requireNonNull(record.getId()));
                     torrentsDeleted++;
                     if (record.getMovieId() != null) {
                         movieIds.add(record.getMovieId());
@@ -97,7 +97,7 @@ public class DownloadCleanupService {
             for (SonarrQueueRecord record : sonarrQueue.getRecords()) {
                 if (matches(record.getId(), record.getDownloadId(), hashes)) {
                     log.info("Deleting Sonarr queue item {} ({})", record.getId(), record.getDownloadId());
-                    sonarrClient.deleteQueueItem(record.getId());
+                    sonarrClient.deleteQueueItem(Objects.requireNonNull(record.getId()));
                     torrentsDeleted++;
                     if (record.getSeriesId() != null) {
                         seriesIds.add(record.getSeriesId());
@@ -144,7 +144,7 @@ public class DownloadCleanupService {
         return queueId != null && downloadId != null && hashes.contains(downloadId.toLowerCase(Locale.ROOT));
     }
 
-    private static <X> X fetch(Supplier<X> call, String what) {
+    private static <X> @Nullable X fetch(Supplier<X> call, String what) {
         try {
             return call.get();
         } catch (RuntimeException e) {

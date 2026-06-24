@@ -134,6 +134,7 @@ dependencies {
 	testRuntimeOnly libs.junit.platform.launcher
 
 	errorprone libs.google.error.prone.core
+	errorprone libs.nullaway
 
 	newrelicAgent(libs.newrelic.agent) { transitive = false }
 }
@@ -175,8 +176,11 @@ tasks.withType(JavaCompile).configureEach {
     options.errorprone.enabled = true
     options.errorprone {
         excludedPaths.set("(.*/build/generated/.*)")
-        // check("NullAway", CheckSeverity.ERROR)
-        // option("NullAway:AnnotatedPackages", "com.newrelic.farnsworth")
+        check("NullAway", net.ltgt.gradle.errorprone.CheckSeverity.ERROR)
+        option("NullAway:OnlyNullMarked", "true")
+        option(
+                "NullAway:ExcludedFieldAnnotations",
+                "jakarta.persistence.Id,jakarta.persistence.Column,jakarta.persistence.ManyToOne,jakarta.persistence.OneToMany,jakarta.persistence.OneToOne,org.hibernate.annotations.CreationTimestamp,org.hibernate.annotations.UpdateTimestamp,org.springframework.beans.factory.annotation.Autowired,org.springframework.beans.factory.annotation.Value,org.mockito.Mock,org.mockito.InjectMocks,org.springframework.boot.test.mock.mockito.MockBean")
         disable("Java8ApiChecker")
         // AndroidJdkLibsChecker was removed in Error Prone 2.42.0+
         disable("DefaultLocale")
@@ -188,11 +192,10 @@ tasks.withType(JavaCompile).configureEach {
     // -XepPatchChecks to the checks you're interested in:
     // options.errorprone.errorproneArgs = ["-XepPatchChecks:CheckedExceptionNotThrown,UnusedMethod,ThrowSpecificExceptions,SystemOut,UnnecessarilyVisible,UnnecessarilyFullyQualified,CatchingUnchecked,ConstantField,IdentifierName,InvalidParam,Var,FieldMissingNullable,UnnecessaryFinalParameterComment,MethodCanBeStatic,UnusedVariable,UnnecessaryFullQualified,YodaCondition", "-XepPatchLocation:/Users/bburnett/development/farnsworth"]
 
-    // Include to disable NullAway on test code
+    // NullAway is scoped to main source for now; test sources are not yet null-clean.
     if (name.toLowerCase().contains("test")) {
         options.errorprone {
-            // disable("NullAway")
-
+            disable("NullAway")
         }
     }
 }

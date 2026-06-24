@@ -124,12 +124,7 @@ public class TvController {
         log.info("Triggering Sonarr SeriesSearch for {} series: {}", seriesIds.size(), seriesIds);
         if (!seriesIds.isEmpty()) {
             SonarrCommand command = sonarrClient.searchSeries(seriesIds);
-            log.info(
-                    "Sonarr command {} ({}) status={} result={}",
-                    command.getId(),
-                    command.getCommandName(),
-                    command.getStatus(),
-                    command.getResult());
+            logSonarrCommand(command);
 
             Instant now = Instant.now();
             tvRequests.forEach(tvRequest -> tvRequest.setSonarrLastSearched(now));
@@ -154,12 +149,7 @@ public class TvController {
     public String search(@PathVariable Integer seriesId) {
         log.info("Triggering Sonarr SeriesSearch for series {}", seriesId);
         SonarrCommand command = sonarrClient.searchSeries(List.of(seriesId));
-        log.info(
-                "Sonarr command {} ({}) status={} result={}",
-                command.getId(),
-                command.getCommandName(),
-                command.getStatus(),
-                command.getResult());
+        logSonarrCommand(command);
 
         Instant now = Instant.now();
         tvRequestRepository.findAll().stream()
@@ -230,12 +220,7 @@ public class TvController {
         }
 
         SonarrCommand command = sonarrClient.searchSeries(List.of(sonarrSeriesId));
-        log.info(
-                "Sonarr command {} ({}) status={} result={}",
-                command.getId(),
-                command.getCommandName(),
-                command.getStatus(),
-                command.getResult());
+        logSonarrCommand(command);
 
         tvRequest.setSonarrLastSearched(Instant.now());
         tvRequestRepository.save(tvRequest);
@@ -259,12 +244,7 @@ public class TvController {
                 tvRequests.stream().map(TvRequest::getSonarrSeriesId).toList();
         log.info("Triggering Sonarr SeriesSearch for {} series: {}", seriesIds.size(), seriesIds);
         SonarrCommand command = sonarrClient.searchSeries(seriesIds);
-        log.info(
-                "Sonarr command {} ({}) status={} result={}",
-                command.getId(),
-                command.getCommandName(),
-                command.getStatus(),
-                command.getResult());
+        logSonarrCommand(command);
 
         Instant now = Instant.now();
         tvRequests.forEach(tr -> tr.setSonarrLastSearched(now));
@@ -369,12 +349,7 @@ public class TvController {
         }
         log.info("Triggering Sonarr SeriesSearch for {} series: {}", ids.size(), ids);
         SonarrCommand command = sonarrClient.searchSeries(ids);
-        log.info(
-                "Sonarr command {} ({}) status={} result={}",
-                command.getId(),
-                command.getCommandName(),
-                command.getStatus(),
-                command.getResult());
+        logSonarrCommand(command);
         Instant now = Instant.now();
         List<TvRequest> matching = tvRequestRepository.findAll().stream()
                 .filter(tr -> tr.getSonarrSeriesId() != null && ids.contains(tr.getSonarrSeriesId()))
@@ -437,6 +412,23 @@ public class TvController {
         return ffprobeScanService.getLatestEpisodeScan(episodeId);
     }
 
+    /**
+     * Logs the outcome of a Sonarr command POST. A null command means the call returned no response body, so the search
+     * may not have been queued — surfaced as a warning rather than silently ignored.
+     */
+    private static void logSonarrCommand(@Nullable SonarrCommand command) {
+        if (command == null) {
+            log.warn("Sonarr command POST returned no response body; the search may not have been queued");
+            return;
+        }
+        log.info(
+                "Sonarr command {} ({}) status={} result={}",
+                command.getId(),
+                command.getCommandName(),
+                command.getStatus(),
+                command.getResult());
+    }
+
     /** Deletes (from the download client, with blocklist) every Sonarr queue item for the given episode. */
     private void deleteSonarrQueueItems(Integer seriesId, Integer seasonNumber, Integer episodeNumber, String label) {
         SonarrQueue queue;
@@ -480,12 +472,7 @@ public class TvController {
         log.info("Triggering Sonarr SeasonSearch for {} seasons {} of series {}", label, seasonNumbers, sonarrSeriesId);
         for (Integer seasonNumber : seasonNumbers) {
             SonarrCommand command = sonarrClient.searchSeason(sonarrSeriesId, seasonNumber);
-            log.info(
-                    "Sonarr command {} ({}) status={} result={}",
-                    command.getId(),
-                    command.getCommandName(),
-                    command.getStatus(),
-                    command.getResult());
+            logSonarrCommand(command);
         }
     }
 
@@ -503,9 +490,16 @@ public class TvController {
             log.info("{} has no episodes; nothing to search", label);
             return;
         }
-        List<Integer> episodeIds = sonarrClient.getEpisodes(sonarrSeriesId).stream()
-                .filter(e -> e.getId() != null && e.getSeasonNumber() != null && e.getEpisodeNumber() != null)
-                .filter(e -> keys.contains(new EpisodeKey(e.getSeasonNumber(), e.getEpisodeNumber())))
+        List<Episode> episodes = sonarrClient.getEpisodes(sonarrSeriesId);
+        if (episodes == null) {
+            log.warn("{}: Sonarr returned no episodes for series {}; nothing to search", label, sonarrSeriesId);
+            return;
+        }
+        List<Integer> episodeIds = episodes.stream()
+                .filter(e -> e.getId() != null
+                        && e.getSeasonNumber() != null
+                        && e.getEpisodeNumber() != null
+                        && keys.contains(new EpisodeKey(e.getSeasonNumber(), e.getEpisodeNumber())))
                 .map(Episode::getId)
                 .toList();
         if (episodeIds.isEmpty()) {
@@ -518,12 +512,7 @@ public class TvController {
                 episodeIds.size(),
                 sonarrSeriesId);
         SonarrCommand command = sonarrClient.searchEpisodes(episodeIds);
-        log.info(
-                "Sonarr command {} ({}) status={} result={}",
-                command.getId(),
-                command.getCommandName(),
-                command.getStatus(),
-                command.getResult());
+        logSonarrCommand(command);
     }
 
     private List<TvSeasonRequest> seasonsOf(TvRequest tvRequest) {

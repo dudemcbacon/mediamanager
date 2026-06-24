@@ -21,7 +21,7 @@ public class Note {
 
     @Id
     @GeneratedValue
-    private @Nullable Long id;
+    private Long id;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String notes;
@@ -44,7 +44,7 @@ public class Note {
         this.request = request;
     }
 
-    public @Nullable Long getId() {
+    public Long getId() {
         return id;
     }
 

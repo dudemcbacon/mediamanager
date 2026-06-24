@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Service;
@@ -69,8 +70,8 @@ public class TvHierarchyService {
         List<Long> childIds = children.stream().map(TvChildRequest::getId).toList();
         Map<Long, List<TvSeasonRequest>> seasonsByChild =
                 tvSeasonRequestRepository.findByTvChildRequestIdIn(childIds).stream()
-                        .collect(
-                                Collectors.groupingBy(s -> s.getTvChildRequest().getId()));
+                        .collect(Collectors.groupingBy(s ->
+                                Objects.requireNonNull(s.getTvChildRequest()).getId()));
 
         List<Long> seasonIds = seasonsByChild.values().stream()
                 .flatMap(List::stream)
@@ -79,8 +80,8 @@ public class TvHierarchyService {
         Map<Long, List<TvEpisodeRequest>> episodesBySeason = seasonIds.isEmpty()
                 ? Map.of()
                 : tvEpisodeRequestRepository.findByTvSeasonRequestIdIn(seasonIds).stream()
-                        .collect(Collectors.groupingBy(
-                                e -> e.getTvSeasonRequest().getId()));
+                        .collect(Collectors.groupingBy(e ->
+                                Objects.requireNonNull(e.getTvSeasonRequest()).getId()));
 
         for (TvChildRequest child : children) {
             List<TvSeasonRequest> seasons = seasonsByChild.getOrDefault(child.getId(), List.of());
@@ -90,8 +91,8 @@ public class TvHierarchyService {
             }
         }
 
-        return children.stream()
-                .collect(Collectors.groupingBy(c -> c.getParent().getId()));
+        return children.stream().collect(Collectors.groupingBy(c -> Objects.requireNonNull(c.getParent())
+                .getId()));
     }
 
     /**
@@ -108,14 +109,14 @@ public class TvHierarchyService {
         }
 
         Map<Long, Long> parentByChildId = children.stream()
-                .collect(Collectors.toMap(
-                        TvChildRequest::getId, c -> c.getParent().getId()));
+                .collect(Collectors.toMap(TvChildRequest::getId, c -> Objects.requireNonNull(c.getParent())
+                        .getId()));
 
         List<Long> childIds = children.stream().map(TvChildRequest::getId).toList();
         List<TvSeasonRequest> seasons = tvSeasonRequestRepository.findByTvChildRequestIdIn(childIds);
         Map<Long, Long> childBySeasonId = seasons.stream()
-                .collect(Collectors.toMap(
-                        TvSeasonRequest::getId, s -> s.getTvChildRequest().getId()));
+                .collect(Collectors.toMap(TvSeasonRequest::getId, s -> Objects.requireNonNull(s.getTvChildRequest())
+                        .getId()));
 
         List<Long> seasonIds = seasons.stream().map(TvSeasonRequest::getId).toList();
         List<TvEpisodeRequest> episodes =
@@ -123,7 +124,8 @@ public class TvHierarchyService {
 
         Map<Long, List<TvEpisodeRequest>> episodesByRequestId = new HashMap<>();
         for (TvEpisodeRequest episode : episodes) {
-            Long childId = childBySeasonId.get(episode.getTvSeasonRequest().getId());
+            Long childId = childBySeasonId.get(
+                    Objects.requireNonNull(episode.getTvSeasonRequest()).getId());
             Long parentId = childId == null ? null : parentByChildId.get(childId);
             if (parentId == null) {
                 continue;

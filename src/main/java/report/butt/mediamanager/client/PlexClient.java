@@ -35,10 +35,10 @@ public class PlexClient {
     private final ObjectMapper objectMapper;
     private final PlexCacheService plexCacheService;
     private final String plexToken;
-    private final @Nullable String plexUrl;
+    private final String plexUrl;
     private final String plexTvSectionName;
     private final String plexMoviesSectionName;
-    private String machineIdentifier;
+    private @Nullable String machineIdentifier;
     private @Nullable String tvSectionId;
     private @Nullable String moviesSectionId;
 
@@ -63,7 +63,7 @@ public class PlexClient {
 
     @PostConstruct
     void cacheMachineIdentifier() {
-        if (plexUrl == null || plexUrl.isBlank()) {
+        if (plexUrl.isBlank()) {
             throw new IllegalStateException("plex.url is not configured");
         }
         URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
@@ -86,7 +86,7 @@ public class PlexClient {
 
     @PostConstruct
     void cacheTvSectionId() {
-        if (plexUrl == null || plexUrl.isBlank()) {
+        if (plexUrl.isBlank()) {
             throw new IllegalStateException("plex.url is not configured");
         }
         URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
@@ -118,7 +118,7 @@ public class PlexClient {
 
     @PostConstruct
     void cacheMoviesSectionId() {
-        if (plexUrl == null || plexUrl.isBlank()) {
+        if (plexUrl.isBlank()) {
             throw new IllegalStateException("plex.url is not configured");
         }
         URI uri = UriComponentsBuilder.fromUriString(this.plexUrl)
@@ -149,15 +149,15 @@ public class PlexClient {
         throw new IllegalStateException("No Plex section found matching name '" + plexMoviesSectionName + "'");
     }
 
-    public String getMachineIdentifier() {
+    public @Nullable String getMachineIdentifier() {
         return machineIdentifier;
     }
 
-    public String getTvSectionId() {
+    public @Nullable String getTvSectionId() {
         return tvSectionId;
     }
 
-    public String getMoviesSectionId() {
+    public @Nullable String getMoviesSectionId() {
         return moviesSectionId;
     }
 
@@ -170,7 +170,7 @@ public class PlexClient {
     }
 
     /** The per-item Plex query URL used to look up a movie, without the X-Plex-Token. */
-    public @Nullable String movieQueryUrl(String title) {
+    public @Nullable String movieQueryUrl(@Nullable String title) {
         return UriComponentsBuilder.fromUriString(this.plexUrl)
                 .path("/library/all")
                 .queryParam("type", 1)
@@ -182,7 +182,7 @@ public class PlexClient {
     }
 
     /** The per-item Plex query URL used to look up a show, without the X-Plex-Token. */
-    public @Nullable String showQueryUrl(String title) {
+    public @Nullable String showQueryUrl(@Nullable String title) {
         if (tvSectionId == null) {
             return null;
         }
@@ -195,7 +195,7 @@ public class PlexClient {
                 .toUriString();
     }
 
-    public MetadataResult getMovieByTmdbId(int tmdbId, String title, int year) {
+    public MetadataResult getMovieByTmdbId(int tmdbId, @Nullable String title, @Nullable Integer year) {
         log.info("Retrieving media from Plex via tmdbId={}, title={}, year={}", tmdbId, title, year);
         String tmdbGuid = "tmdb://" + tmdbId;
 
@@ -305,7 +305,7 @@ public class PlexClient {
         return plexCacheService.store(movieCacheKey(tmdbId), body);
     }
 
-    public MetadataResult getShowByTvdbId(int tvdbId, String title, int year) {
+    public MetadataResult getShowByTvdbId(int tvdbId, @Nullable String title, @Nullable Integer year) {
         log.info("Retrieving show from Plex via tvdbId={}, title={}, year={}", tvdbId, title, year);
         String tvdbGuid = "tvdb://" + tvdbId;
 

@@ -64,7 +64,7 @@ public class DelugeClient {
         return response.getResult();
     }
 
-    private DelugeResponse<Map<String, DelugeTorrent>> requestTorrentsStatus() {
+    private @Nullable DelugeResponse<Map<String, DelugeTorrent>> requestTorrentsStatus() {
         return restClient
                 .post()
                 .uri("/json")
@@ -110,7 +110,7 @@ public class DelugeClient {
         }
     }
 
-    private static String describeError(@Nullable DelugeResponse<?> response) {
+    private static @Nullable String describeError(@Nullable DelugeResponse<?> response) {
         if (response == null || response.getError() == null) {
             return "no response body";
         }

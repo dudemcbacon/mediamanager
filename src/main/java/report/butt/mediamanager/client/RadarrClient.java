@@ -76,11 +76,11 @@ public class RadarrClient {
                 .toBodilessEntity();
     }
 
-    public Movie getMovieById(Long id) {
+    public @Nullable Movie getMovieById(Long id) {
         return restClient.get().uri("/api/v3/movie/{id}", id).retrieve().body(Movie.class);
     }
 
-    public List<Movie> getMovies() {
+    public @Nullable List<Movie> getMovies() {
         return restClient
                 .get()
                 .uri("/api/v3/movie")
@@ -89,7 +89,7 @@ public class RadarrClient {
                 .body(new ParameterizedTypeReference<List<Movie>>() {});
     }
 
-    public RadarrCommand searchMovies(List<Integer> movieIds) {
+    public @Nullable RadarrCommand searchMovies(List<Integer> movieIds) {
         return restClient
                 .post()
                 .uri("/api/v3/command")
@@ -100,7 +100,7 @@ public class RadarrClient {
                 .body(RadarrCommand.class);
     }
 
-    public RadarrQueue getQueue() {
+    public @Nullable RadarrQueue getQueue() {
         return restClient
                 .get()
                 .uri(uriBuilder -> uriBuilder
@@ -127,7 +127,7 @@ public class RadarrClient {
                 .toBodilessEntity();
     }
 
-    public List<RadarrHealthItem> getHealth() {
+    public @Nullable List<RadarrHealthItem> getHealth() {
         return restClient
                 .get()
                 .uri("/api/v3/health")
@@ -136,7 +136,7 @@ public class RadarrClient {
                 .body(new ParameterizedTypeReference<List<RadarrHealthItem>>() {});
     }
 
-    public List<Movie> getMoviesByTmdbId(Integer tmdbId) {
+    public @Nullable List<Movie> getMoviesByTmdbId(Integer tmdbId) {
         return restClient
                 .get()
                 .uri(uriBuilder -> uriBuilder

@@ -418,9 +418,9 @@ public class MovieRequestView extends VerticalLayout {
             if (!knownValidatorNames.contains(v.getValidationName())) {
                 continue;
             }
-            Long movieRequestId = v.getRequest().getId();
+            Long movieRequestId = Objects.requireNonNull(v.getRequest()).getId();
             latest.computeIfAbsent(movieRequestId, k -> new HashMap<>())
-                    .merge(v.getValidationName(), v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
+                    .merge(v.getValidationName(), v, RequestViewSupport::newerByCreatedAt);
         }
         Set<Long> withNotes = new HashSet<>();
         noteRepository.findAll().forEach(n -> withNotes.add(n.getRequest().getId()));
@@ -482,8 +482,7 @@ public class MovieRequestView extends VerticalLayout {
         Map<String, Validation> byName = new HashMap<>();
         for (Validation v : validationRepository.findByRequest(mr)) {
             if (knownValidatorNames.contains(v.getValidationName())) {
-                byName.merge(
-                        v.getValidationName(), v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
+                byName.merge(v.getValidationName(), v, RequestViewSupport::newerByCreatedAt);
             }
         }
         boolean hasNotes = !noteRepository.findByRequestOrderByCreatedAtDesc(mr).isEmpty();
@@ -834,7 +833,7 @@ public class MovieRequestView extends VerticalLayout {
     }
 
     /** Sets the health count and a tooltip listing each reported issue. */
-    private void updateRadarrHealthCard(List<RadarrHealthItem> health) {
+    private void updateRadarrHealthCard(@Nullable List<RadarrHealthItem> health) {
         RequestViewSupport.updateHealthCard(
                 radarrHealthCard,
                 radarrHealthValue,
@@ -941,7 +940,7 @@ public class MovieRequestView extends VerticalLayout {
                 .withProperty("color", mr -> RequestViewSupport.resultIconColor(latestResultValue(mr, validationName)));
     }
 
-    private Boolean latestResultValue(MovieRequest mr, String validationName) {
+    private @Nullable Boolean latestResultValue(MovieRequest mr, String validationName) {
         return RequestViewSupport.latestResultValue(latestValidations, mr.getId(), validationName);
     }
 

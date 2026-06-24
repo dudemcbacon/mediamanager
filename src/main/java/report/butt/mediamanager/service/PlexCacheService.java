@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -46,7 +47,7 @@ public class PlexCacheService {
 
     public String store(String key, String body) {
         validateKey(key);
-        Path file = cacheDir.resolve(key + ".json");
+        Path file = Objects.requireNonNull(cacheDir).resolve(key + ".json");
         try {
             Files.writeString(
                     file,
@@ -69,7 +70,7 @@ public class PlexCacheService {
         if (!KEY_PATTERN.matcher(key).matches()) {
             return null;
         }
-        Path resolved = cacheDir.resolve(filename).normalize();
+        Path resolved = Objects.requireNonNull(cacheDir).resolve(filename).normalize();
         if (!resolved.startsWith(cacheDir)) {
             return null;
         }

@@ -34,7 +34,7 @@ public class TvSeasonRequest {
 
     @Id
     @GeneratedValue
-    private @Nullable Long id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "tv_child_request_id", nullable = false)
@@ -71,11 +71,11 @@ public class TvSeasonRequest {
         this.ombiSeasonAvailable = ombiSeasonAvailable;
     }
 
-    public @Nullable Long getId() {
+    public Long getId() {
         return this.id;
     }
 
-    public void setId(@Nullable Long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

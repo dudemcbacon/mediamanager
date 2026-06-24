@@ -27,7 +27,7 @@ public class FfprobeStream {
 
     @Id
     @GeneratedValue
-    private @Nullable Long id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ffprobe_scan_id", nullable = false)
@@ -61,11 +61,11 @@ public class FfprobeStream {
 
     public FfprobeStream() {}
 
-    public @Nullable Long getId() {
+    public Long getId() {
         return this.id;
     }
 
-    public void setId(@Nullable Long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

@@ -28,7 +28,7 @@ public class OmbiClient {
                 builder.baseUrl(ombiUrl).defaultHeader("ApiKey", ombiApiKey).build();
     }
 
-    public List<OmbiMovieRequest> getMovies() {
+    public @Nullable List<OmbiMovieRequest> getMovies() {
         return restClient
                 .get()
                 .uri("/api/v1/Request/movie") // Path variable expansion
@@ -37,7 +37,7 @@ public class OmbiClient {
                 .body(new ParameterizedTypeReference<List<OmbiMovieRequest>>() {});
     }
 
-    public OmbiReprocessResponse reprocessMovieRequest(Integer ombiRequestId) {
+    public @Nullable OmbiReprocessResponse reprocessMovieRequest(Integer ombiRequestId) {
         return restClient
                 .post()
                 .uri("/api/v2/Requests/reprocess/1/{ombiRequestId}/false", ombiRequestId)
@@ -46,7 +46,7 @@ public class OmbiClient {
                 .body(OmbiReprocessResponse.class);
     }
 
-    public OmbiReprocessResponse markMovieAvailable(Integer ombiRequestId) {
+    public @Nullable OmbiReprocessResponse markMovieAvailable(Integer ombiRequestId) {
         return restClient
                 .post()
                 .uri("/api/v1/Request/movie/available")
@@ -57,7 +57,7 @@ public class OmbiClient {
                 .body(OmbiReprocessResponse.class);
     }
 
-    public List<OmbiTvRequest> getTvRequests() {
+    public @Nullable List<OmbiTvRequest> getTvRequests() {
         return restClient
                 .get()
                 .uri("/api/v1/Request/tv")
@@ -75,7 +75,7 @@ public class OmbiClient {
                 .body(OmbiTvSearchResult.class);
     }
 
-    public OmbiReprocessResponse markTvAvailable(Integer ombiRequestId) {
+    public @Nullable OmbiReprocessResponse markTvAvailable(Integer ombiRequestId) {
         return restClient
                 .post()
                 .uri("/api/v1/Request/tv/available")

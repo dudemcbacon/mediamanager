@@ -121,12 +121,7 @@ public class MovieController {
         log.info("Triggering Radarr MoviesSearch for {} movies: {}", movieIds.size(), movieIds);
         if (!movieIds.isEmpty()) {
             RadarrCommand command = radarrClient.searchMovies(movieIds);
-            log.info(
-                    "Radarr command {} ({}) status={} result={}",
-                    command.getId(),
-                    command.getCommandName(),
-                    command.getStatus(),
-                    command.getResult());
+            logRadarrCommand(command);
 
             Instant now = Instant.now();
             movieRequests.forEach(movieRequest -> movieRequest.setRadarrLastSearchTime(now));
@@ -151,12 +146,7 @@ public class MovieController {
     public String search(@PathVariable Integer movieId) {
         log.info("Triggering Radarr MoviesSearch for movie {}", movieId);
         RadarrCommand command = radarrClient.searchMovies(List.of(movieId));
-        log.info(
-                "Radarr command {} ({}) status={} result={}",
-                command.getId(),
-                command.getCommandName(),
-                command.getStatus(),
-                command.getResult());
+        logRadarrCommand(command);
 
         Instant now = Instant.now();
         movieRequestRepository.findAll().stream()
@@ -205,12 +195,7 @@ public class MovieController {
         }
 
         RadarrCommand command = radarrClient.searchMovies(List.of(radarrRequestId));
-        log.info(
-                "Radarr command {} ({}) status={} result={}",
-                command.getId(),
-                command.getCommandName(),
-                command.getStatus(),
-                command.getResult());
+        logRadarrCommand(command);
 
         movieRequest.setRadarrLastSearchTime(Instant.now());
         movieRequestRepository.save(movieRequest);
@@ -233,12 +218,7 @@ public class MovieController {
                 movieRequests.stream().map(MovieRequest::getRadarrRequestId).toList();
         log.info("Triggering Radarr MoviesSearch for {} movies: {}", movieIds.size(), movieIds);
         RadarrCommand command = radarrClient.searchMovies(movieIds);
-        log.info(
-                "Radarr command {} ({}) status={} result={}",
-                command.getId(),
-                command.getCommandName(),
-                command.getStatus(),
-                command.getResult());
+        logRadarrCommand(command);
 
         Instant now = Instant.now();
         movieRequests.forEach(mr -> mr.setRadarrLastSearchTime(now));
@@ -259,12 +239,7 @@ public class MovieController {
         }
         log.info("Triggering Radarr MoviesSearch for {} movies: {}", ids.size(), ids);
         RadarrCommand command = radarrClient.searchMovies(ids);
-        log.info(
-                "Radarr command {} ({}) status={} result={}",
-                command.getId(),
-                command.getCommandName(),
-                command.getStatus(),
-                command.getResult());
+        logRadarrCommand(command);
         Instant now = Instant.now();
         List<MovieRequest> matching = movieRequestRepository.findAll().stream()
                 .filter(mr -> mr.getRadarrRequestId() != null && ids.contains(mr.getRadarrRequestId()))
@@ -294,12 +269,7 @@ public class MovieController {
         deleteRadarrQueueItems(radarrRequestId, id, movieRequest.getTitle());
 
         RadarrCommand command = radarrClient.searchMovies(List.of(radarrRequestId));
-        log.info(
-                "Radarr command {} ({}) status={} result={}",
-                command.getId(),
-                command.getCommandName(),
-                command.getStatus(),
-                command.getResult());
+        logRadarrCommand(command);
         movieRequest.setRadarrLastSearchTime(Instant.now());
         movieRequestRepository.save(movieRequest);
     }
@@ -321,8 +291,25 @@ public class MovieController {
         return ffprobeScanService.getLatestMovieScan(id);
     }
 
+    /**
+     * Logs the outcome of a Radarr command POST. A null command means the call returned no response body, so the search
+     * may not have been queued — surfaced as a warning rather than silently ignored.
+     */
+    private static void logRadarrCommand(@Nullable RadarrCommand command) {
+        if (command == null) {
+            log.warn("Radarr command POST returned no response body; the search may not have been queued");
+            return;
+        }
+        log.info(
+                "Radarr command {} ({}) status={} result={}",
+                command.getId(),
+                command.getCommandName(),
+                command.getStatus(),
+                command.getResult());
+    }
+
     /** Deletes (from the download client, with blocklist) every Radarr queue item for the given movie. */
-    private void deleteRadarrQueueItems(Integer radarrMovieId, Long requestId, String title) {
+    private void deleteRadarrQueueItems(Integer radarrMovieId, Long requestId, @Nullable String title) {
         RadarrQueue queue;
         try {
             queue = radarrClient.getQueue();
@@ -386,7 +373,8 @@ public class MovieController {
 
         log.info("Found MovieRequest for {}", movieRequest.getTitle());
 
-        OmbiReprocessResponse response = ombiClient.markMovieAvailable(movieRequest.getOmbiRequestId());
+        OmbiReprocessResponse response =
+                ombiClient.markMovieAvailable(Objects.requireNonNull(movieRequest.getOmbiRequestId()));
         try {
             log.info(
                     "Ombi mark-available response for movie request {} ({}): {}",
@@ -433,7 +421,8 @@ public class MovieController {
 
         log.info("Found MovieRequest for {}", movieRequest.getTitle());
 
-        OmbiReprocessResponse response = ombiClient.reprocessMovieRequest(movieRequest.getOmbiRequestId());
+        OmbiReprocessResponse response =
+                ombiClient.reprocessMovieRequest(Objects.requireNonNull(movieRequest.getOmbiRequestId()));
         try {
             log.info(
                     "Ombi reprocess response for movie request {} ({}): {}",

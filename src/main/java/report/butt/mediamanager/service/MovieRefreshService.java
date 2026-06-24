@@ -72,8 +72,8 @@ public class MovieRefreshService {
 
     @Trace
     public void refreshAll() {
-        List<OmbiMovieRequest> ombiMovies = ombiClient.getMovies();
-        List<Movie> radarrMovies = radarrClient.getMovies();
+        List<OmbiMovieRequest> ombiMovies = Objects.requireNonNullElse(ombiClient.getMovies(), List.of());
+        List<Movie> radarrMovies = Objects.requireNonNullElse(radarrClient.getMovies(), List.of());
         Map<Integer, Movie> radarrByTmdb = radarrMovies.stream()
                 .filter(m -> m.getTmdbId() != null)
                 .collect(Collectors.toMap(Movie::getTmdbId, Function.identity(), (a, b) -> a));
@@ -153,7 +153,7 @@ public class MovieRefreshService {
         Integer ombiRequestId = movieRequest.getOmbiRequestId();
         OmbiMovieRequest ombiMovie = ombiRequestId == null
                 ? null
-                : ombiClient.getMovies().stream()
+                : Objects.requireNonNullElse(ombiClient.getMovies(), List.<OmbiMovieRequest>of()).stream()
                         .filter(m -> ombiRequestId.equals(m.getId()))
                         .findFirst()
                         .orElse(null);
@@ -161,7 +161,7 @@ public class MovieRefreshService {
         Integer tmdbid = ombiMovie != null ? ombiMovie.getTheMovieDbId() : movieRequest.getTmdbid();
         @Var Movie radarrMovie = null;
         if (tmdbid != null) {
-            List<Movie> radarrMovies = radarrClient.getMoviesByTmdbId(tmdbid);
+            List<Movie> radarrMovies = Objects.requireNonNullElse(radarrClient.getMoviesByTmdbId(tmdbid), List.of());
             if (!radarrMovies.isEmpty()) {
                 radarrMovie = radarrMovies.get(0);
             }
@@ -232,15 +232,17 @@ public class MovieRefreshService {
     private void applyPlexUpdates(
             MovieRequest movieRequest, Movie radarrMovie, @Nullable Map<Integer, PlexMetadata> plexByTmdb) {
         try {
+            Integer tmdbId = radarrMovie.getTmdbId();
+            if (tmdbId == null) {
+                return;
+            }
             MetadataResult plexResult;
             if (plexByTmdb != null) {
-                PlexMetadata prefetched =
-                        radarrMovie.getTmdbId() == null ? null : plexByTmdb.get(radarrMovie.getTmdbId());
-                String cacheUrl = plexClient.cacheMovieMetadata(radarrMovie.getTmdbId(), prefetched);
+                PlexMetadata prefetched = plexByTmdb.get(tmdbId);
+                String cacheUrl = plexClient.cacheMovieMetadata(tmdbId, prefetched);
                 plexResult = new MetadataResult(cacheUrl, prefetched);
             } else {
-                plexResult = plexClient.getMovieByTmdbId(
-                        radarrMovie.getTmdbId(), radarrMovie.getTitle(), radarrMovie.getYear());
+                plexResult = plexClient.getMovieByTmdbId(tmdbId, radarrMovie.getTitle(), radarrMovie.getYear());
             }
             movieRequest.setPlexMetadataUrl(plexResult.url());
             @Nullable PlexMetadata plexMetadata = plexResult.metadata();

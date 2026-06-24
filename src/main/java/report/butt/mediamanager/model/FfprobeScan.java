@@ -28,7 +28,7 @@ public class FfprobeScan {
 
     @Id
     @GeneratedValue
-    private @Nullable Long id;
+    private Long id;
 
     private Long requestId;
     private String requestType;
@@ -68,11 +68,11 @@ public class FfprobeScan {
         this.streams.add(stream);
     }
 
-    public @Nullable Long getId() {
+    public Long getId() {
         return this.id;
     }
 
-    public void setId(@Nullable Long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

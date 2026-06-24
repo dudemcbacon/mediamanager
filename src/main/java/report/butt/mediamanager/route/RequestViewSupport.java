@@ -98,9 +98,14 @@ final class RequestViewSupport {
         return loader;
     }
 
+    /** {@code Map.merge} resolver that keeps whichever validation was recorded later. */
+    static Validation newerByCreatedAt(Validation a, Validation b) {
+        return Objects.requireNonNull(a.getCreatedAt()).isAfter(Objects.requireNonNull(b.getCreatedAt())) ? a : b;
+    }
+
     // --- download status formatting ---
 
-    static boolean isTorrent(String protocol) {
+    static boolean isTorrent(@Nullable String protocol) {
         return "torrent".equalsIgnoreCase(protocol);
     }
 
@@ -402,7 +407,7 @@ final class RequestViewSupport {
     }
 
     /** Lists a request's notes (caller supplies them newest-first) in a dialog. */
-    static void openNotesDialog(String requestTitle, List<Note> notes) {
+    static void openNotesDialog(@Nullable String requestTitle, List<Note> notes) {
         var dialog = new Dialog();
         dialog.setHeaderTitle("Notes for \"" + requestTitle + "\"");
         dialog.setWidth("600px");

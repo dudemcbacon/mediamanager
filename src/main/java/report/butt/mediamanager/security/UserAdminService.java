@@ -1,6 +1,7 @@
 package report.butt.mediamanager.security;
 
 import java.util.List;
+import java.util.Objects;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,7 +42,7 @@ public class UserAdminService {
         if (repository.findByUsername(trimmed).isPresent()) {
             throw new IllegalArgumentException("A user named '" + trimmed + "' already exists.");
         }
-        repository.save(new AppUser(trimmed, passwordEncoder.encode(rawPassword), role.name()));
+        repository.save(new AppUser(trimmed, Objects.requireNonNull(passwordEncoder.encode(rawPassword)), role.name()));
     }
 
     public void resetPassword(Long id, @Nullable String rawPassword) {
@@ -49,12 +50,12 @@ public class UserAdminService {
             throw new IllegalArgumentException("Password is required.");
         }
         AppUser user = require(id);
-        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setPasswordHash(Objects.requireNonNull(passwordEncoder.encode(rawPassword)));
         repository.save(user);
     }
 
     @Transactional
-    public void setEnabled(Long id, boolean enabled, String actingUsername) {
+    public void setEnabled(Long id, boolean enabled, @Nullable String actingUsername) {
         AppUser user = require(id);
         if (!enabled) {
             if (user.getUsername().equals(actingUsername)) {
@@ -69,7 +70,7 @@ public class UserAdminService {
     }
 
     @Transactional
-    public void delete(Long id, String actingUsername) {
+    public void delete(Long id, @Nullable String actingUsername) {
         AppUser user = require(id);
         if (user.getUsername().equals(actingUsername)) {
             throw new IllegalArgumentException("You can't delete your own account.");

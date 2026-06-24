@@ -18,7 +18,7 @@ public class AppUser {
 
     @Id
     @GeneratedValue
-    private @Nullable Long id;
+    private Long id;
 
     @Column(unique = true, nullable = false)
     private String username;
@@ -47,7 +47,7 @@ public class AppUser {
         this.enabled = true;
     }
 
-    public @Nullable Long getId() {
+    public Long getId() {
         return id;
     }
 

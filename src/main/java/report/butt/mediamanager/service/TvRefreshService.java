@@ -112,8 +112,8 @@ public class TvRefreshService {
     public void refreshAll() {
         // Phase 1 — Fetch: four external calls plus four flat preload queries, all independent of
         // the show count.
-        List<OmbiTvRequest> ombiTvRequests = ombiClient.getTvRequests();
-        List<Series> sonarrSeries = sonarrClient.getAllSeries();
+        List<OmbiTvRequest> ombiTvRequests = Objects.requireNonNullElse(ombiClient.getTvRequests(), List.of());
+        List<Series> sonarrSeries = Objects.requireNonNullElse(sonarrClient.getAllSeries(), List.of());
         Map<Integer, PlexMetadata> showsByTvdb = plexClient.getAllShowsIndexedByTvdb();
         Map<String, Map<EpisodeKey, PlexEpisodeData>> episodesByShow = plexClient.getAllEpisodesIndexedByShow();
 
@@ -333,7 +333,7 @@ public class TvRefreshService {
             return Map.of();
         }
         try {
-            List<Episode> episodes = sonarrClient.getEpisodes(series.getId());
+            List<Episode> episodes = Objects.requireNonNullElse(sonarrClient.getEpisodes(series.getId()), List.of());
             Map<EpisodeKey, SonarrEpisodeData> result = new HashMap<>();
             for (Episode episode : episodes) {
                 if (episode.getSeasonNumber() == null || episode.getEpisodeNumber() == null) {
@@ -395,9 +395,8 @@ public class TvRefreshService {
                 unchanged++;
             }
 
-            Map<Integer, TvSeasonRequest> existingSeasons = existingChild == null || existingChild.getId() == null
-                    ? Map.of()
-                    : seasonsByChild.getOrDefault(existingChild.getId(), Map.of());
+            Map<Integer, TvSeasonRequest> existingSeasons =
+                    existingChild == null ? Map.of() : seasonsByChild.getOrDefault(existingChild.getId(), Map.of());
             unchanged += applySeasons(
                     child,
                     ombiChild,
@@ -444,9 +443,8 @@ public class TvRefreshService {
                 unchanged++;
             }
 
-            Map<Integer, TvEpisodeRequest> existingEpisodes = existingSeason == null || existingSeason.getId() == null
-                    ? Map.of()
-                    : episodesBySeason.getOrDefault(existingSeason.getId(), Map.of());
+            Map<Integer, TvEpisodeRequest> existingEpisodes =
+                    existingSeason == null ? Map.of() : episodesBySeason.getOrDefault(existingSeason.getId(), Map.of());
             unchanged +=
                     refreshEpisodes(season, ombiSeason, episodePaths, sonarrEpisodes, existingEpisodes, toSaveEpisodes);
         }
@@ -460,7 +458,7 @@ public class TvRefreshService {
         Integer ombiRequestId = tvRequest.getOmbiRequestId();
         OmbiTvRequest ombiTv = ombiRequestId == null
                 ? null
-                : ombiClient.getTvRequests().stream()
+                : Objects.requireNonNullElse(ombiClient.getTvRequests(), List.<OmbiTvRequest>of()).stream()
                         .filter(t -> ombiRequestId.equals(t.getId()))
                         .findFirst()
                         .orElse(null);
@@ -468,7 +466,7 @@ public class TvRefreshService {
         Integer tvdbId = ombiTv != null ? ombiTv.getTvDbId() : null;
         @Var Series series = null;
         if (tvdbId != null) {
-            List<Series> sonarrSeries = sonarrClient.getSeriesByTvdbId(tvdbId);
+            List<Series> sonarrSeries = Objects.requireNonNullElse(sonarrClient.getSeriesByTvdbId(tvdbId), List.of());
             if (!sonarrSeries.isEmpty()) {
                 series = sonarrSeries.get(0);
             }
@@ -530,7 +528,7 @@ public class TvRefreshService {
         }
     }
 
-    private void refreshChildren(TvRequest tvRequest, OmbiTvRequest ombiTv, Series series) {
+    private void refreshChildren(TvRequest tvRequest, OmbiTvRequest ombiTv, @Nullable Series series) {
         if (ombiTv.getChildRequests() == null) {
             return;
         }
@@ -538,7 +536,7 @@ public class TvRefreshService {
         Map<EpisodeKey, SonarrEpisodeData> sonarrEpisodes = resolveSonarrEpisodes(series);
         ombiTv.getChildRequests().forEach(ombiChild -> {
             TvChildRequest child = childRepository
-                    .findByOmbiRequestId(ombiChild.getId())
+                    .findByOmbiRequestId(Objects.requireNonNull(ombiChild.getId()))
                     .orElseGet(() -> new TvChildRequest(
                             tvRequest,
                             ombiChild.getTitle(),
@@ -620,7 +618,8 @@ public class TvRefreshService {
         ombiChild.getSeasonRequests().forEach(ombiSeason -> {
             boolean allEpisodesAvailable = allEpisodesAvailable(ombiSeason);
             TvSeasonRequest season = seasonRepository
-                    .findByTvChildRequestIdAndOmbiSeasonNumber(child.getId(), ombiSeason.getSeasonNumber())
+                    .findByTvChildRequestIdAndOmbiSeasonNumber(
+                            child.getId(), Objects.requireNonNull(ombiSeason.getSeasonNumber()))
                     .orElseGet(() -> new TvSeasonRequest(
                             child, ombiSeason.getId(), ombiSeason.getSeasonNumber(), allEpisodesAvailable));
             season.setTvChildRequest(child);
@@ -681,7 +680,8 @@ public class TvRefreshService {
         }
         ombiSeason.getEpisodes().forEach(ombiEpisode -> {
             TvEpisodeRequest episode = episodeRepository
-                    .findByTvSeasonRequestIdAndOmbiEpisodeNumber(season.getId(), ombiEpisode.getEpisodeNumber())
+                    .findByTvSeasonRequestIdAndOmbiEpisodeNumber(
+                            season.getId(), Objects.requireNonNull(ombiEpisode.getEpisodeNumber()))
                     .orElseGet(() -> new TvEpisodeRequest(season, ombiEpisode.getId(), ombiEpisode.getEpisodeNumber()));
             applyEpisodeUpdates(episode, season, ombiEpisode, episodePaths, sonarrEpisodes);
             episodeRepository.save(episode);
@@ -759,13 +759,17 @@ public class TvRefreshService {
     private void applyPlexUpdates(
             TvRequest tvRequest, Series series, @Nullable Map<Integer, PlexMetadata> showsByTvdb) {
         try {
+            Integer tvdbId = series.getTvdbId();
+            if (tvdbId == null) {
+                return;
+            }
             MetadataResult plexResult;
             if (showsByTvdb != null) {
-                PlexMetadata prefetched = series.getTvdbId() == null ? null : showsByTvdb.get(series.getTvdbId());
-                String cacheUrl = plexClient.cacheTvMetadata(series.getTvdbId(), prefetched);
+                PlexMetadata prefetched = showsByTvdb.get(tvdbId);
+                String cacheUrl = plexClient.cacheTvMetadata(tvdbId, prefetched);
                 plexResult = new MetadataResult(cacheUrl, prefetched);
             } else {
-                plexResult = plexClient.getShowByTvdbId(series.getTvdbId(), series.getTitle(), series.getYear());
+                plexResult = plexClient.getShowByTvdbId(tvdbId, series.getTitle(), series.getYear());
             }
             tvRequest.setPlexMetadataUrl(plexResult.url());
             @Nullable PlexMetadata plexMetadata = plexResult.metadata();

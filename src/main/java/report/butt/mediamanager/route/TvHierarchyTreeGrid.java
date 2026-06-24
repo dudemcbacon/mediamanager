@@ -259,7 +259,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
             TvSeasonRequest season,
             TvEpisodeRequest episode,
             Map<EpisodeKey, EpisodeDownload> episodeDownloads) {
-        if (episode.getId() == null || season.getOmbiSeasonNumber() == null || episode.getOmbiEpisodeNumber() == null) {
+        if (season.getOmbiSeasonNumber() == null || episode.getOmbiEpisodeNumber() == null) {
             return;
         }
         EpisodeDownload download =
@@ -271,16 +271,10 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         if (download.protocol() == null) {
             return;
         }
-        if (season.getId() != null) {
-            protocolsBySeasonId
-                    .computeIfAbsent(season.getId(), k -> new HashSet<>())
-                    .add(download.protocol());
-        }
-        if (child.getId() != null) {
-            protocolsByChildId
-                    .computeIfAbsent(child.getId(), k -> new HashSet<>())
-                    .add(download.protocol());
-        }
+        protocolsBySeasonId
+                .computeIfAbsent(season.getId(), k -> new HashSet<>())
+                .add(download.protocol());
+        protocolsByChildId.computeIfAbsent(child.getId(), k -> new HashSet<>()).add(download.protocol());
     }
 
     /**
@@ -292,14 +286,12 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         Set<String> protocols =
                 switch (row) {
                     case EpisodeRow(TvEpisodeRequest episode) -> {
-                        EpisodeDownload download =
-                                episode.getId() == null ? null : downloadByEpisodeId.get(episode.getId());
+                        EpisodeDownload download = downloadByEpisodeId.get(episode.getId());
                         yield download == null || download.protocol() == null ? Set.of() : Set.of(download.protocol());
                     }
                     case SeasonRow(TvSeasonRequest season) ->
-                        season.getId() == null ? Set.of() : protocolsBySeasonId.getOrDefault(season.getId(), Set.of());
-                    case ChildRow(TvChildRequest child) ->
-                        child.getId() == null ? Set.of() : protocolsByChildId.getOrDefault(child.getId(), Set.of());
+                        protocolsBySeasonId.getOrDefault(season.getId(), Set.of());
+                    case ChildRow(TvChildRequest child) -> protocolsByChildId.getOrDefault(child.getId(), Set.of());
                 };
         return RequestViewSupport.protocolBadges(protocols);
     }
@@ -345,9 +337,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     }
 
     private @Nullable EpisodeDownload downloadFor(TvHierarchyRow row) {
-        return row instanceof EpisodeRow(TvEpisodeRequest episode) && episode.getId() != null
-                ? downloadByEpisodeId.get(episode.getId())
-                : null;
+        return row instanceof EpisodeRow(TvEpisodeRequest episode) ? downloadByEpisodeId.get(episode.getId()) : null;
     }
 
     private static Component episodeValidationComponent(
@@ -372,7 +362,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
      * (shown as "—") are ignored rather than counted as failures, matching the per-child {@link #childResult} the tree
      * displays so the column and the expanded rows agree.
      */
-    static Boolean allChildrenValidation(
+    static @Nullable Boolean allChildrenValidation(
             List<TvChildRequest> children,
             List<EpisodeValidator> validators,
             Map<Long, Map<String, Validation>> latestEpisodeValidations) {
@@ -394,7 +384,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         return v == null ? null : Objects.equals(v.getResult(), true);
     }
 
-    private static Boolean seasonResult(
+    private static @Nullable Boolean seasonResult(
             TvSeasonRequest season,
             String validationName,
             Map<Long, Map<String, Validation>> latestEpisodeValidations) {
@@ -407,7 +397,7 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
      * Child-request roll-up. Unlike {@link #seasonResult}/{@link #episodeResult}, an unknown ("—") season is ignored
      * rather than treated as a failure, so a child is valid when every season that has been validated is valid.
      */
-    private static Boolean childResult(
+    private static @Nullable Boolean childResult(
             TvChildRequest child, String validationName, Map<Long, Map<String, Validation>> latestEpisodeValidations) {
         return rollUpIgnoringUnknown(child.getSeasonRequests().stream()
                 .map(season -> seasonResult(season, validationName, latestEpisodeValidations))

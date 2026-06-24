@@ -1,5 +1,6 @@
 package report.butt.mediamanager.security;
 
+import java.util.Objects;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -48,7 +49,8 @@ public class AppUserBootstrap implements CommandLineRunner {
             throw new IllegalStateException(
                     "MEDIAMANAGER_BOOTSTRAP_PASSWORD must not equal MEDIAMANAGER_BOOTSTRAP_USERNAME");
         }
-        var admin = new AppUser(bootstrapUsername, passwordEncoder.encode(bootstrapPassword), "ADMIN");
+        var admin = new AppUser(
+                bootstrapUsername, Objects.requireNonNull(passwordEncoder.encode(bootstrapPassword)), "ADMIN");
         repository.save(admin);
         log.warn(
                 "Bootstrapped initial admin user '{}'. Change the password immediately via MEDIAMANAGER_BOOTSTRAP_PASSWORD or by updating the app_user table.",

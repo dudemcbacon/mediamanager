@@ -35,7 +35,7 @@ public class TvChildRequest {
 
     @Id
     @GeneratedValue
-    private @Nullable Long id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "parent_id", nullable = false)
@@ -79,11 +79,11 @@ public class TvChildRequest {
         this.ombiParentRequestId = parent.getOmbiRequestId();
     }
 
-    public @Nullable Long getId() {
+    public Long getId() {
         return this.id;
     }
 
-    public void setId(@Nullable Long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

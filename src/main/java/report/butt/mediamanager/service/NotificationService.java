@@ -249,8 +249,10 @@ public class NotificationService {
                     TorrentRequest request = requestByTorrentHash.get(e.getKey().toLowerCase(Locale.ROOT));
                     return new StuckDownload(
                             e.getValue().getName(),
-                            e.getValue().getProgress(),
-                            Instant.ofEpochSecond(e.getValue().getTimeAdded().longValue()),
+                            Objects.requireNonNullElse(e.getValue().getProgress(), 0.0),
+                            Instant.ofEpochSecond(
+                                    Objects.requireNonNull(e.getValue().getTimeAdded())
+                                            .longValue()),
                             request == null ? null : request.display(),
                             request == null ? null : request.link(),
                             e.getKey());
@@ -270,7 +272,7 @@ public class NotificationService {
                     TorrentRequest request = requestByTorrentHash.get(e.getKey().toLowerCase(Locale.ROOT));
                     return new ZeroSeedDownload(
                             e.getValue().getName(),
-                            e.getValue().getProgress(),
+                            Objects.requireNonNullElse(e.getValue().getProgress(), 0.0),
                             e.getValue().getTimeAdded() == null
                                     ? null
                                     : Instant.ofEpochSecond(
@@ -658,7 +660,7 @@ public class NotificationService {
             @Nullable String sonarrTitleSlug) {}
 
     public record StuckDownload(
-            String name,
+            @Nullable String name,
             double progress,
             Instant added,
             @Nullable String linkedRequest,
@@ -666,7 +668,7 @@ public class NotificationService {
             String hash) {}
 
     public record ZeroSeedDownload(
-            String name,
+            @Nullable String name,
             double progress,
             @Nullable Instant added,
             @Nullable String linkedRequest,
@@ -677,21 +679,30 @@ public class NotificationService {
             String source, String title, @Nullable Integer season) {}
 
     public record OverdueMovieRow(
-            String title, Instant requested, String requester, Instant lastSearched, int queued, RequestLink link) {}
+            @Nullable String title,
+            @Nullable Instant requested,
+            String requester,
+            @Nullable Instant lastSearched,
+            int queued,
+            RequestLink link) {}
 
     public record OverdueTvRow(
-            String title,
-            Instant requested,
+            @Nullable String title,
+            @Nullable Instant requested,
             String requester,
-            Instant lastSearched,
+            @Nullable Instant lastSearched,
             int queued,
             int downloadedEpisodes,
             int totalEpisodes,
             RequestLink link) {}
 
-    public record UnsearchedRow(String title, @Nullable Instant lastSearched, Integer searchId) {}
+    public record UnsearchedRow(
+            @Nullable String title,
+            @Nullable Instant lastSearched,
+            @Nullable Integer searchId) {}
 
-    public record NewRequestRow(String type, String title, Instant requested) {}
+    public record NewRequestRow(
+            String type, @Nullable String title, @Nullable Instant requested) {}
 
     public record HealthIssue(
             String source, @Nullable String type, @Nullable String message) {}

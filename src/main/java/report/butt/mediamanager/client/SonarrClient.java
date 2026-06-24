@@ -78,11 +78,11 @@ public class SonarrClient {
                 .toBodilessEntity();
     }
 
-    public Series getSeriesById(Long id) {
+    public @Nullable Series getSeriesById(Long id) {
         return restClient.get().uri("/api/v3/series/{id}", id).retrieve().body(Series.class);
     }
 
-    public List<Series> getAllSeries() {
+    public @Nullable List<Series> getAllSeries() {
         return restClient
                 .get()
                 .uri("/api/v3/series")
@@ -91,7 +91,7 @@ public class SonarrClient {
                 .body(new ParameterizedTypeReference<List<Series>>() {});
     }
 
-    public List<SeriesHistory> getSeriesHistory(Integer sonarrSeriesId) {
+    public @Nullable List<SeriesHistory> getSeriesHistory(Integer sonarrSeriesId) {
         return restClient
                 .get()
                 .uri(uriBuilder -> uriBuilder
@@ -105,7 +105,7 @@ public class SonarrClient {
                 .body(new ParameterizedTypeReference<List<SeriesHistory>>() {});
     }
 
-    public SonarrCommand searchSeries(List<Integer> seriesIds) {
+    public @Nullable SonarrCommand searchSeries(List<Integer> seriesIds) {
         return restClient
                 .post()
                 .uri("/api/v3/command")
@@ -116,7 +116,7 @@ public class SonarrClient {
                 .body(SonarrCommand.class);
     }
 
-    public SonarrCommand searchSeason(Integer seriesId, Integer seasonNumber) {
+    public @Nullable SonarrCommand searchSeason(Integer seriesId, Integer seasonNumber) {
         return restClient
                 .post()
                 .uri("/api/v3/command")
@@ -127,7 +127,7 @@ public class SonarrClient {
                 .body(SonarrCommand.class);
     }
 
-    public SonarrCommand searchEpisodes(List<Integer> episodeIds) {
+    public @Nullable SonarrCommand searchEpisodes(List<Integer> episodeIds) {
         return restClient
                 .post()
                 .uri("/api/v3/command")
@@ -138,7 +138,7 @@ public class SonarrClient {
                 .body(SonarrCommand.class);
     }
 
-    public List<Episode> getEpisodes(Integer seriesId) {
+    public @Nullable List<Episode> getEpisodes(Integer seriesId) {
         return restClient
                 .get()
                 .uri(uriBuilder -> uriBuilder
@@ -151,7 +151,7 @@ public class SonarrClient {
                 .body(new ParameterizedTypeReference<List<Episode>>() {});
     }
 
-    public SonarrQueue getQueue() {
+    public @Nullable SonarrQueue getQueue() {
         return restClient
                 .get()
                 .uri(uriBuilder -> uriBuilder
@@ -179,7 +179,7 @@ public class SonarrClient {
                 .toBodilessEntity();
     }
 
-    public List<SonarrHealthItem> getHealth() {
+    public @Nullable List<SonarrHealthItem> getHealth() {
         return restClient
                 .get()
                 .uri("/api/v3/health")
@@ -188,7 +188,7 @@ public class SonarrClient {
                 .body(new ParameterizedTypeReference<List<SonarrHealthItem>>() {});
     }
 
-    public List<Series> getSeriesByTvdbId(Integer tvdbId) {
+    public @Nullable List<Series> getSeriesByTvdbId(Integer tvdbId) {
         return restClient
                 .get()
                 .uri(uriBuilder -> uriBuilder

@@ -502,14 +502,14 @@ public class TvRequestView extends VerticalLayout {
         for (Validation v : validationRepository.findAll()) {
             String name = v.getValidationName();
             if (knownValidatorNames.contains(name)) {
-                Long tvRequestId = v.getRequest().getId();
+                Long tvRequestId = Objects.requireNonNull(v.getRequest()).getId();
                 latest.computeIfAbsent(tvRequestId, k -> new HashMap<>())
-                        .merge(name, v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
+                        .merge(name, v, RequestViewSupport::newerByCreatedAt);
             } else if (knownEpisodeValidatorNames.contains(name) && v.getTvEpisode() != null) {
                 Long episodeId = v.getTvEpisode().getId();
                 latestEpisode
                         .computeIfAbsent(episodeId, k -> new HashMap<>())
-                        .merge(name, v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
+                        .merge(name, v, RequestViewSupport::newerByCreatedAt);
             }
         }
         Map<Long, Boolean> subs = new HashMap<>();
@@ -588,8 +588,7 @@ public class TvRequestView extends VerticalLayout {
         Map<String, Validation> byName = new HashMap<>();
         for (Validation v : validationRepository.findByRequest(mr)) {
             if (knownValidatorNames.contains(v.getValidationName())) {
-                byName.merge(
-                        v.getValidationName(), v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
+                byName.merge(v.getValidationName(), v, RequestViewSupport::newerByCreatedAt);
             }
         }
         List<TvChildRequest> children = tvHierarchyService.loadHierarchy(mr);
@@ -604,7 +603,7 @@ public class TvRequestView extends VerticalLayout {
                 if (knownEpisodeValidatorNames.contains(name) && v.getTvEpisode() != null) {
                     latestEpisode
                             .computeIfAbsent(v.getTvEpisode().getId(), k -> new HashMap<>())
-                            .merge(name, v, (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b);
+                            .merge(name, v, RequestViewSupport::newerByCreatedAt);
                 }
             }
         }
@@ -748,9 +747,7 @@ public class TvRequestView extends VerticalLayout {
         }
         Map<Long, TvRequest> bySeriesIdRequest = new HashMap<>();
         for (TvRequest r : allRequests) {
-            if (r.getId() != null) {
-                bySeriesIdRequest.put(r.getId(), r);
-            }
+            bySeriesIdRequest.put(r.getId(), r);
         }
         for (Map.Entry<Long, TvHierarchyTreeGrid> entry : openDetailTrees.entrySet()) {
             TvRequest mr = bySeriesIdRequest.get(entry.getKey());
@@ -987,7 +984,7 @@ public class TvRequestView extends VerticalLayout {
     }
 
     /** Sets the health count and a tooltip listing each reported issue. */
-    private void updateSonarrHealthCard(List<SonarrHealthItem> health) {
+    private void updateSonarrHealthCard(@Nullable List<SonarrHealthItem> health) {
         RequestViewSupport.updateHealthCard(
                 sonarrHealthCard,
                 sonarrHealthValue,
@@ -1035,7 +1032,7 @@ public class TvRequestView extends VerticalLayout {
                 .withProperty("color", mr -> RequestViewSupport.resultIconColor(subValidations.get(mr.getId())));
     }
 
-    private Boolean latestResultValue(TvRequest mr, String validationName) {
+    private @Nullable Boolean latestResultValue(TvRequest mr, String validationName) {
         return RequestViewSupport.latestResultValue(latestValidations, mr.getId(), validationName);
     }
 
@@ -1073,10 +1070,8 @@ public class TvRequestView extends VerticalLayout {
             // Register while the panel is mounted so the background poll can update it in place; the detach listener
             // clears the entry when the user closes the panel or the parent grid is reloaded.
             Long requestId = mr.getId();
-            if (requestId != null) {
-                treeGrid.addAttachListener(e -> openDetailTrees.put(requestId, treeGrid));
-                treeGrid.addDetachListener(e -> openDetailTrees.remove(requestId, treeGrid));
-            }
+            treeGrid.addAttachListener(e -> openDetailTrees.put(requestId, treeGrid));
+            treeGrid.addDetachListener(e -> openDetailTrees.remove(requestId, treeGrid));
             hierarchy = treeGrid;
         }
 

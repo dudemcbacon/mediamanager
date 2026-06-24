@@ -34,7 +34,7 @@ public abstract class Request {
 
     @Id
     @GeneratedValue
-    private @Nullable Long id;
+    private Long id;
 
     private @Nullable String title;
     private @Nullable Boolean ombiAvailable;
@@ -73,7 +73,7 @@ public abstract class Request {
 
     public abstract boolean isAvailable();
 
-    public @Nullable Long getId() {
+    public Long getId() {
         return this.id;
     }
 
@@ -93,7 +93,7 @@ public abstract class Request {
         return this.ombiRequestStatus;
     }
 
-    public void setId(@Nullable Long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

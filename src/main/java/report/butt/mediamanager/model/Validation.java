@@ -38,7 +38,7 @@ import org.jspecify.annotations.Nullable;
 public class Validation {
     @Id
     @GeneratedValue
-    private @Nullable Long id;
+    private Long id;
 
     private String validationName;
     private @Nullable Boolean result;
@@ -73,7 +73,7 @@ public class Validation {
         this.tvEpisode = tvEpisode;
     }
 
-    public @Nullable Long getId() {
+    public Long getId() {
         return this.id;
     }
 
@@ -85,7 +85,7 @@ public class Validation {
         return this.result;
     }
 
-    public void setId(@Nullable Long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
