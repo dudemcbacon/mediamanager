@@ -150,8 +150,15 @@ public class ValidatorService {
         List<Validation> all = new ArrayList<>(applicable.size());
         for (Validator<? extends Request> validator : applicable) {
             String name = validator.getClass().getSimpleName();
-            Boolean result = runUnchecked(validator, request);
-            all.add(reconcile(existingByName.get(name), result, toSave, () -> new Validation(name, result, request)));
+            try {
+                Boolean result = runUnchecked(validator, request);
+                all.add(reconcile(
+                        existingByName.get(name), result, toSave, () -> new Validation(name, result, request)));
+            } catch (RuntimeException e) {
+                // Isolate a misbehaving rule: log and skip it for this entity so the remaining validators still run.
+                // The existing row (if any) is left untouched rather than flipped to a misleading value.
+                log.warn("Validator {} threw for request {}; skipping it this run", name, request.getId(), e);
+            }
         }
         return all;
     }
@@ -161,8 +168,14 @@ public class ValidatorService {
         List<Validation> all = new ArrayList<>(episodeValidators.size());
         for (EpisodeValidator validator : episodeValidators) {
             String name = validator.getClass().getSimpleName();
-            Boolean result = validator.validate(episode);
-            all.add(reconcile(existingByName.get(name), result, toSave, () -> new Validation(name, result, episode)));
+            try {
+                Boolean result = validator.validate(episode);
+                all.add(reconcile(
+                        existingByName.get(name), result, toSave, () -> new Validation(name, result, episode)));
+            } catch (RuntimeException e) {
+                // Isolate a misbehaving rule: log and skip it for this episode so the remaining validators still run.
+                log.warn("Episode validator {} threw for episode {}; skipping it this run", name, episode.getId(), e);
+            }
         }
         return all;
     }

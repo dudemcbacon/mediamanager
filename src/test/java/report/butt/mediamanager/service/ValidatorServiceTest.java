@@ -76,6 +76,39 @@ class ValidatorServiceTest {
         }
     }
 
+    /** A validator that always throws, used to verify one bad rule doesn't abort the sweep for an entity. */
+    static class ThrowingMovieValidator implements Validator<MovieRequest> {
+        @Override
+        public RequestType supportedType() {
+            return RequestType.MOVIE;
+        }
+
+        @Override
+        public Boolean validate(MovieRequest target) {
+            throw new IllegalStateException("boom");
+        }
+
+        @Override
+        public int sortOrder() {
+            return 0;
+        }
+
+        @Override
+        public String shortName() {
+            return "boom";
+        }
+
+        @Override
+        public String title() {
+            return "Throwing";
+        }
+
+        @Override
+        public String description() {
+            return "";
+        }
+    }
+
     static class AlwaysTrueTvValidator implements Validator<TvRequest> {
         @Override
         public RequestType supportedType() {
@@ -259,6 +292,22 @@ class ValidatorServiceTest {
 
         // Both request and episode validators ran → saveAll called at least once
         verify(validationRepository, Mockito.atLeast(1)).saveAll(anyList());
+    }
+
+    @Test
+    void throwingValidatorIsSkippedAndDoesNotBlockOthers() {
+        when(validationRepository.findByRequest(any())).thenReturn(List.of());
+
+        ValidatorService service = buildService(List.of(new ThrowingMovieValidator(), movieValidator), List.of());
+
+        MovieRequest movie = movie("Film");
+        List<Validation> result = service.validate(movie);
+
+        // The throwing rule is skipped; the healthy rule that runs after it still produces its result.
+        assertEquals(1, result.size());
+        assertEquals(MOVIE_VALIDATOR_NAME, result.get(0).getValidationName());
+        assertTrue(result.get(0).getResult());
+        verify(validationRepository).saveAll(anyList());
     }
 
     @Test

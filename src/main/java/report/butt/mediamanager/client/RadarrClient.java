@@ -37,12 +37,12 @@ public class RadarrClient {
     }
 
     /**
-     * Quality profiles rarely change, so we fetch them once at startup and reuse the id-to-name map on every refresh
-     * instead of re-fetching. A failure here is non-fatal: profile names simply stay unavailable until the next
-     * restart.
+     * Caches Radarr's quality-profile id-to-name map. Called once at startup and again at the start of each full
+     * refresh (see {@code MovieRefreshService.refreshAll}) so profile changes are picked up without a restart. A
+     * failure here is non-fatal: profile names simply stay as the last successfully cached map.
      */
     @PostConstruct
-    void cacheQualityProfiles() {
+    public void cacheQualityProfiles() {
         try {
             List<QualityProfile> profiles = restClient
                     .get()

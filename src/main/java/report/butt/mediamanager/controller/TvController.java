@@ -52,6 +52,9 @@ import tools.jackson.databind.ObjectMapper;
 
 @Controller
 @NullMarked
+// Default-deny: every endpoint and bean method requires ADMIN unless explicitly opened to isAuthenticated() below
+// (the read-only status/health/scan getters the views poll for any signed-in user). Mutating actions are ADMIN-only.
+@PreAuthorize("hasRole('ADMIN')")
 public class TvController {
 
     private static final Logger log = LoggerFactory.getLogger(TvController.class);
@@ -135,6 +138,7 @@ public class TvController {
     }
 
     @GetMapping("/tv")
+    @PreAuthorize("isAuthenticated()")
     public String tv(Model model) {
         List<TvRequest> tvRequests = tvRequestRepository.findAll().stream()
                 .sorted(Comparator.comparing(
@@ -408,6 +412,7 @@ public class TvController {
     }
 
     /** The most recent stored ffprobe scan for a TV episode (read-only), used by "View FFprobe Results". */
+    @PreAuthorize("isAuthenticated()")
     public Optional<FfprobeScan> getLatestFfprobeScan(Long episodeId) {
         return ffprobeScanService.getLatestEpisodeScan(episodeId);
     }
@@ -572,6 +577,7 @@ public class TvController {
     }
 
     /** Sonarr's current download queue, or null if Sonarr can't be reached. */
+    @PreAuthorize("isAuthenticated()")
     public @Nullable SonarrQueue getSonarrQueue() {
         try {
             return sonarrClient.getQueue();
@@ -582,6 +588,7 @@ public class TvController {
     }
 
     /** Active Sonarr health issues, or null if Sonarr can't be reached. */
+    @PreAuthorize("isAuthenticated()")
     public @Nullable List<SonarrHealthItem> getSonarrHealth() {
         try {
             return sonarrClient.getHealth();

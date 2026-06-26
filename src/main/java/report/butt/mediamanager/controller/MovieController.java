@@ -41,6 +41,9 @@ import tools.jackson.databind.ObjectMapper;
 
 @Controller
 @NullMarked
+// Default-deny: every endpoint and bean method requires ADMIN unless explicitly opened to isAuthenticated() below
+// (the read-only status/health/scan getters the views poll for any signed-in user). Mutating actions are ADMIN-only.
+@PreAuthorize("hasRole('ADMIN')")
 public class MovieController {
 
     private static final Logger log = LoggerFactory.getLogger(MovieController.class);
@@ -81,6 +84,7 @@ public class MovieController {
     }
 
     /** Radarr's current download queue, or null if Radarr can't be reached. */
+    @PreAuthorize("isAuthenticated()")
     public @Nullable RadarrQueue getRadarrQueue() {
         try {
             return radarrClient.getQueue();
@@ -91,6 +95,7 @@ public class MovieController {
     }
 
     /** Active Radarr health issues, or null if Radarr can't be reached. */
+    @PreAuthorize("isAuthenticated()")
     public @Nullable List<RadarrHealthItem> getRadarrHealth() {
         try {
             return radarrClient.getHealth();
@@ -132,6 +137,7 @@ public class MovieController {
     }
 
     @GetMapping("/movies")
+    @PreAuthorize("isAuthenticated()")
     public String movies(Model model) {
         List<MovieRequest> movieRequests = movieRequestRepository.findAll().stream()
                 .sorted(Comparator.comparing(
@@ -287,6 +293,7 @@ public class MovieController {
     }
 
     /** The most recent stored ffprobe scan for a movie request (read-only), used by "View FFprobe Results". */
+    @PreAuthorize("isAuthenticated()")
     public Optional<FfprobeScan> getLatestFfprobeScan(Long id) {
         return ffprobeScanService.getLatestMovieScan(id);
     }

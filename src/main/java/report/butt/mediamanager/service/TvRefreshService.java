@@ -119,6 +119,8 @@ public class TvRefreshService {
         Map<Integer, Series> sonarrByTvdb = sonarrSeries.stream()
                 .filter(s -> s.getTvdbId() != null)
                 .collect(Collectors.toMap(Series::getTvdbId, Function.identity(), (a, b) -> a));
+        // Re-cache quality profiles so renamed/added Sonarr profiles are reflected without an app restart.
+        sonarrClient.cacheQualityProfiles();
         Map<Integer, String> qualityProfilesById = sonarrClient.getQualityProfilesById();
 
         // Sonarr has no bulk episode-file endpoint, so each matched show needs its own call. Fetch them all up front

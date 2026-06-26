@@ -76,6 +76,8 @@ public class MovieRefreshService {
         Map<Integer, Movie> radarrByTmdb = radarrMovies.stream()
                 .filter(m -> m.getTmdbId() != null)
                 .collect(Collectors.toMap(Movie::getTmdbId, Function.identity(), (a, b) -> a));
+        // Re-cache quality profiles so renamed/added Radarr profiles are reflected without an app restart.
+        radarrClient.cacheQualityProfiles();
         Map<Integer, String> qualityProfilesById = radarrClient.getQualityProfilesById();
         Map<Integer, PlexMetadata> plexByTmdb = plexClient.getAllMoviesIndexedByTmdb();
         Set<String> validCacheKeys = new HashSet<>();

@@ -89,6 +89,24 @@ class TvRefreshServiceTest {
     }
 
     @Test
+    void refreshAllReCachesSonarrQualityProfiles() {
+        when(ombiClient.getTvRequests()).thenReturn(List.of());
+        when(sonarrClient.getAllSeries()).thenReturn(List.of());
+        when(sonarrClient.getQualityProfilesById()).thenReturn(Map.of());
+        when(plexClient.getAllShowsIndexedByTvdb()).thenReturn(Map.of());
+        when(plexClient.getAllEpisodesIndexedByShow()).thenReturn(Map.of());
+        when(repository.findByOmbiRequestIdIn(any())).thenReturn(List.of());
+        when(childRepository.findByOmbiRequestIdIn(any())).thenReturn(List.of());
+        when(seasonRepository.findByTvChildRequestIdIn(any())).thenReturn(List.of());
+        when(episodeRepository.findByTvSeasonRequestIdIn(any())).thenReturn(List.of());
+
+        service.refreshAll();
+
+        // Profiles are re-cached each refresh so renamed/added Sonarr profiles self-heal without a restart.
+        verify(sonarrClient).cacheQualityProfiles();
+    }
+
+    @Test
     void refreshAllSavesNewShowWhenNotInDb() {
         OmbiTvRequest ombiTv = ombiTv(1, "New Show", 500);
         when(ombiClient.getTvRequests()).thenReturn(List.of(ombiTv));

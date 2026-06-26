@@ -2,6 +2,7 @@ package report.butt.mediamanager.controller;
 
 import java.util.List;
 import org.jspecify.annotations.NullMarked;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +16,9 @@ import report.butt.mediamanager.repository.MovieRequestRepository;
 
 @RestController
 @NullMarked
+// This raw CRUD REST API has no callers in the app (the UI uses the Vaadin views + MovieController); it appears to be
+// leftover scaffolding and is a candidate for removal. Until then, lock the whole thing down to ADMIN.
+@PreAuthorize("hasRole('ADMIN')")
 public class MovieRequestController {
 
     private final MovieRequestRepository repository;

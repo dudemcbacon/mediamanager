@@ -19,12 +19,11 @@ public interface TvEpisodeRequestRepository extends JpaRepository<TvEpisodeReque
 
     /**
      * Sum of {@code localFileSize} per show-level Ombi user (the {@link report.butt.mediamanager.model.TvRequest}'s
-     * {@code ombiUserName}), skipping episodes whose size is unknown. Each row is {@code [String username, Long bytes]};
-     * a null username represents shows with no recorded requester. Keyed against the parent show to match the
+     * {@code ombiUserName}), skipping episodes whose size is unknown. Each row is {@code [String username, Long
+     * bytes]}; a null username represents shows with no recorded requester. Keyed against the parent show to match the
      * leaderboard's per-{@code TvRequest} count attribution.
      */
-    @Query(
-            """
+    @Query("""
             SELECT tr.ombiUserName, SUM(e.localFileSize)
             FROM TvEpisodeRequest e
               JOIN e.tvSeasonRequest s

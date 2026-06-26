@@ -118,6 +118,20 @@ class MovieRefreshServiceTest {
     }
 
     @Test
+    void refreshAllReCachesRadarrQualityProfiles() {
+        when(ombiClient.getMovies()).thenReturn(List.of());
+        when(radarrClient.getMovies()).thenReturn(List.of());
+        when(radarrClient.getQualityProfilesById()).thenReturn(Map.of());
+        when(plexClient.getAllMoviesIndexedByTmdb()).thenReturn(Map.of());
+        when(repository.findByOmbiRequestIdIn(any())).thenReturn(List.of());
+
+        service.refreshAll();
+
+        // Profiles are re-cached each refresh so renamed/added Radarr profiles self-heal without a restart.
+        verify(radarrClient).cacheQualityProfiles();
+    }
+
+    @Test
     void refreshAllWithRadarrMatchAppliesRadarrFields() {
         OmbiMovieRequest ombi = ombiMovie(1, "Radarr Movie", 200);
         Movie radarrMovie = radarrMovie(200, 55, "/movies/radarr-movie");
