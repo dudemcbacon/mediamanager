@@ -1,6 +1,7 @@
 package report.butt.mediamanager.service;
 
 import com.newrelic.api.agent.Trace;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -9,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -31,7 +33,9 @@ import report.butt.mediamanager.client.DelugeClient;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.client.SonarrClient;
 import report.butt.mediamanager.model.MovieRequest;
+import report.butt.mediamanager.model.RemovedDownload;
 import report.butt.mediamanager.model.Request;
+import report.butt.mediamanager.model.SeedlessTorrent;
 import report.butt.mediamanager.model.TvRequest;
 import report.butt.mediamanager.model.deluge.DelugeTorrent;
 import report.butt.mediamanager.model.radarr.RadarrHealthItem;
@@ -41,13 +45,15 @@ import report.butt.mediamanager.model.sonarr.SonarrHealthItem;
 import report.butt.mediamanager.model.sonarr.SonarrQueue;
 import report.butt.mediamanager.model.sonarr.SonarrQueueRecord;
 import report.butt.mediamanager.repository.MovieRequestRepository;
+import report.butt.mediamanager.repository.RemovedDownloadRepository;
+import report.butt.mediamanager.repository.SeedlessTorrentRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 
 /**
- * Detects conditions worth an alert and emails a single daily summary. Detection is done once by {@link #snapshot()},
+ * Detects conditions worth an alert and emails a single weekly summary. Detection is done once by {@link #snapshot()},
  * which returns structured per-category rows; {@link #runCheck()} renders the email from that snapshot and the admin
  * page renders grids from it, so the two share one source of truth. A failure reaching one integration is reported (as
- * an "unreachable" finding) and its dependent checks are skipped rather than aborting the whole run. Run daily by
+ * an "unreachable" finding) and its dependent checks are skipped rather than aborting the whole run. Run weekly by
  * {@link ScheduledRefreshJob} and on demand from the movie/TV views ("Test Notifications").
  */
 @Service
@@ -66,8 +72,8 @@ public class NotificationService {
         UNREACHABLE,
         HEALTH_ISSUE,
         IMPORT_BLOCKED,
-        STUCK_DOWNLOAD,
-        ZERO_SEED_DOWNLOAD,
+        DOWNLOAD,
+        REMOVED_DOWNLOAD,
         OVERDUE_MOVIE,
         OVERDUE_TV,
         UNSEARCHED_MOVIE,
@@ -80,10 +86,13 @@ public class NotificationService {
     private final SonarrClient sonarrClient;
     private final MovieRequestRepository movieRequestRepository;
     private final TvRequestRepository tvRequestRepository;
+    private final SeedlessTorrentRepository seedlessTorrentRepository;
+    private final RemovedDownloadRepository removedDownloadRepository;
+    private final DownloadCleanupService downloadCleanupService;
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final @Nullable String from;
     private final @Nullable String to;
-    private final int stuckDownloadDays;
+    private final double stucknessRemovalThreshold;
     private final int overdueRequestDays;
     private final int unsearchedDays;
     private final int newRequestWindowHours;
@@ -96,10 +105,13 @@ public class NotificationService {
             SonarrClient sonarrClient,
             MovieRequestRepository movieRequestRepository,
             TvRequestRepository tvRequestRepository,
+            SeedlessTorrentRepository seedlessTorrentRepository,
+            RemovedDownloadRepository removedDownloadRepository,
+            DownloadCleanupService downloadCleanupService,
             ObjectProvider<JavaMailSender> mailSenderProvider,
             @Value("${notifications.from}") String from,
             @Value("${notifications.to}") String to,
-            @Value("${notifications.stuck-download-days}") int stuckDownloadDays,
+            @Value("${notifications.stuckness-removal-threshold}") double stucknessRemovalThreshold,
             @Value("${notifications.overdue-request-days}") int overdueRequestDays,
             @Value("${notifications.unsearched-days}") int unsearchedDays,
             @Value("${notifications.new-request-window-hours}") int newRequestWindowHours) {
@@ -108,10 +120,13 @@ public class NotificationService {
         this.sonarrClient = sonarrClient;
         this.movieRequestRepository = movieRequestRepository;
         this.tvRequestRepository = tvRequestRepository;
+        this.seedlessTorrentRepository = seedlessTorrentRepository;
+        this.removedDownloadRepository = removedDownloadRepository;
+        this.downloadCleanupService = downloadCleanupService;
         this.mailSenderProvider = mailSenderProvider;
         this.from = from;
         this.to = to;
-        this.stuckDownloadDays = stuckDownloadDays;
+        this.stucknessRemovalThreshold = stucknessRemovalThreshold;
         this.overdueRequestDays = overdueRequestDays;
         this.unsearchedDays = unsearchedDays;
         this.newRequestWindowHours = newRequestWindowHours;
@@ -123,14 +138,17 @@ public class NotificationService {
      */
     @Trace
     public NotificationResult runCheck() {
-        NotificationSnapshot snapshot = snapshot();
-        Map<Category, Integer> counts = snapshot.counts();
-        int total = snapshot.total();
+        NotificationSnapshot detected = snapshot();
+        // Auto-remove the dead downloads (stuckness >= threshold), then report off a snapshot that reflects the
+        // cleanup: the removed items move into their own section instead of being double-listed as still stuck.
+        NotificationSnapshot reported = autoRemoveStuck(detected);
+        Map<Category, Integer> counts = reported.counts();
+        int total = reported.total();
         if (total == 0) {
             log.info("Notification check found nothing to report");
             return new NotificationResult(false, mailConfigured(), counts);
         }
-        boolean emailSent = send(total, buildBody(snapshot));
+        boolean emailSent = send(total, buildBody(reported));
         return new NotificationResult(emailSent, mailConfigured(), counts);
     }
 
@@ -159,7 +177,7 @@ public class NotificationService {
         Map<Integer, Integer> queuedBySeriesId =
                 queueCountsById(sonarrQueue == null ? null : sonarrQueue.getRecords(), SonarrQueueRecord::getSeriesId);
 
-        DownloadFindings downloads = findDownloads(now, unreachable, requestByTorrentHash);
+        List<Download> downloads = findDownloads(now, unreachable, requestByTorrentHash);
         List<ImportBlocked> importBlocked =
                 findImportBlocked(radarrQueue, sonarrQueue, movieTitleByRadarrId, tvTitleBySonarrId);
         List<HealthIssue> health = findHealth(unreachable);
@@ -212,8 +230,8 @@ public class NotificationService {
                 .forEach(t -> newRequests.add(new NewRequestRow("TV", t.getTitle(), t.getOmbiRequestedDate())));
 
         return new NotificationSnapshot(
-                downloads.stuck(),
-                downloads.zeroSeed(),
+                downloads,
+                removedDownloads(),
                 importBlocked,
                 overdueMovies,
                 overdueTv,
@@ -224,65 +242,112 @@ public class NotificationService {
                 unreachable);
     }
 
+    /** The downloads the most recent notification run auto-removed (newest first), read read-only from the table. */
+    private List<RemovedDownloadRow> removedDownloads() {
+        return removedDownloadRepository.findAll().stream()
+                .sorted(Comparator.comparing(RemovedDownload::getRemovedAt).reversed())
+                .map(NotificationService::toRow)
+                .toList();
+    }
+
+    /**
+     * Removes every detected download (stuck or zero-seed) whose stuckness is at or above the configured threshold via
+     * {@link DownloadCleanupService} (delete + blocklist + re-search), records exactly the ones it actually deleted —
+     * replacing the table so it always holds just this run's removals — and returns a snapshot adjusted for the
+     * cleanup: removed items are pulled out of the downloads list into {@code removedDownloads}.
+     */
+    private NotificationSnapshot autoRemoveStuck(NotificationSnapshot detected) {
+        var candidates = new LinkedHashMap<String, Removable>();
+        for (Download d : detected.downloads()) {
+            if (d.stuckness() >= stucknessRemovalThreshold) {
+                candidates.put(
+                        d.hash().toLowerCase(Locale.ROOT),
+                        new Removable(d.hash(), d.name(), d.progress(), d.stuckness(), d.linkedRequest()));
+            }
+        }
+        if (candidates.isEmpty()) {
+            // Nothing to remove this run; clear any leftover rows so "removed since the last run" reflects that.
+            if (!detected.removedDownloads().isEmpty()) {
+                removedDownloadRepository.deleteAllInBatch();
+            }
+            return detected;
+        }
+
+        DownloadCleanupService.CleanupResult result =
+                downloadCleanupService.deleteTorrentsAndReprocess(candidates.keySet());
+        Set<String> deleted = result.deletedHashes().stream()
+                .map(h -> h.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+        Instant removedAt = Instant.now();
+        List<RemovedDownload> removed = candidates.values().stream()
+                .filter(c -> deleted.contains(c.hash().toLowerCase(Locale.ROOT)))
+                .map(c -> new RemovedDownload(
+                        c.hash(), c.name(), c.progress(), c.stuckness(), c.linkedRequest(), removedAt))
+                .toList();
+        removedDownloadRepository.deleteAllInBatch();
+        removedDownloadRepository.saveAll(removed);
+        log.info("Auto-removed {} stuck download(s) at or above stuckness {}", removed.size(), stucknessRemovalThreshold);
+
+        return new NotificationSnapshot(
+                detected.downloads().stream()
+                        .filter(d -> !deleted.contains(d.hash().toLowerCase(Locale.ROOT)))
+                        .toList(),
+                removed.stream().map(NotificationService::toRow).toList(),
+                detected.importBlocked(),
+                detected.overdueMovies(),
+                detected.overdueTv(),
+                detected.unsearchedMovies(),
+                detected.unsearchedTv(),
+                detected.newRequests(),
+                detected.healthIssues(),
+                detected.unreachableIntegrations());
+    }
+
+    private static RemovedDownloadRow toRow(RemovedDownload r) {
+        return new RemovedDownloadRow(
+                r.getName(), r.getProgress(), r.getStuckness(), r.getLinkedRequest(), r.getHash(), r.getRemovedAt());
+    }
+
+    /** A download eligible for auto-removal: the fields needed to delete it and record what was removed. */
+    private record Removable(
+            String hash, @Nullable String name, double progress, double stuckness, @Nullable String linkedRequest) {}
+
     // --- detection ---
 
-    // Internal data carrier; its collection components are never mutated after construction.
-    @SuppressWarnings("ImmutableMemberCollection")
-    private record DownloadFindings(List<StuckDownload> stuck, List<ZeroSeedDownload> zeroSeed) {}
-
-    private DownloadFindings findDownloads(
+    private List<Download> findDownloads(
             Instant now, List<String> unreachable, Map<String, TorrentRequest> requestByTorrentHash) {
         Map<String, DelugeTorrent> torrents = tryFetch("Deluge", unreachable, delugeClient::getTorrentsStatus);
         if (torrents == null) {
-            return new DownloadFindings(List.of(), List.of());
+            return List.of();
         }
-        Instant stuckThreshold = now.minus(stuckDownloadDays, ChronoUnit.DAYS);
+        // When each torrent went seedless (lowercased hash → timestamp), kept up to date by SeedlessTorrentTracker;
+        // the elapsed time drives the drought term of each download's stuckness.
+        Map<String, Instant> seedlessSinceByHash = seedlessTorrentRepository.findAll().stream()
+                .collect(Collectors.toMap(
+                        s -> s.getHash().toLowerCase(Locale.ROOT), SeedlessTorrent::getSeedlessSince, (a, b) -> a));
+        // Every unfinished torrent, most-stuck first so the worst offenders (and the auto-removal candidates) lead.
         // Iterate entries so each torrent's hash is available — both to link it to its request and to act on it from
         // the admin page's delete actions.
-        List<StuckDownload> stuck = torrents.entrySet().stream()
+        return torrents.entrySet().stream()
                 .filter(e -> isUnfinished(e.getValue()))
-                .filter(e -> e.getValue().getTimeAdded() != null
-                        && Instant.ofEpochSecond(e.getValue().getTimeAdded().longValue())
-                                .isBefore(stuckThreshold))
-                .sorted(Comparator.comparing(e -> e.getValue().getTimeAdded()))
                 .map(e -> {
+                    DelugeTorrent t = e.getValue();
                     TorrentRequest request = requestByTorrentHash.get(e.getKey().toLowerCase(Locale.ROOT));
-                    return new StuckDownload(
-                            e.getValue().getName(),
-                            Objects.requireNonNullElse(e.getValue().getProgress(), 0.0),
-                            Instant.ofEpochSecond(
-                                    Objects.requireNonNull(e.getValue().getTimeAdded())
-                                            .longValue()),
-                            request == null ? null : request.display(),
-                            request == null ? null : request.link(),
-                            e.getKey());
-                })
-                .toList();
-        Set<String> stuckNames = stuck.stream().map(StuckDownload::name).collect(Collectors.toSet());
-        // Zero-seed torrents will never finish — surface them even before the stuck timer fires, but don't double-list
-        // ones already reported as stuck.
-        List<ZeroSeedDownload> zeroSeed = torrents.entrySet().stream()
-                .filter(e -> isUnfinished(e.getValue()))
-                .filter(e ->
-                        e.getValue().getTotalSeeds() != null && e.getValue().getTotalSeeds() == 0)
-                .filter(e -> !stuckNames.contains(e.getValue().getName()))
-                .sorted(Comparator.comparing(
-                        e -> e.getValue().getName(), Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
-                .map(e -> {
-                    TorrentRequest request = requestByTorrentHash.get(e.getKey().toLowerCase(Locale.ROOT));
-                    return new ZeroSeedDownload(
-                            e.getValue().getName(),
-                            Objects.requireNonNullElse(e.getValue().getProgress(), 0.0),
-                            e.getValue().getTimeAdded() == null
+                    return new Download(
+                            t.getName(),
+                            Objects.requireNonNullElse(t.getProgress(), 0.0),
+                            t.getTimeAdded() == null
                                     ? null
-                                    : Instant.ofEpochSecond(
-                                            e.getValue().getTimeAdded().longValue()),
+                                    : Instant.ofEpochSecond(t.getTimeAdded().longValue()),
                             request == null ? null : request.display(),
                             request == null ? null : request.link(),
-                            e.getKey());
+                            e.getKey(),
+                            stucknessOf(t, now, seedlessSinceByHash.get(e.getKey().toLowerCase(Locale.ROOT))));
                 })
+                .sorted(Comparator.comparingDouble(Download::stuckness)
+                        .reversed()
+                        .thenComparing(Download::name, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
                 .toList();
-        return new DownloadFindings(stuck, zeroSeed);
     }
 
     private static List<ImportBlocked> findImportBlocked(
@@ -420,6 +485,19 @@ public class NotificationService {
         return t.getProgress() != null && t.getProgress() < 100.0;
     }
 
+    /** Stuckness (0..1) for a torrent, combining seeds, age, progress, and how long it has been seedless. */
+    private static double stucknessOf(DelugeTorrent torrent, Instant now, @Nullable Instant seedlessSince) {
+        Duration age = torrent.getTimeAdded() == null
+                ? Duration.ZERO
+                : Duration.between(Instant.ofEpochSecond(torrent.getTimeAdded().longValue()), now);
+        int seeds = Objects.requireNonNullElse(torrent.getTotalSeeds(), 0);
+        double progress = Objects.requireNonNullElse(torrent.getProgress(), 0.0);
+        double daysWithoutSeeds = seedlessSince == null
+                ? 0.0
+                : Math.max(0.0, (double) Duration.between(seedlessSince, now).toSeconds() / 86_400.0);
+        return Stuckness.score(seeds, age, progress, daysWithoutSeeds);
+    }
+
     private static Comparator<Request> byTitle() {
         return Comparator.comparing(Request::getTitle, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
     }
@@ -462,12 +540,15 @@ public class NotificationService {
 
     // --- email rendering (line text must stay stable: it is asserted in tests) ---
 
-    private static String stuckLine(StuckDownload d) {
-        return d.name() + " (" + String.format("%.1f%%", d.progress()) + ", added " + DATE.format(d.added()) + ")";
+    private static String downloadLine(Download d) {
+        String base = d.name() + " (" + String.format("%.1f%%", d.progress()) + ", "
+                + String.format("%.0f%%", d.stuckness() * 100) + " stuck)";
+        return d.linkedRequest() == null ? base : base + " → " + d.linkedRequest();
     }
 
-    private static String zeroSeedLine(ZeroSeedDownload d) {
-        String base = d.name() + " (" + String.format("%.1f%%", d.progress()) + ", no seeds)";
+    private static String removedLine(RemovedDownloadRow d) {
+        String base = d.name() + " (" + String.format("%.1f%%", d.progress()) + ", "
+                + String.format("%.0f%%", d.stuckness() * 100) + " stuck)";
         return d.linkedRequest() == null ? base : base + " → " + d.linkedRequest();
     }
 
@@ -526,8 +607,8 @@ public class NotificationService {
             case UNREACHABLE -> "Unreachable integrations";
             case HEALTH_ISSUE -> "Service health warnings";
             case IMPORT_BLOCKED -> "Import-blocked downloads (finished, need manual import)";
-            case STUCK_DOWNLOAD -> "Stuck downloads (added more than " + stuckDownloadDays + " days ago, not finished)";
-            case ZERO_SEED_DOWNLOAD -> "Torrents with no seeds (will not finish)";
+            case DOWNLOAD -> "Downloads in progress";
+            case REMOVED_DOWNLOAD -> "Stuck downloads removed since the last run";
             case OVERDUE_MOVIE ->
                 "Overdue movie requests (requested more than " + overdueRequestDays + " days ago, unavailable)";
             case OVERDUE_TV ->
@@ -550,13 +631,11 @@ public class NotificationService {
                         .map(NotificationService::importBlockedLine)
                         .toList());
         lines.put(
-                Category.STUCK_DOWNLOAD,
-                s.stuckDownloads().stream().map(NotificationService::stuckLine).toList());
+                Category.DOWNLOAD,
+                s.downloads().stream().map(NotificationService::downloadLine).toList());
         lines.put(
-                Category.ZERO_SEED_DOWNLOAD,
-                s.zeroSeedDownloads().stream()
-                        .map(NotificationService::zeroSeedLine)
-                        .toList());
+                Category.REMOVED_DOWNLOAD,
+                s.removedDownloads().stream().map(NotificationService::removedLine).toList());
         lines.put(
                 Category.OVERDUE_MOVIE,
                 s.overdueMovies().stream()
@@ -581,7 +660,7 @@ public class NotificationService {
                         .map(NotificationService::newRequestLine)
                         .toList());
 
-        var sb = new StringBuilder("MediaManager daily summary.\n");
+        var sb = new StringBuilder("MediaManager weekly summary.\n");
         for (Category category : Category.values()) {
             List<String> categoryLines = lines.getOrDefault(category, List.of());
             if (categoryLines.isEmpty()) {
@@ -659,21 +738,23 @@ public class NotificationService {
             @Nullable Integer ombiExternalProviderId,
             @Nullable String sonarrTitleSlug) {}
 
-    public record StuckDownload(
-            @Nullable String name,
-            double progress,
-            Instant added,
-            @Nullable String linkedRequest,
-            @Nullable RequestLink link,
-            String hash) {}
-
-    public record ZeroSeedDownload(
+    /** A currently-downloading (unfinished) torrent and its computed stuckness, shown in the single downloads list. */
+    public record Download(
             @Nullable String name,
             double progress,
             @Nullable Instant added,
             @Nullable String linkedRequest,
             @Nullable RequestLink link,
-            String hash) {}
+            String hash,
+            double stuckness) {}
+
+    public record RemovedDownloadRow(
+            @Nullable String name,
+            double progress,
+            double stuckness,
+            @Nullable String linkedRequest,
+            String hash,
+            Instant removedAt) {}
 
     public record ImportBlocked(
             String source, String title, @Nullable Integer season) {}
@@ -711,8 +792,8 @@ public class NotificationService {
     // Internal data carrier; its collection components are never mutated after construction.
     @SuppressWarnings("ImmutableMemberCollection")
     public record NotificationSnapshot(
-            List<StuckDownload> stuckDownloads,
-            List<ZeroSeedDownload> zeroSeedDownloads,
+            List<Download> downloads,
+            List<RemovedDownloadRow> removedDownloads,
             List<ImportBlocked> importBlocked,
             List<OverdueMovieRow> overdueMovies,
             List<OverdueTvRow> overdueTv,
@@ -727,8 +808,8 @@ public class NotificationService {
             counts.put(Category.UNREACHABLE, unreachableIntegrations.size());
             counts.put(Category.HEALTH_ISSUE, healthIssues.size());
             counts.put(Category.IMPORT_BLOCKED, importBlocked.size());
-            counts.put(Category.STUCK_DOWNLOAD, stuckDownloads.size());
-            counts.put(Category.ZERO_SEED_DOWNLOAD, zeroSeedDownloads.size());
+            counts.put(Category.DOWNLOAD, downloads.size());
+            counts.put(Category.REMOVED_DOWNLOAD, removedDownloads.size());
             counts.put(Category.OVERDUE_MOVIE, overdueMovies.size());
             counts.put(Category.OVERDUE_TV, overdueTv.size());
             counts.put(Category.UNSEARCHED_MOVIE, unsearchedMovies.size());

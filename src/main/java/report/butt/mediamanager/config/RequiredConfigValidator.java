@@ -48,7 +48,7 @@ public class RequiredConfigValidator {
             "notifications.enabled",
             "notifications.from",
             "notifications.to",
-            "notifications.stuck-download-days",
+            "notifications.stuckness-removal-threshold",
             "notifications.overdue-request-days",
             "notifications.unsearched-days",
             "notifications.new-request-window-hours",

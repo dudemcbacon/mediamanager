@@ -18,6 +18,7 @@ public class ScheduledRefreshJob {
     private final MovieRefreshService movieRefreshService;
     private final TvRefreshService tvRefreshService;
     private final ValidatorService validatorService;
+    private final SeedlessTorrentTracker seedlessTorrentTracker;
     private final NotificationService notificationService;
     private final boolean notificationsEnabled;
 
@@ -30,11 +31,13 @@ public class ScheduledRefreshJob {
             MovieRefreshService movieRefreshService,
             TvRefreshService tvRefreshService,
             ValidatorService validatorService,
+            SeedlessTorrentTracker seedlessTorrentTracker,
             NotificationService notificationService,
             @Value("${notifications.enabled}") boolean notificationsEnabled) {
         this.movieRefreshService = movieRefreshService;
         this.tvRefreshService = tvRefreshService;
         this.validatorService = validatorService;
+        this.seedlessTorrentTracker = seedlessTorrentTracker;
         this.notificationService = notificationService;
         this.notificationsEnabled = notificationsEnabled;
     }
@@ -53,6 +56,7 @@ public class ScheduledRefreshJob {
             runStep("tv refresh", tvRefreshService::refreshAll);
             runStep("movie validation", validatorService::validateAllMovies);
             runStep("tv validation", validatorService::validateAllTv);
+            runStep("seedless torrent tracking", seedlessTorrentTracker::sweep);
             log.info("Hourly refresh-and-validate job complete");
         } finally {
             refreshLock.unlock();
@@ -71,11 +75,11 @@ public class ScheduledRefreshJob {
     @Trace(dispatcher = true)
     public void runNotifications() {
         if (!notificationsEnabled) {
-            log.info("Daily notification job skipped (notifications.enabled=false)");
+            log.info("Weekly notification job skipped (notifications.enabled=false)");
             return;
         }
-        log.info("Daily notification job starting");
+        log.info("Weekly notification job starting");
         notificationService.runCheck();
-        log.info("Daily notification job complete");
+        log.info("Weekly notification job complete");
     }
 }

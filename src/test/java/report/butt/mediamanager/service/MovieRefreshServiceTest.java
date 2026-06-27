@@ -166,6 +166,62 @@ class MovieRefreshServiceTest {
         verify(repository).saveAll(anyList());
     }
 
+    @Test
+    void refreshAllCollapsesDuplicateOmbiRequestsForSameRadarrMovie() {
+        // Two Ombi requests for the same film (same tmdb -> same Radarr movie). radarr_request_id is unique, so only
+        // one row may be saved rather than a second insert that violates the constraint.
+        OmbiMovieRequest first = ombiMovie(1, "Inside", 958196);
+        OmbiMovieRequest second = ombiMovie(2, "Inside", 958196);
+        Movie radarrMovie = radarrMovie(958196, 3956, "/movies/inside");
+
+        when(ombiClient.getMovies()).thenReturn(List.of(first, second));
+        when(radarrClient.getMovies()).thenReturn(List.of(radarrMovie));
+        when(radarrClient.getQualityProfilesById()).thenReturn(Map.of());
+        when(plexClient.getAllMoviesIndexedByTmdb()).thenReturn(Map.of());
+        when(repository.findByOmbiRequestIdIn(any())).thenReturn(List.of());
+        when(repository.findByRadarrRequestIdIn(any())).thenReturn(List.of());
+        when(plexClient.cacheMovieMetadata(any(Integer.class), any())).thenReturn("/plex-cache/movie-958196.json");
+
+        service.refreshAll();
+
+        List<MovieRequest> saved = captureSavedAll();
+        assertEquals(1, saved.size());
+        assertEquals(3956, saved.get(0).getRadarrRequestId());
+    }
+
+    @Test
+    void refreshAllReusesExistingRowForReRequestedMovie() {
+        // The movie's row already exists (under an old Ombi id no longer in the response); the current Ombi request has
+        // a new id, so it must update that row in place — keyed by Radarr movie — rather than insert a colliding row.
+        var existing = new MovieRequest("Inside", 958196, false, 1, "Common.ProcessingRequest");
+        existing.setId(42L);
+        existing.setRadarrRequestId(3956);
+        OmbiMovieRequest reRequest = ombiMovie(2, "Inside", 958196);
+        Movie radarrMovie = radarrMovie(958196, 3956, "/movies/inside");
+
+        when(ombiClient.getMovies()).thenReturn(List.of(reRequest));
+        when(radarrClient.getMovies()).thenReturn(List.of(radarrMovie));
+        when(radarrClient.getQualityProfilesById()).thenReturn(Map.of());
+        when(plexClient.getAllMoviesIndexedByTmdb()).thenReturn(Map.of());
+        when(repository.findByOmbiRequestIdIn(any())).thenReturn(List.of()); // old Ombi id not in the current response
+        when(repository.findByRadarrRequestIdIn(any())).thenReturn(List.of(existing));
+        when(plexClient.cacheMovieMetadata(any(Integer.class), any())).thenReturn("/plex-cache/movie-958196.json");
+
+        service.refreshAll();
+
+        List<MovieRequest> saved = captureSavedAll();
+        assertEquals(1, saved.size());
+        assertEquals(42L, saved.get(0).getId()); // reused the existing row in place, not a colliding new insert
+        assertEquals(3956, saved.get(0).getRadarrRequestId());
+    }
+
+    private List<MovieRequest> captureSavedAll() {
+        @SuppressWarnings("unchecked") // Mockito's forClass can't carry the List<MovieRequest> generic; the cast is safe
+        ArgumentCaptor<List<MovieRequest>> captor = ArgumentCaptor.forClass(List.class);
+        verify(repository).saveAll(captor.capture());
+        return captor.getValue();
+    }
+
     // --- refreshOne ---
 
     @Test

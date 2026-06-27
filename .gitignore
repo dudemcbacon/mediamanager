@@ -44,3 +44,6 @@ src/main/frontend
 .env.*
 !.env.example
 plex-cache
+CLAUDE.md
+docs
+mnt

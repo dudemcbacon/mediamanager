@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import report.butt.mediamanager.client.DelugeClient;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.client.SonarrClient;
 import report.butt.mediamanager.model.MovieRequest;
+import report.butt.mediamanager.model.RemovedDownload;
 import report.butt.mediamanager.model.TvRequest;
 import report.butt.mediamanager.model.deluge.DelugeTorrent;
 import report.butt.mediamanager.model.radarr.RadarrHealthItem;
@@ -38,6 +40,8 @@ import report.butt.mediamanager.model.sonarr.SonarrHealthItem;
 import report.butt.mediamanager.model.sonarr.SonarrQueue;
 import report.butt.mediamanager.model.sonarr.SonarrQueueRecord;
 import report.butt.mediamanager.repository.MovieRequestRepository;
+import report.butt.mediamanager.repository.RemovedDownloadRepository;
+import report.butt.mediamanager.repository.SeedlessTorrentRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.service.NotificationService.Category;
 
@@ -64,6 +68,15 @@ class NotificationServiceTest {
     private TvRequestRepository tvRequestRepository;
 
     @Mock
+    private SeedlessTorrentRepository seedlessTorrentRepository;
+
+    @Mock
+    private RemovedDownloadRepository removedDownloadRepository;
+
+    @Mock
+    private DownloadCleanupService downloadCleanupService;
+
+    @Mock
     private ObjectProvider<JavaMailSender> mailSenderProvider;
 
     @Mock
@@ -80,6 +93,8 @@ class NotificationServiceTest {
         when(sonarrClient.getHealth()).thenReturn(List.of());
         when(movieRequestRepository.findAll()).thenReturn(List.of());
         when(tvRequestRepository.findAll()).thenReturn(List.of());
+        when(seedlessTorrentRepository.findAll()).thenReturn(List.of());
+        when(removedDownloadRepository.findAll()).thenReturn(List.of());
         when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
         service = new NotificationService(
                 delugeClient,
@@ -87,10 +102,13 @@ class NotificationServiceTest {
                 sonarrClient,
                 movieRequestRepository,
                 tvRequestRepository,
+                seedlessTorrentRepository,
+                removedDownloadRepository,
+                downloadCleanupService,
                 mailSenderProvider,
                 "from@test",
                 "to@test",
-                14,
+                0.90,
                 90,
                 30,
                 24);
@@ -106,38 +124,73 @@ class NotificationServiceTest {
     }
 
     @Test
-    void flagsTorrentStuckBeyondThreshold() {
-        DelugeTorrent stuck = torrent("stuck", 50.0, daysAgoEpoch(20), 5);
-        DelugeTorrent recent = torrent("recent", 10.0, daysAgoEpoch(3), 5);
-        DelugeTorrent finishedButOld = torrent("done", 100.0, daysAgoEpoch(20), 5);
-        when(delugeClient.getTorrentsStatus()).thenReturn(Map.of("a", stuck, "b", recent, "c", finishedButOld));
+    void listsAllUnfinishedDownloadsInOneList() {
+        // Every in-progress torrent is reported in one list regardless of age or seeds; finished torrents are excluded.
+        DelugeTorrent downloading = torrent("downloading", 50.0, daysAgoEpoch(2), 5);
+        DelugeTorrent seedless = torrent("seedless", 30.0, daysAgoEpoch(1), 0);
+        DelugeTorrent finished = torrent("done", 100.0, daysAgoEpoch(20), 5);
+        when(delugeClient.getTorrentsStatus()).thenReturn(Map.of("a", downloading, "b", seedless, "c", finished));
 
         NotificationService.NotificationResult result = service.runCheck();
 
-        assertEquals(1, result.count(Category.STUCK_DOWNLOAD));
-        assertEquals(0, result.count(Category.ZERO_SEED_DOWNLOAD));
-        assertEquals(1, result.total());
+        assertEquals(2, result.count(Category.DOWNLOAD));
+        assertEquals(2, result.total());
         assertTrue(result.emailSent());
         verify(mailSender, times(1)).send(any(SimpleMailMessage.class));
     }
 
     @Test
-    void flagsZeroSeedTorrentButNotAsStuckToo() {
-        DelugeTorrent zeroSeedRecent = torrent("seedless", 40.0, daysAgoEpoch(2), 0);
-        DelugeTorrent zeroSeedOld = torrent("seedless-old", 30.0, daysAgoEpoch(20), 0);
-        DelugeTorrent healthy = torrent("healthy", 60.0, daysAgoEpoch(2), 8);
-        when(delugeClient.getTorrentsStatus()).thenReturn(Map.of("a", zeroSeedRecent, "b", zeroSeedOld, "c", healthy));
+    void removesDownloadAtOrAboveThreshold() {
+        // 0 seeds, old, no progress → stuckness 1.0 (>= 0.90), so it is auto-removed rather than just reported.
+        DelugeTorrent dead = torrent("Dead.Movie.2024", 0.0, daysAgoEpoch(20), 0);
+        when(delugeClient.getTorrentsStatus()).thenReturn(Map.of("ABC123HASH", dead));
+        when(downloadCleanupService.deleteTorrentsAndReprocess(any()))
+                .thenReturn(new DownloadCleanupService.CleanupResult(1, 0, 0, Set.of("abc123hash")));
 
         NotificationService.NotificationResult result = service.runCheck();
 
-        // zeroSeedOld is past the stuck threshold, so it counts as stuck (not double-listed as zero-seed).
-        assertEquals(1, result.count(Category.STUCK_DOWNLOAD));
-        assertEquals(1, result.count(Category.ZERO_SEED_DOWNLOAD));
-        assertEquals(2, result.total());
+        assertEquals(1, result.count(Category.REMOVED_DOWNLOAD));
+        assertEquals(0, result.count(Category.DOWNLOAD)); // moved out of the downloads list into "removed"
+
+        // Removal goes through the cleanup path (keyed by lowercased hash) and the table is rewritten with this run.
+        verify(downloadCleanupService).deleteTorrentsAndReprocess(Set.of("abc123hash"));
+        verify(removedDownloadRepository).deleteAllInBatch();
+        verify(removedDownloadRepository).saveAll(any());
+
+        ArgumentCaptor<SimpleMailMessage> mail = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(mail.capture());
+        String body = mail.getValue().getText();
+        assertTrue(body.contains("Stuck downloads removed since the last run"), body);
+        assertTrue(body.contains("Dead.Movie.2024"), body);
     }
 
     @Test
-    void linksZeroSeedTorrentToItsMovieRequest() {
+    void doesNotRemoveDownloadBelowThreshold() {
+        // 5 seeds, moderate progress → stuckness well under 0.90, so it is reported but not removed.
+        DelugeTorrent stuck = torrent("stuck", 50.0, daysAgoEpoch(20), 5);
+        when(delugeClient.getTorrentsStatus()).thenReturn(Map.of("a", stuck));
+
+        NotificationService.NotificationResult result = service.runCheck();
+
+        assertEquals(1, result.count(Category.DOWNLOAD));
+        assertEquals(0, result.count(Category.REMOVED_DOWNLOAD));
+        verify(downloadCleanupService, never()).deleteTorrentsAndReprocess(any());
+    }
+
+    @Test
+    void snapshotShowsPreviouslyRemovedDownloadsWithoutRemovingAnything() {
+        var removed = new RemovedDownload("hash1", "Old.Removed.Show", 12.0, 0.95, "TV: Old Show", daysAgo(1));
+        when(removedDownloadRepository.findAll()).thenReturn(List.of(removed));
+
+        NotificationService.NotificationSnapshot snapshot = service.snapshot();
+
+        assertEquals(1, snapshot.removedDownloads().size());
+        assertEquals("Old.Removed.Show", snapshot.removedDownloads().get(0).name());
+        verify(downloadCleanupService, never()).deleteTorrentsAndReprocess(any());
+    }
+
+    @Test
+    void linksDownloadToItsMovieRequest() {
         DelugeTorrent seedless = torrent("Some.Movie.2024.1080p", 40.0, daysAgoEpoch(2), 0);
         when(delugeClient.getTorrentsStatus()).thenReturn(Map.of("ABC123HASH", seedless));
         RadarrQueueRecord queued = record(10, "downloading");
@@ -149,7 +202,7 @@ class NotificationServiceTest {
 
         NotificationService.NotificationResult result = service.runCheck();
 
-        assertEquals(1, result.count(Category.ZERO_SEED_DOWNLOAD));
+        assertEquals(1, result.count(Category.DOWNLOAD));
         ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mailSender).send(captor.capture());
         String body = captor.getValue().getText();
@@ -186,7 +239,7 @@ class NotificationServiceTest {
         NotificationService.NotificationResult result = service.runCheck();
 
         assertEquals(1, result.count(Category.UNREACHABLE));
-        assertEquals(0, result.count(Category.STUCK_DOWNLOAD));
+        assertEquals(0, result.count(Category.DOWNLOAD));
         assertEquals(1, result.total());
     }
 
@@ -290,8 +343,8 @@ class NotificationServiceTest {
         // snapshot() never sends mail.
         verify(mailSender, never()).send(any(SimpleMailMessage.class));
 
-        assertEquals(1, snapshot.zeroSeedDownloads().size());
-        assertEquals("Movie: Overdue Movie", snapshot.zeroSeedDownloads().get(0).linkedRequest());
+        assertEquals(1, snapshot.downloads().size());
+        assertEquals("Movie: Overdue Movie", snapshot.downloads().get(0).linkedRequest());
 
         assertEquals(1, snapshot.overdueMovies().size());
         NotificationService.OverdueMovieRow movieRow = snapshot.overdueMovies().get(0);

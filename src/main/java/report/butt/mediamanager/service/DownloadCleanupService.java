@@ -58,7 +58,10 @@ public class DownloadCleanupService {
     }
 
     /** Outcome of a bulk cleanup, for reporting back to the UI. */
-    public record CleanupResult(int torrentsDeleted, int moviesReprocessed, int showsReprocessed) {}
+    // Internal data carrier; its hash set is never mutated after construction.
+    @SuppressWarnings("ImmutableMemberCollection")
+    public record CleanupResult(
+            int torrentsDeleted, int moviesReprocessed, int showsReprocessed, Set<String> deletedHashes) {}
 
     /**
      * Deletes every Radarr/Sonarr queue item whose download id matches one of {@code torrentHashes}, then searches and
@@ -66,13 +69,16 @@ public class DownloadCleanupService {
      */
     public CleanupResult deleteTorrentsAndReprocess(@Nullable Set<String> torrentHashes) {
         if (torrentHashes == null || torrentHashes.isEmpty()) {
-            return new CleanupResult(0, 0, 0);
+            return new CleanupResult(0, 0, 0, Set.of());
         }
         Set<String> hashes = torrentHashes.stream()
                 .filter(Objects::nonNull)
                 .map(s -> s.toLowerCase(Locale.ROOT))
                 .collect(Collectors.toSet());
 
+        // The download ids (== torrent hashes, lowercased) actually deleted, so callers can record precisely what was
+        // removed rather than what they asked to remove (a hash with no matching queue record is a no-op).
+        Set<String> deletedHashes = new LinkedHashSet<>();
         @Var int torrentsDeleted = 0;
 
         Set<Integer> movieIds = new LinkedHashSet<>();
@@ -83,6 +89,7 @@ public class DownloadCleanupService {
                     log.info("Deleting Radarr queue item {} ({})", record.getId(), record.getDownloadId());
                     radarrClient.deleteQueueItem(Objects.requireNonNull(record.getId()));
                     torrentsDeleted++;
+                    deletedHashes.add(Objects.requireNonNull(record.getDownloadId()).toLowerCase(Locale.ROOT));
                     if (record.getMovieId() != null) {
                         movieIds.add(record.getMovieId());
                     }
@@ -99,6 +106,7 @@ public class DownloadCleanupService {
                     log.info("Deleting Sonarr queue item {} ({})", record.getId(), record.getDownloadId());
                     sonarrClient.deleteQueueItem(Objects.requireNonNull(record.getId()));
                     torrentsDeleted++;
+                    deletedHashes.add(Objects.requireNonNull(record.getDownloadId()).toLowerCase(Locale.ROOT));
                     if (record.getSeriesId() != null) {
                         seriesIds.add(record.getSeriesId());
                     }
@@ -137,7 +145,7 @@ public class DownloadCleanupService {
                 torrentsDeleted,
                 moviesReprocessed,
                 showsReprocessed);
-        return new CleanupResult(torrentsDeleted, moviesReprocessed, showsReprocessed);
+        return new CleanupResult(torrentsDeleted, moviesReprocessed, showsReprocessed, deletedHashes);
     }
 
     private static boolean matches(@Nullable Integer queueId, @Nullable String downloadId, Set<String> hashes) {

@@ -88,11 +88,47 @@ public class MovieRefreshService {
                 .collect(Collectors.toSet());
         Map<Integer, MovieRequest> existingByOmbiId = repository.findByOmbiRequestIdIn(ombiRequestIds).stream()
                 .collect(Collectors.toMap(MovieRequest::getOmbiRequestId, Function.identity(), (a, b) -> a));
+        // A movie request's real identity is its Radarr movie (radarr_request_id is unique). Several Ombi requests can
+        // map to one Radarr movie — the same film requested by two users, or re-requested under a new Ombi id while the
+        // old row lingers — so we key existing rows by Radarr movie id and match on that first; matching only by Ombi
+        // id would create a second row and violate the unique constraint.
+        Set<Integer> radarrRequestIds = ombiMovies.stream()
+                .map(OmbiMovieRequest::getTheMovieDbId)
+                .filter(Objects::nonNull)
+                .map(radarrByTmdb::get)
+                .filter(Objects::nonNull)
+                .map(Movie::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Integer, MovieRequest> existingByRadarrId = repository.findByRadarrRequestIdIn(radarrRequestIds).stream()
+                .collect(Collectors.toMap(MovieRequest::getRadarrRequestId, Function.identity(), (a, b) -> a));
 
         List<MovieRequest> toSave = new ArrayList<>();
+        Set<Integer> claimedRadarrIds = new HashSet<>(); // Radarr movies already represented by a row this run
         @Var int unchanged = 0;
+        @Var int skippedDuplicates = 0;
         for (OmbiMovieRequest ombiMovie : ombiMovies) {
-            MovieRequest existing = existingByOmbiId.get(ombiMovie.getId());
+            Movie radarrMovie =
+                    ombiMovie.getTheMovieDbId() == null ? null : radarrByTmdb.get(ombiMovie.getTheMovieDbId());
+            Integer radarrId = radarrMovie == null ? null : radarrMovie.getId();
+
+            // One row per Radarr movie: if an earlier Ombi request this run already mapped to it, skip the duplicate.
+            if (radarrId != null && claimedRadarrIds.contains(radarrId)) {
+                log.warn(
+                        "Skipping Ombi request {} ({}): Radarr movie {} already handled this run",
+                        ombiMovie.getId(),
+                        ombiMovie.getTitle(),
+                        radarrId);
+                skippedDuplicates++;
+                continue;
+            }
+
+            // Prefer the row that already owns this Radarr movie (so a re-request updates it in place); only fall back
+            // to the Ombi-id match when there is no Radarr mapping yet.
+            @Var MovieRequest existing = radarrId == null ? null : existingByRadarrId.get(radarrId);
+            if (existing == null) {
+                existing = existingByOmbiId.get(ombiMovie.getId());
+            }
             MovieRequest movieRequest = existing != null
                     ? existing
                     : new MovieRequest(
@@ -102,11 +138,11 @@ public class MovieRefreshService {
                             ombiMovie.getId(),
                             ombiMovie.getRequestStatus());
 
-            Movie radarrMovie =
-                    ombiMovie.getTheMovieDbId() == null ? null : radarrByTmdb.get(ombiMovie.getTheMovieDbId());
-
             Integer beforeHash = existing == null ? null : movieRequest.hashCode();
             applyUpdates(movieRequest, ombiMovie, radarrMovie, plexByTmdb, qualityProfilesById);
+            if (radarrId != null) {
+                claimedRadarrIds.add(radarrId);
+            }
 
             if (radarrMovie != null && radarrMovie.getTmdbId() != null) {
                 validCacheKeys.add(PlexClient.movieCacheKey(radarrMovie.getTmdbId()));
@@ -123,7 +159,11 @@ public class MovieRefreshService {
         if (!toSave.isEmpty()) {
             repository.saveAll(toSave);
         }
-        log.info("Refresh complete: {} saved, {} unchanged", toSave.size(), unchanged);
+        log.info(
+                "Refresh complete: {} saved, {} unchanged, {} duplicate(s) skipped",
+                toSave.size(),
+                unchanged,
+                skippedDuplicates);
 
         plexCacheService.cleanExcept("movie-", validCacheKeys);
 

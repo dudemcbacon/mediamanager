@@ -7,6 +7,7 @@ import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import report.butt.mediamanager.exceptions.MediaFileNotFoundException;
 import report.butt.mediamanager.service.FfprobeScanService;
 
 /**
@@ -33,9 +34,15 @@ public class FfprobeScanJobHandler implements JobRequestHandler<FfprobeScanJobRe
     public void run(FfprobeScanJobRequest jobRequest) {
         var requestId = jobRequest.requestId();
         log.info("Running queued FFprobe scan for {} {}", jobRequest.mediaType(), requestId);
-        switch (jobRequest.mediaType()) {
-            case MOVIE -> ffprobeScanService.scanMovie(requestId);
-            case EPISODE -> ffprobeScanService.scanEpisode(requestId);
+        try {
+            switch (jobRequest.mediaType()) {
+                case MOVIE -> ffprobeScanService.scanMovie(requestId);
+                case EPISODE -> ffprobeScanService.scanEpisode(requestId);
+            }
+        } catch (MediaFileNotFoundException e) {
+            // A missing file is permanent, not transient — log one clear line and let the job complete so JobRunr
+            // doesn't burn its retries re-running a scan that can't succeed and spamming the log with stack traces.
+            log.warn("Skipping FFprobe scan for {} {}: {}", jobRequest.mediaType(), requestId, e.getMessage());
         }
     }
 }

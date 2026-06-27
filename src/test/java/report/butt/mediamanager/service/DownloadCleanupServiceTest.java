@@ -62,6 +62,7 @@ class DownloadCleanupServiceTest {
         assertEquals(2, result.torrentsDeleted());
         assertEquals(1, result.moviesReprocessed());
         assertEquals(1, result.showsReprocessed());
+        assertEquals(Set.of("abchash", "defhash"), result.deletedHashes()); // lowercased ids actually deleted
 
         verify(radarrClient).deleteQueueItem(101);
         verify(radarrClient, never()).deleteQueueItem(102); // non-matching download id untouched

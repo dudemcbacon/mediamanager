@@ -18,12 +18,18 @@ class ScheduledRefreshJobTest {
     private final MovieRefreshService movieRefreshService = mock(MovieRefreshService.class);
     private final TvRefreshService tvRefreshService = mock(TvRefreshService.class);
     private final ValidatorService validatorService = mock(ValidatorService.class);
+    private final SeedlessTorrentTracker seedlessTorrentTracker = mock(SeedlessTorrentTracker.class);
     private final NotificationService notificationService = mock(NotificationService.class);
 
     @Test
     void refreshAndValidateDelegatesInOrder() {
         var job = new ScheduledRefreshJob(
-                movieRefreshService, tvRefreshService, validatorService, notificationService, true);
+                movieRefreshService,
+                tvRefreshService,
+                validatorService,
+                seedlessTorrentTracker,
+                notificationService,
+                true);
 
         job.refreshAndValidate();
 
@@ -31,12 +37,18 @@ class ScheduledRefreshJobTest {
         verify(tvRefreshService).refreshAll();
         verify(validatorService).validateAllMovies();
         verify(validatorService).validateAllTv();
+        verify(seedlessTorrentTracker).sweep();
     }
 
     @Test
     void continuesRemainingStepsWhenOneFails() {
         var job = new ScheduledRefreshJob(
-                movieRefreshService, tvRefreshService, validatorService, notificationService, true);
+                movieRefreshService,
+                tvRefreshService,
+                validatorService,
+                seedlessTorrentTracker,
+                notificationService,
+                true);
         doThrow(new RuntimeException("ombi down")).when(movieRefreshService).refreshAll();
 
         job.refreshAndValidate();
@@ -59,7 +71,12 @@ class ScheduledRefreshJobTest {
                 .refreshAll();
 
         var job = new ScheduledRefreshJob(
-                movieRefreshService, tvRefreshService, validatorService, notificationService, true);
+                movieRefreshService,
+                tvRefreshService,
+                validatorService,
+                seedlessTorrentTracker,
+                notificationService,
+                true);
         var firstRun = new Thread(job::refreshAndValidate);
         firstRun.start();
         assertTrue(entered.await(2, TimeUnit.SECONDS), "first run should enter the locked section");
@@ -75,7 +92,12 @@ class ScheduledRefreshJobTest {
     @Test
     void runNotificationsCallsServiceWhenEnabled() {
         var job = new ScheduledRefreshJob(
-                movieRefreshService, tvRefreshService, validatorService, notificationService, true);
+                movieRefreshService,
+                tvRefreshService,
+                validatorService,
+                seedlessTorrentTracker,
+                notificationService,
+                true);
 
         job.runNotifications();
 
@@ -85,7 +107,12 @@ class ScheduledRefreshJobTest {
     @Test
     void runNotificationsSkipsServiceWhenDisabled() {
         var job = new ScheduledRefreshJob(
-                movieRefreshService, tvRefreshService, validatorService, notificationService, false);
+                movieRefreshService,
+                tvRefreshService,
+                validatorService,
+                seedlessTorrentTracker,
+                notificationService,
+                false);
 
         job.runNotifications();
 

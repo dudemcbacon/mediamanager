@@ -3,6 +3,8 @@ package report.butt.mediamanager.service;
 import com.newrelic.api.agent.Trace;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Optional;
@@ -18,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import report.butt.mediamanager.exceptions.MediaFileNotFoundException;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.FfprobeStream;
@@ -68,8 +71,9 @@ public class FfprobeScanService {
 
     /**
      * Probes the movie request's local file and persists the result. Throws {@link RequestNotFoundException} if the
-     * request is missing, {@link IllegalStateException} if it has no file path or ffprobe reports an error, and
-     * {@link UncheckedIOException} if ffprobe can't be run.
+     * request is missing, {@link IllegalStateException} if it has no file path or ffprobe reports an error,
+     * {@link MediaFileNotFoundException} if the resolved local file isn't on disk, and {@link UncheckedIOException} if
+     * ffprobe can't be run.
      */
     @Trace
     public FfprobeScan scanMovie(Long movieRequestId) {
@@ -104,6 +108,12 @@ public class FfprobeScanService {
     /** Resolves the local path, runs ffprobe, maps the result, and saves it. */
     private FfprobeScan scan(String reportedPath, Long requestId, String requestType) {
         String localPath = localFileSystemPrefix + reportedPath;
+        // Check the file is present before invoking ffprobe: a missing file otherwise surfaces as an opaque
+        // "ffprobe returned non-zero exit status" failure. This is the common case (media moved/deleted, or the
+        // mount isn't available), so fail with a clear, actionable message instead.
+        if (!Files.isRegularFile(Path.of(localPath))) {
+            throw new MediaFileNotFoundException(requestType, requestId, localPath);
+        }
         log.info("Running ffprobe for {} {} against {}", requestType, requestId, localPath);
         FFmpegProbeResult result = probe(localPath);
         if (result.hasError()) {

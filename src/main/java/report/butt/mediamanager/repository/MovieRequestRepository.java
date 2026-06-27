@@ -17,6 +17,8 @@ public interface MovieRequestRepository extends JpaRepository<MovieRequest, Long
 
     Optional<MovieRequest> findByRadarrRequestId(Integer radarrRequestId);
 
+    List<MovieRequest> findByRadarrRequestIdIn(Collection<Integer> radarrRequestIds);
+
     /** Ids of every movie request that has a local file path (so it can be ffprobe-scanned). */
     @Query("SELECT m.id FROM MovieRequest m WHERE m.radarrMovieFilePath IS NOT NULL AND m.radarrMovieFilePath <> ''")
     List<Long> findScannableMovieRequestIds();
