@@ -24,10 +24,14 @@ REMOTE_PORT="1022"
 REMOTE_USER="bburnett"
 REMOTE_ENV="/home/bburnett/config/mediamanager/.env"
 REMOTE_REPO="/home/bburnett/config/mediamanager/mediamanager"
+# Private key on the remote host used by the remote `git pull` to authenticate to the git remote.
+REMOTE_GIT_SSH_KEY="/home/bburnett/.ssh/id_ed25519"
 
 # Env vars exempt from the "value differs between local and remote" warning (they're expected to differ).
 WHITELIST=(
     NEW_RELIC_APP_NAME
+    PLEX_CACHE_DIR
+    LOCAL_FILE_SYSTEM_PREFIX
 )
 
 # --- setup ----------------------------------------------------------------------------------------
@@ -136,6 +140,6 @@ echo "==> remote .env updated"
 # --- 5. pull on the remote ------------------------------------------------------------------------
 
 echo "==> git pull on remote ($REMOTE_REPO)"
-remote "cd '$REMOTE_REPO' && git pull"
+remote "cd '$REMOTE_REPO' && GIT_SSH_COMMAND='ssh -i $REMOTE_GIT_SSH_KEY' git pull"
 
 echo "==> done"
