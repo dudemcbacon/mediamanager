@@ -25,7 +25,7 @@ REMOTE_USER="bburnett"
 REMOTE_ENV="/home/bburnett/config/mediamanager/.env"
 REMOTE_REPO="/home/bburnett/config/mediamanager/mediamanager"
 # Private key on the remote host used by the remote `git pull` to authenticate to the git remote.
-REMOTE_GIT_SSH_KEY="/home/bburnett/.ssh/id_ed25519"
+REMOTE_GIT_SSH_KEY="/home/bburnett/.ssh/id_rsa"
 
 # Env vars exempt from the "value differs between local and remote" warning (they're expected to differ).
 WHITELIST=(
