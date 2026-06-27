@@ -24,8 +24,6 @@ REMOTE_PORT="1022"
 REMOTE_USER="bburnett"
 REMOTE_ENV="/home/bburnett/config/mediamanager/.env"
 REMOTE_REPO="/home/bburnett/config/mediamanager/mediamanager"
-# Private key on the remote host used by the remote `git pull` to authenticate to the git remote.
-REMOTE_GIT_SSH_KEY="/home/bburnett/.ssh/id_rsa"
 
 # Env vars exempt from the "value differs between local and remote" warning (they're expected to differ).
 WHITELIST=(
@@ -140,8 +138,8 @@ echo "==> remote .env updated"
 # --- 5. pull on the remote ------------------------------------------------------------------------
 
 echo "==> git pull on remote ($REMOTE_REPO)"
-# IdentitiesOnly=yes so ssh offers ONLY this key — otherwise it also presents other keys (id_ed25519, agent keys),
-# and if GitHub binds the session to a wrong/deploy key first it denies access with "Permission denied (publickey)".
-remote "cd '$REMOTE_REPO' && GIT_SSH_COMMAND='ssh -i $REMOTE_GIT_SSH_KEY -o IdentitiesOnly=yes' git pull"
+# Forward the local ssh-agent (-A) so the remote git pull authenticates to GitHub with the agent's already-unlocked
+# keys, instead of a passphrase-protected key file on the remote host (which can't be unlocked non-interactively).
+ssh -A -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" "cd '$REMOTE_REPO' && git pull"
 
 echo "==> done"
