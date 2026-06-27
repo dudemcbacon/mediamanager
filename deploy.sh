@@ -140,6 +140,8 @@ echo "==> remote .env updated"
 # --- 5. pull on the remote ------------------------------------------------------------------------
 
 echo "==> git pull on remote ($REMOTE_REPO)"
-remote "cd '$REMOTE_REPO' && GIT_SSH_COMMAND='ssh -i $REMOTE_GIT_SSH_KEY' git pull"
+# IdentitiesOnly=yes so ssh offers ONLY this key — otherwise it also presents other keys (id_ed25519, agent keys),
+# and if GitHub binds the session to a wrong/deploy key first it denies access with "Permission denied (publickey)".
+remote "cd '$REMOTE_REPO' && GIT_SSH_COMMAND='ssh -i $REMOTE_GIT_SSH_KEY -o IdentitiesOnly=yes' git pull"
 
 echo "==> done"
