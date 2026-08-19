@@ -3,11 +3,12 @@ plugins {
   id 'jacoco'
   id 'jacoco-report-aggregation'
   alias(libs.plugins.vaadin)
-  alias libs.plugins.spring.boot
-  alias libs.plugins.spring.dependency.management
   alias libs.plugins.analyze
+  alias libs.plugins.dependencycheck
   alias libs.plugins.errorprone
   alias libs.plugins.spotless
+  alias libs.plugins.spring.boot
+  alias libs.plugins.spring.dependency.management
   alias libs.plugins.versions
 }
 
