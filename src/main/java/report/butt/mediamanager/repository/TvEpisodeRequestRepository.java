@@ -51,4 +51,8 @@ public interface TvEpisodeRequestRepository extends JpaRepository<TvEpisodeReque
     /** Ids of every episode in the library that has a local file path (so it can be ffprobe-scanned). */
     @Query("SELECT e.id FROM TvEpisodeRequest e WHERE e.sonarrPath IS NOT NULL AND e.sonarrPath <> ''")
     List<Long> findAllScannableEpisodeIds();
+
+    /** Ids of every episode in the library, for stats that count episodes without loading the entities. */
+    @Query("SELECT e.id FROM TvEpisodeRequest e")
+    List<Long> findAllEpisodeIds();
 }

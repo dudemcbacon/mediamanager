@@ -104,6 +104,10 @@ public class TvRequestView extends VerticalLayout {
     private final Set<String> knownEpisodeValidatorNames;
     private final Map<Long, Map<String, Validation>> latestValidations = new HashMap<>();
     private final Map<Long, Map<String, Validation>> latestEpisodeValidations = new HashMap<>();
+
+    /** Episode id to the primary video codec of its latest ffprobe scan; absent when the codec isn't known. */
+    private final Map<Long, String> episodeVideoCodecs = new HashMap<>();
+
     private final Map<Long, Boolean> subValidations = new HashMap<>();
     private final Set<Long> tvRequestsWithNotes = new HashSet<>();
     private final Checkbox showValidCheckbox = new Checkbox(true);
@@ -485,6 +489,7 @@ public class TvRequestView extends VerticalLayout {
             Map<Long, Map<String, Validation>> latestEpisodeValidations,
             Map<Long, Boolean> subValidations,
             Set<Long> withNotes,
+            Map<Long, String> episodeVideoCodecs,
             List<TvRequest> all) {}
 
     /**
@@ -520,7 +525,7 @@ public class TvRequestView extends VerticalLayout {
                         TvHierarchyTreeGrid.allChildrenValidation(children, episodeValidators, latestEpisode)));
         Set<Long> withNotes = new HashSet<>();
         noteRepository.findAll().forEach(n -> withNotes.add(n.getRequest().getId()));
-        return new GridSnapshot(latest, latestEpisode, subs, withNotes, all);
+        return new GridSnapshot(latest, latestEpisode, subs, withNotes, tvController.getLatestVideoCodecs(), all);
     }
 
     /** Applies a freshly loaded snapshot to the view state (on the UI thread) and re-runs the active filters. */
@@ -529,6 +534,8 @@ public class TvRequestView extends VerticalLayout {
         latestValidations.putAll(snapshot.latestValidations());
         latestEpisodeValidations.clear();
         latestEpisodeValidations.putAll(snapshot.latestEpisodeValidations());
+        episodeVideoCodecs.clear();
+        episodeVideoCodecs.putAll(snapshot.episodeVideoCodecs());
         subValidations.clear();
         subValidations.putAll(snapshot.subValidations());
         tvRequestsWithNotes.clear();
@@ -1066,7 +1073,13 @@ public class TvRequestView extends VerticalLayout {
             hierarchy = TvHierarchyTreeGrid.placeholderWhenEmpty();
         } else {
             var treeGrid = new TvHierarchyTreeGrid(
-                    children, episodeValidators, latestEpisodeValidations, downloads, tvController, uiTaskExecutor);
+                    children,
+                    episodeValidators,
+                    latestEpisodeValidations,
+                    downloads,
+                    episodeVideoCodecs,
+                    tvController,
+                    uiTaskExecutor);
             // Register while the panel is mounted so the background poll can update it in place; the detach listener
             // clears the entry when the user closes the panel or the parent grid is reloaded.
             Long requestId = mr.getId();

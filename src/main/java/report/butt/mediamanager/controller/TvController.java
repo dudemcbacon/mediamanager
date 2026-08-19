@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -415,6 +416,12 @@ public class TvController {
     @PreAuthorize("isAuthenticated()")
     public Optional<FfprobeScan> getLatestFfprobeScan(Long episodeId) {
         return ffprobeScanService.getLatestEpisodeScan(episodeId);
+    }
+
+    /** Primary video codec per episode id, from each episode's latest scan; used by the hierarchy's Codec column. */
+    @PreAuthorize("isAuthenticated()")
+    public Map<Long, String> getLatestVideoCodecs() {
+        return ffprobeScanService.latestEpisodeVideoCodecs();
     }
 
     /**

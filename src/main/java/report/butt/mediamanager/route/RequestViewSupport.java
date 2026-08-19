@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -70,6 +71,77 @@ final class RequestViewSupport {
             return "var(--vaadin-text-color-disabled)";
         }
         return result ? "var(--aura-green, green)" : "var(--aura-red, red)";
+    }
+
+    // --- video codec cells (shared by the movie grid and the TV episode tree) ---
+
+    /** Codecs treated as good; anything else earns a warning icon. */
+    // Set.of returns an unmodifiable set; there is no immutable-typed collection library on the classpath.
+    @SuppressWarnings("ImmutableMemberCollection")
+    private static final Set<String> PREFERRED_CODECS = Set.of("hevc", "av1");
+
+    private enum CodecState {
+        /** Never ffprobe-scanned, or the scan found no video stream. */
+        UNKNOWN,
+        HEVC_OR_AV1,
+        OTHER
+    }
+
+    /**
+     * Classifies a codec once so the icon, color, and alt text can't drift apart. ffprobe reports {@code codec_name}
+     * lowercase, but the comparison is case-insensitive so casing alone can't trigger a false warning.
+     */
+    private static CodecState codecState(@Nullable String codec) {
+        if (codec == null || codec.isBlank()) {
+            return CodecState.UNKNOWN;
+        }
+        return PREFERRED_CODECS.contains(codec.trim().toLowerCase(Locale.ROOT))
+                ? CodecState.HEVC_OR_AV1
+                : CodecState.OTHER;
+    }
+
+    /** Iconset name for a codec cell rendered client-side by a {@link LitRenderer}. */
+    static String codecIconName(@Nullable String codec) {
+        return switch (codecState(codec)) {
+            case UNKNOWN -> "vaadin:close";
+            case HEVC_OR_AV1 -> "vaadin:check";
+            case OTHER -> "vaadin:exclamation-circle";
+        };
+    }
+
+    static String codecIconColor(@Nullable String codec) {
+        return switch (codecState(codec)) {
+            case UNKNOWN -> "var(--aura-red, red)";
+            case HEVC_OR_AV1 -> "var(--aura-green, green)";
+            case OTHER -> "var(--aura-yellow, orange)";
+        };
+    }
+
+    /** The codec cell's accessible name and hover text, since the cell renders no visible text. */
+    static String codecAltText(@Nullable String codec) {
+        // Repeats codecState's emptiness check rather than switching on it, so the non-null return is provable.
+        return codec == null || codec.isBlank() ? "No codec" : codec;
+    }
+
+    /**
+     * A codec icon as a server-side component, for the TV tree's component columns (the flat movie grid renders the
+     * same states through {@link #codecIconName} instead). {@code role="img"} carries the accessible name because
+     * {@code <vaadin-icon>} marks its inner SVG {@code aria-hidden}, so a bare {@code aria-label} wouldn't be
+     * announced.
+     */
+    static Component codecIcon(@Nullable String codec) {
+        Icon icon =
+                switch (codecState(codec)) {
+                    case UNKNOWN -> VaadinIcon.CLOSE.create();
+                    case HEVC_OR_AV1 -> VaadinIcon.CHECK.create();
+                    case OTHER -> VaadinIcon.EXCLAMATION_CIRCLE.create();
+                };
+        String alt = codecAltText(codec);
+        icon.getStyle().set("color", codecIconColor(codec));
+        icon.getElement().setAttribute("role", "img");
+        icon.getElement().setAttribute("aria-label", alt);
+        icon.getElement().setAttribute("title", alt);
+        return icon;
     }
 
     /** Latest validation result for a request id + validator name, or null when none is recorded. */

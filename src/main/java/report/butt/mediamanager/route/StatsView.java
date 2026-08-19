@@ -10,6 +10,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -31,9 +32,9 @@ import report.butt.mediamanager.route.RequestViewSupport.Section;
 import report.butt.mediamanager.service.FfprobeScanService;
 
 /**
- * Stats dashboard: requester leaderboards and the movie library's video-codec breakdown (and room for any future
- * stats). Everything loads in one pass asynchronously on attach so the page renders immediately; results are pushed
- * back via server push (see {@code @Push}).
+ * Stats dashboard: requester leaderboards and the video-codec breakdown of the movie and TV episode libraries (and room
+ * for any future stats). Everything loads in one pass asynchronously on attach so the page renders immediately; results
+ * are pushed back via server push (see {@code @Push}).
  */
 @Route("stats")
 @RolesAllowed("ADMIN")
@@ -68,7 +69,8 @@ public class StatsView extends VerticalLayout {
 
     // Internal data carrier; its collection components are never mutated after construction.
     @SuppressWarnings("ImmutableMemberCollection")
-    private record StatsSnapshot(Leaderboards boards, List<CodecCount> codecs) {}
+    private record StatsSnapshot(
+            Leaderboards boards, List<CodecCount> movieCodecs, List<CodecCount> episodeCodecs) {}
 
     private final MovieRequestRepository movieRequestRepository;
     private final TvRequestRepository tvRequestRepository;
@@ -81,7 +83,8 @@ public class StatsView extends VerticalLayout {
 
     private final Section<RequesterCount> movieBoard;
     private final Section<RequesterCount> tvBoard;
-    private final Section<CodecCount> codecTable;
+    private final Section<CodecCount> movieCodecTable;
+    private final Section<CodecCount> episodeCodecTable;
 
     public StatsView(
             MovieRequestRepository movieRequestRepository,
@@ -97,7 +100,8 @@ public class StatsView extends VerticalLayout {
 
         movieBoard = new Section<>("Top movie requesters", leaderboardGrid("Movie requests"));
         tvBoard = new Section<>("Top TV requesters", leaderboardGrid("TV requests"));
-        codecTable = new Section<>("Movie codecs", codecGrid());
+        movieCodecTable = new Section<>("Movie codecs", codecGrid("Movies"));
+        episodeCodecTable = new Section<>("TV episode codecs", codecGrid("Episodes"));
 
         setWidthFull();
         add(new H2("Stats"));
@@ -106,10 +110,10 @@ public class StatsView extends VerticalLayout {
         var boards = new HorizontalLayout(movieBoard.layout(), tvBoard.layout());
         boards.setWidthFull();
         add(boards);
-        // Only three narrow columns; capped so the table doesn't stretch across a wide display.
-        var codecLayout = codecTable.layout();
-        codecLayout.getStyle().set("max-width", "32em");
-        add(codecLayout);
+        add(new H3("Codecs"));
+        var codecs = new HorizontalLayout(movieCodecTable.layout(), episodeCodecTable.layout());
+        codecs.setWidthFull();
+        add(codecs);
     }
 
     @Override
@@ -131,7 +135,8 @@ public class StatsView extends VerticalLayout {
                         } else {
                             movieBoard.set(stats.boards().movies());
                             tvBoard.set(stats.boards().tv());
-                            codecTable.set(stats.codecs());
+                            movieCodecTable.set(stats.movieCodecs());
+                            episodeCodecTable.set(stats.episodeCodecs());
                         }
                     } finally {
                         statsLoading.set(false);
@@ -151,9 +156,15 @@ public class StatsView extends VerticalLayout {
         }
         var boards = new Leaderboards(
                 leaderboard(movies, movieBytes), leaderboard(tvRequestRepository.findAll(), tvBytesByUser()));
-        // Reuses the movie list already read above, so the codec table costs one extra query (the scans) rather
-        // than a second pass over the movies.
-        return new StatsSnapshot(boards, codecCounts(movies, ffprobeScanService.latestMovieVideoCodecs()));
+        // Movie ids come from the list already read above, so the movie codec table adds only the scan query.
+        // Episodes are counted from an id-only query rather than loading every episode entity.
+        List<Long> movieIds = movies.stream().map(MovieRequest::getId).toList();
+        return new StatsSnapshot(
+                boards,
+                codecCounts(movieIds, ffprobeScanService.latestMovieVideoCodecs()),
+                codecCounts(
+                        tvEpisodeRequestRepository.findAllEpisodeIds(),
+                        ffprobeScanService.latestEpisodeVideoCodecs()));
     }
 
     private Map<String, Long> tvBytesByUser() {
@@ -197,23 +208,22 @@ public class StatsView extends VerticalLayout {
     }
 
     /**
-     * Counts movies per video codec (lowercased, so casing can't split a codec across two rows), most-common first.
-     * Movies with no codec in {@code codecByRequestId} — never ffprobe-scanned, or scanned with no video stream —
+     * Counts requests per video codec (lowercased, so casing can't split a codec across two rows), most-common first.
+     * Requests with no codec in {@code codecByRequestId} — never ffprobe-scanned, or scanned with no video stream —
      * bucket into {@value #NO_CODEC}, so the counts add up to the library size and the shares are meaningful.
      *
-     * <p>Driven by the movie list rather than the codec map's keys: an {@code FfprobeScan} holds only a soft reference
-     * to its request and outlives it, so the map can carry ids of deleted movies that must not be counted.
+     * <p>Driven by {@code requestIds} rather than the codec map's keys: an {@code FfprobeScan} holds only a soft
+     * reference to its request and outlives it, so the map can carry ids of deleted movies or episodes that must not be
+     * counted.
      */
-    static List<CodecCount> codecCounts(List<? extends MovieRequest> movies, Map<Long, String> codecByRequestId) {
+    static List<CodecCount> codecCounts(Collection<Long> requestIds, Map<Long, String> codecByRequestId) {
         Map<String, Long> counts = new HashMap<>();
-        for (MovieRequest movie : movies) {
-            @Nullable String codec = codecByRequestId.get(movie.getId());
-            counts.merge(codecKey(codec), 1L, Long::sum);
+        for (Long requestId : requestIds) {
+            counts.merge(codecKey(codecByRequestId.get(requestId)), 1L, Long::sum);
         }
-        int total = movies.size();
+        int total = requestIds.size();
         return counts.entrySet().stream()
-                .map(e -> new CodecCount(
-                        e.getKey(), e.getValue(), total == 0 ? 0.0 : e.getValue() * 100.0 / total))
+                .map(e -> new CodecCount(e.getKey(), e.getValue(), total == 0 ? 0.0 : e.getValue() * 100.0 / total))
                 .sorted(Comparator.comparingLong(CodecCount::count)
                         .reversed()
                         .thenComparing(CodecCount::codec, String.CASE_INSENSITIVE_ORDER))
@@ -240,10 +250,10 @@ public class StatsView extends VerticalLayout {
         return grid;
     }
 
-    private static Grid<CodecCount> codecGrid() {
+    private static Grid<CodecCount> codecGrid(String countHeader) {
         Grid<CodecCount> grid = RequestViewSupport.compactGrid();
         grid.addColumn(CodecCount::codec).setHeader("Codec").setAutoWidth(true).setFlexGrow(1);
-        grid.addColumn(CodecCount::count).setHeader("Movies").setAutoWidth(true);
+        grid.addColumn(CodecCount::count).setHeader(countHeader).setAutoWidth(true);
         // One decimal place, unlike the leaderboards' whole percentages: a library spreads across enough codecs
         // that rounding the long tail to 0% would hide it.
         grid.addColumn(c -> String.format("%.1f%%", c.percentOfLibrary()))

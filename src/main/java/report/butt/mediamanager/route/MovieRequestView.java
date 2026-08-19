@@ -946,54 +946,24 @@ public class MovieRequestView extends VerticalLayout {
         return torrent == null ? "—" : RequestViewSupport.formatPeers(torrent);
     }
 
-    /** Codecs treated as good, shown with a green check instead of a warning. */
-    // Set.of returns an unmodifiable set; there is no immutable-typed collection library on the classpath.
-    @SuppressWarnings("ImmutableMemberCollection")
-    private static final Set<String> PREFERRED_CODECS = Set.of("hevc", "av1");
-
     /**
-     * Client-side renderer for the Codec cell: an icon only — a green check for HEVC/AV1, a yellow exclamation mark for
-     * any other codec, and a red X when no codec is known. The codec name itself is the icon's accessible name and
-     * hover text rather than visible cell text. {@code role="img"} carries that name because {@code <vaadin-icon>}
-     * marks its inner SVG {@code aria-hidden}, so a bare {@code aria-label} on the host wouldn't be announced. Uses
-     * {@link LitRenderer} for the same reason the validator columns do: the browser renders the icon from a small
-     * payload instead of the server building a component per cell.
+     * Client-side renderer for the Codec cell: an icon only, whose state and colors come from
+     * {@link RequestViewSupport} so this column and the TV episode tree's stay identical. The codec name is the icon's
+     * accessible name and hover text rather than visible cell text. Uses {@link LitRenderer} for the same reason the
+     * validator columns do: the browser renders the icon from a small payload instead of the server building a
+     * component per cell.
      */
     private LitRenderer<MovieRequest> codecRenderer() {
         return LitRenderer.<MovieRequest>of("<vaadin-icon icon=\"${item.icon}\" style=\"color: ${item.color}\""
                         + " role=\"img\" aria-label=\"${item.alt}\" title=\"${item.alt}\"></vaadin-icon>")
-                .withProperty("icon", mr -> codecIconName(videoCodec(mr)))
-                .withProperty("color", mr -> codecIconColor(videoCodec(mr)))
-                .withProperty("alt", mr -> codecAltText(videoCodec(mr)));
+                .withProperty("icon", mr -> RequestViewSupport.codecIconName(videoCodec(mr)))
+                .withProperty("color", mr -> RequestViewSupport.codecIconColor(videoCodec(mr)))
+                .withProperty("alt", mr -> RequestViewSupport.codecAltText(videoCodec(mr)));
     }
 
     /** Primary video codec from a movie's latest ffprobe scan; null when never scanned or the scan had no video. */
     private @Nullable String videoCodec(MovieRequest mr) {
         return videoCodecByRequestId.get(mr.getId());
-    }
-
-    private static String codecIconName(@Nullable String codec) {
-        if (codec == null) {
-            return "vaadin:close";
-        }
-        return isPreferredCodec(codec) ? "vaadin:check" : "vaadin:exclamation-circle";
-    }
-
-    private static String codecIconColor(@Nullable String codec) {
-        if (codec == null) {
-            return "var(--aura-red, red)";
-        }
-        return isPreferredCodec(codec) ? "var(--aura-green, green)" : "var(--aura-yellow, orange)";
-    }
-
-    /** The icon's accessible name and hover text: the codec name, since the cell renders no visible text. */
-    private static String codecAltText(@Nullable String codec) {
-        return codec == null ? "No codec" : codec;
-    }
-
-    /** ffprobe reports {@code codec_name} lowercase, but compare case-insensitively so casing can't cause a warning. */
-    private static boolean isPreferredCodec(String codec) {
-        return PREFERRED_CODECS.contains(codec.trim().toLowerCase(Locale.ROOT));
     }
 
     /**

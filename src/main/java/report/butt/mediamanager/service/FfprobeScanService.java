@@ -148,15 +148,26 @@ public class FfprobeScanService {
         return new HashSet<>(ffprobeScanRepository.findDistinctRequestIdsByRequestType(EPISODE_REQUEST_TYPE));
     }
 
-    /**
-     * Primary video codec (ffprobe {@code codec_name}, e.g. {@code hevc}, {@code av1}, {@code h264}) per movie request,
-     * from each movie's most recent scan. One query for the whole library, so a grid can render a codec column without a
-     * per-row lookup. Movies that were never scanned — or whose scan found no video stream — are absent from the map.
-     */
+    /** Primary video codec per movie request; see {@link #latestVideoCodecs}. */
     public Map<Long, String> latestMovieVideoCodecs() {
+        return latestVideoCodecs(MOVIE_REQUEST_TYPE);
+    }
+
+    /** Primary video codec per TV episode; see {@link #latestVideoCodecs}. */
+    public Map<Long, String> latestEpisodeVideoCodecs() {
+        return latestVideoCodecs(EPISODE_REQUEST_TYPE);
+    }
+
+    /**
+     * Primary video codec (ffprobe {@code codec_name}, e.g. {@code hevc}, {@code av1}, {@code h264}) per request of the
+     * given type, from each request's most recent scan. One query for the whole library, so a grid can render a codec
+     * column without a per-row lookup. Requests that were never scanned — or whose scan found no video stream — are
+     * absent from the map.
+     */
+    private Map<Long, String> latestVideoCodecs(String requestType) {
         Map<Long, String> byRequestId = new HashMap<>();
         // The query orders newest scan first, so the first row seen for a request id is its current codec.
-        for (var row : ffprobeScanRepository.findVideoCodecsByRequestType(MOVIE_REQUEST_TYPE)) {
+        for (var row : ffprobeScanRepository.findVideoCodecsByRequestType(requestType)) {
             @Nullable String codecName = row.getCodecName();
             if (codecName != null && !codecName.isBlank()) {
                 byRequestId.putIfAbsent(row.getRequestId(), codecName);

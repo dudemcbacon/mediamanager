@@ -60,15 +60,27 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
     private final List<TvChildRequest> children;
     private final Executor uiTaskExecutor;
 
+    /**
+     * Episode id to the primary video codec of its latest ffprobe scan; absent when the codec isn't known. Held as a
+     * live reference to the parent view's map (not a copy) so an open detail tree picks up fresh codecs when the parent
+     * reloads, matching how {@code latestEpisodeValidations} is shared.
+     */
+    @SuppressWarnings("ImmutableMemberCollection")
+    private final Map<Long, String> episodeVideoCodecs;
+
+    // Parameter count reflects the view state this detail grid renders, not a design smell.
+    @SuppressWarnings("TooManyParameters")
     TvHierarchyTreeGrid(
             List<TvChildRequest> children,
             List<EpisodeValidator> episodeValidators,
             Map<Long, Map<String, Validation>> latestEpisodeValidations,
             Map<EpisodeKey, EpisodeDownload> episodeDownloads,
+            Map<Long, String> episodeVideoCodecs,
             TvController tvController,
             Executor uiTaskExecutor) {
         this.children = children;
         this.uiTaskExecutor = uiTaskExecutor;
+        this.episodeVideoCodecs = episodeVideoCodecs;
         setSizeFull();
 
         TreeData<TvHierarchyRow> treeData = new TreeData<>();
@@ -105,6 +117,16 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
                             validator.shortName(), validator.title(), validator.description()))
                     .setAutoWidth(true);
         }
+
+        addComponentColumn(this::codecComponent)
+                .setHeader(RequestViewSupport.headerWithTooltip(
+                        "Codec",
+                        "Video Codec",
+                        "Primary video codec of an episode's latest FFprobe scan; hover an icon to see the codec name."
+                                + " Green check: HEVC or AV1. Yellow exclamation mark: any other codec. Red X: no codec"
+                                + " is known (never scanned, or the scan found no video stream). A codec is per-file,"
+                                + " so show and season rows show a dash."))
+                .setAutoWidth(true);
 
         // Click an episode (a leaf row) to expand a field dump, mirroring the movie grid's row details. Parent rows
         // (child/season) expand their children via the hierarchy toggle instead, so they carry no details.
@@ -338,6 +360,20 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
 
     private @Nullable EpisodeDownload downloadFor(TvHierarchyRow row) {
         return row instanceof EpisodeRow(TvEpisodeRequest episode) ? downloadByEpisodeId.get(episode.getId()) : null;
+    }
+
+    /**
+     * Codec cell: the shared codec icon for an episode, or a dash for show and season rows. A codec belongs to a single
+     * file, so unlike the validator columns there's nothing meaningful to roll up — the episodes beneath a season can
+     * each be encoded differently.
+     */
+    private Component codecComponent(TvHierarchyRow row) {
+        return switch (row) {
+            case EpisodeRow(TvEpisodeRequest episode) ->
+                RequestViewSupport.codecIcon(episodeVideoCodecs.get(episode.getId()));
+            case ChildRow ignored -> new Span("—");
+            case SeasonRow ignored -> new Span("—");
+        };
     }
 
     private static Component episodeValidationComponent(
