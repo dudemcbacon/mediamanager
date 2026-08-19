@@ -6,6 +6,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.contextmenu.GridContextMenu;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.progressbar.ProgressBar;
@@ -13,6 +14,7 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -21,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.NullMarked;
@@ -28,6 +31,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.support.CronExpression;
 import report.butt.mediamanager.controller.MovieController;
 import report.butt.mediamanager.controller.TvController;
 import report.butt.mediamanager.route.RequestViewSupport.Section;
@@ -64,6 +68,9 @@ public class NotificationsView extends VerticalLayout {
     private static final DateTimeFormatter DATE =
             DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.systemDefault());
 
+    private static final DateTimeFormatter DATE_TIME =
+            DateTimeFormatter.ofPattern("EEE, MMM d 'at' h:mm a").withZone(ZoneId.systemDefault());
+
     // The downloads list is unbounded (every active torrent). At or below this many rows the grid sizes to its
     // content like the other dashboard sections; above it the grid would exceed Vaadin's single-fetch cap
     // (setAllRowsVisible fetches every row, max 10 pages), so it switches to a fixed-height lazily-loaded scroller.
@@ -77,12 +84,16 @@ public class NotificationsView extends VerticalLayout {
     private final String radarrUrl;
     private final String sonarrUrl;
     private final ExecutorService uiTaskExecutor;
+    private final String notificationsCron;
+    private final boolean notificationsEnabled;
 
+    private final Span nextNotification = new Span();
     private final ProgressBar snapshotProgress = RequestViewSupport.indeterminateBar();
     private final AtomicBoolean snapshotLoading = new AtomicBoolean(false);
     private final AtomicBoolean cleanupInFlight = new AtomicBoolean(false);
     private final AtomicBoolean searchInFlight = new AtomicBoolean(false);
 
+    private final Button runNow = new Button("Run now");
     private final Button deleteAllDownloads = new Button("Delete all");
     private final Button searchAllUnsearchedMovies = new Button("Search all");
     private final Button searchAllUnsearchedTv = new Button("Search all");
@@ -102,6 +113,8 @@ public class NotificationsView extends VerticalLayout {
     private final Section<HealthIssue> health;
     private final Section<String> unreachable;
 
+    // Spring constructor injection; the parameter count reflects injected collaborators and config, not a design smell.
+    @SuppressWarnings("TooManyParameters")
     public NotificationsView(
             NotificationService notificationService,
             DownloadCleanupService downloadCleanupService,
@@ -110,6 +123,8 @@ public class NotificationsView extends VerticalLayout {
             @Value("${ombi.url}") String ombiUrl,
             @Value("${radarr.url}") String radarrUrl,
             @Value("${sonarr.url}") String sonarrUrl,
+            @Value("${notifications.cron}") String notificationsCron,
+            @Value("${notifications.enabled}") boolean notificationsEnabled,
             ExecutorService uiTaskExecutor) {
         this.notificationService = notificationService;
         this.downloadCleanupService = downloadCleanupService;
@@ -119,6 +134,8 @@ public class NotificationsView extends VerticalLayout {
         this.radarrUrl = radarrUrl;
         this.sonarrUrl = sonarrUrl;
         this.uiTaskExecutor = uiTaskExecutor;
+        this.notificationsCron = notificationsCron;
+        this.notificationsEnabled = notificationsEnabled;
 
         downloads = new Section<>("Downloads in progress", downloadGrid());
         removedDownloads = new Section<>("Stuck downloads removed since the last run", removedDownloadGrid());
@@ -131,6 +148,7 @@ public class NotificationsView extends VerticalLayout {
         health = new Section<>("Service health warnings", healthGrid());
         unreachable = new Section<>("Unreachable integrations", unreachableGrid());
 
+        runNow.addClickListener(e -> getUI().ifPresent(this::runNotificationsNow));
         deleteAllDownloads.addClickListener(
                 e -> getUI().ifPresent(ui -> cleanupTorrents(ui, hashesOf(currentDownloads, Download::hash))));
         searchAllUnsearchedMovies.addClickListener(
@@ -141,6 +159,8 @@ public class NotificationsView extends VerticalLayout {
 
         setWidthFull();
         add(new H2("Notifications"));
+        add(nextNotification);
+        add(runNow);
         add(snapshotProgress);
         add(
                 downloads.layout(deleteAllDownloads),
@@ -158,7 +178,33 @@ public class NotificationsView extends VerticalLayout {
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
+        nextNotification.setText(nextNotificationText());
         getUI().ifPresent(this::loadSnapshot);
+    }
+
+    /** When the next summary will be sent, derived from the same cron the scheduler uses. */
+    private String nextNotificationText() {
+        if (!notificationsEnabled) {
+            return "Notifications are disabled.";
+        }
+        ZonedDateTime next = CronExpression.parse(notificationsCron).next(ZonedDateTime.now(ZoneId.systemDefault()));
+        return next == null
+                ? "No notifications scheduled."
+                : "Next notification: " + DATE_TIME.format(next);
+    }
+
+    /**
+     * Runs the full notification check now (detection + auto-removal + email), off the UI thread, then reloads the
+     * snapshot so the grids reflect any downloads it removed.
+     */
+    private void runNotificationsNow(UI ui) {
+        Consumer<Boolean> onIdle = idle -> {
+            runNow.setEnabled(idle);
+            if (idle) {
+                loadSnapshot(ui); // re-enabled means the run finished: refresh grids to show any auto-removals
+            }
+        };
+        RequestViewSupport.runNotificationCheck(ui, log, notificationService, uiTaskExecutor, onIdle);
     }
 
     /**

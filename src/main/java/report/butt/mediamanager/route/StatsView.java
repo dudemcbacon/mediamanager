@@ -13,6 +13,7 @@ import jakarta.annotation.security.RolesAllowed;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -27,10 +28,12 @@ import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.route.RequestViewSupport.Section;
+import report.butt.mediamanager.service.FfprobeScanService;
 
 /**
- * Stats dashboard: requester leaderboards (and room for any future stats). The leaderboards load asynchronously on
- * attach so the page renders immediately; results are pushed back via server push (see {@code @Push}).
+ * Stats dashboard: requester leaderboards and the movie library's video-codec breakdown (and room for any future
+ * stats). Everything loads in one pass asynchronously on attach so the page renders immediately; results are pushed
+ * back via server push (see {@code @Push}).
  */
 @Route("stats")
 @RolesAllowed("ADMIN")
@@ -46,6 +49,9 @@ public class StatsView extends VerticalLayout {
     private static final int LEADERBOARD_SIZE = 10;
     private static final String UNKNOWN_USER = "unknown";
 
+    /** Bucket for movies whose video codec isn't known (never scanned, or the scan found no video stream). */
+    static final String NO_CODEC = "No codec";
+
     /** A requester, how many requests they've made, how many are available, and how many bytes they consume. */
     public record RequesterCount(String username, long count, long available, long bytes) {
         public double percentComplete() {
@@ -53,71 +59,88 @@ public class StatsView extends VerticalLayout {
         }
     }
 
+    /** One video codec, how many movies use it, and its share of the library. */
+    public record CodecCount(String codec, long count, double percentOfLibrary) {}
+
     // Internal data carrier; its collection components are never mutated after construction.
     @SuppressWarnings("ImmutableMemberCollection")
     private record Leaderboards(List<RequesterCount> movies, List<RequesterCount> tv) {}
 
+    // Internal data carrier; its collection components are never mutated after construction.
+    @SuppressWarnings("ImmutableMemberCollection")
+    private record StatsSnapshot(Leaderboards boards, List<CodecCount> codecs) {}
+
     private final MovieRequestRepository movieRequestRepository;
     private final TvRequestRepository tvRequestRepository;
     private final TvEpisodeRequestRepository tvEpisodeRequestRepository;
+    private final FfprobeScanService ffprobeScanService;
     private final ExecutorService uiTaskExecutor;
 
-    private final ProgressBar leaderboardProgress = RequestViewSupport.indeterminateBar();
-    private final AtomicBoolean leaderboardLoading = new AtomicBoolean(false);
+    private final ProgressBar statsProgress = RequestViewSupport.indeterminateBar();
+    private final AtomicBoolean statsLoading = new AtomicBoolean(false);
 
     private final Section<RequesterCount> movieBoard;
     private final Section<RequesterCount> tvBoard;
+    private final Section<CodecCount> codecTable;
 
     public StatsView(
             MovieRequestRepository movieRequestRepository,
             TvRequestRepository tvRequestRepository,
             TvEpisodeRequestRepository tvEpisodeRequestRepository,
+            FfprobeScanService ffprobeScanService,
             ExecutorService uiTaskExecutor) {
         this.movieRequestRepository = movieRequestRepository;
         this.tvRequestRepository = tvRequestRepository;
         this.tvEpisodeRequestRepository = tvEpisodeRequestRepository;
+        this.ffprobeScanService = ffprobeScanService;
         this.uiTaskExecutor = uiTaskExecutor;
 
         movieBoard = new Section<>("Top movie requesters", leaderboardGrid("Movie requests"));
         tvBoard = new Section<>("Top TV requesters", leaderboardGrid("TV requests"));
+        codecTable = new Section<>("Movie codecs", codecGrid());
 
         setWidthFull();
         add(new H2("Stats"));
         add(new H3("Leaderboards (top " + LEADERBOARD_SIZE + ")"));
-        add(leaderboardProgress);
+        add(statsProgress);
         var boards = new HorizontalLayout(movieBoard.layout(), tvBoard.layout());
         boards.setWidthFull();
         add(boards);
+        // Only three narrow columns; capped so the table doesn't stretch across a wide display.
+        var codecLayout = codecTable.layout();
+        codecLayout.getStyle().set("max-width", "32em");
+        add(codecLayout);
     }
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        getUI().ifPresent(this::loadLeaderboards);
+        getUI().ifPresent(this::loadStats);
     }
 
-    /** Loads the leaderboards (a cheap DB read) off the UI thread; results pushed back via {@link UI#access}. */
-    private void loadLeaderboards(UI ui) {
-        if (!leaderboardLoading.compareAndSet(false, true)) {
+    /** Loads every stat (a cheap DB read) off the UI thread; results pushed back via {@link UI#access}. */
+    private void loadStats(UI ui) {
+        if (!statsLoading.compareAndSet(false, true)) {
             return;
         }
-        CompletableFuture.supplyAsync(this::computeLeaderboards, uiTaskExecutor)
-                .whenComplete((boards, throwable) -> ui.access(() -> {
+        CompletableFuture.supplyAsync(this::computeStats, uiTaskExecutor)
+                .whenComplete((stats, throwable) -> ui.access(() -> {
                     try {
                         if (throwable != null) {
-                            log.warn("Failed to load stats leaderboards", throwable);
+                            log.warn("Failed to load stats", throwable);
                         } else {
-                            movieBoard.set(boards.movies());
-                            tvBoard.set(boards.tv());
+                            movieBoard.set(stats.boards().movies());
+                            tvBoard.set(stats.boards().tv());
+                            codecTable.set(stats.codecs());
                         }
                     } finally {
-                        leaderboardLoading.set(false);
-                        leaderboardProgress.setVisible(false);
+                        statsLoading.set(false);
+                        statsProgress.setVisible(false);
                     }
                 }));
     }
 
-    private Leaderboards computeLeaderboards() {
+    private StatsSnapshot computeStats() {
         List<MovieRequest> movies = movieRequestRepository.findAll();
         Map<String, Long> movieBytes = new HashMap<>();
         for (MovieRequest m : movies) {
@@ -126,8 +149,11 @@ public class StatsView extends VerticalLayout {
                 movieBytes.merge(userKey(m.getOmbiUserName()), size, Long::sum);
             }
         }
-        return new Leaderboards(
+        var boards = new Leaderboards(
                 leaderboard(movies, movieBytes), leaderboard(tvRequestRepository.findAll(), tvBytesByUser()));
+        // Reuses the movie list already read above, so the codec table costs one extra query (the scans) rather
+        // than a second pass over the movies.
+        return new StatsSnapshot(boards, codecCounts(movies, ffprobeScanService.latestMovieVideoCodecs()));
     }
 
     private Map<String, Long> tvBytesByUser() {
@@ -170,6 +196,34 @@ public class StatsView extends VerticalLayout {
         return ombiUserName == null || ombiUserName.isBlank() ? UNKNOWN_USER : ombiUserName;
     }
 
+    /**
+     * Counts movies per video codec (lowercased, so casing can't split a codec across two rows), most-common first.
+     * Movies with no codec in {@code codecByRequestId} — never ffprobe-scanned, or scanned with no video stream —
+     * bucket into {@value #NO_CODEC}, so the counts add up to the library size and the shares are meaningful.
+     *
+     * <p>Driven by the movie list rather than the codec map's keys: an {@code FfprobeScan} holds only a soft reference
+     * to its request and outlives it, so the map can carry ids of deleted movies that must not be counted.
+     */
+    static List<CodecCount> codecCounts(List<? extends MovieRequest> movies, Map<Long, String> codecByRequestId) {
+        Map<String, Long> counts = new HashMap<>();
+        for (MovieRequest movie : movies) {
+            @Nullable String codec = codecByRequestId.get(movie.getId());
+            counts.merge(codecKey(codec), 1L, Long::sum);
+        }
+        int total = movies.size();
+        return counts.entrySet().stream()
+                .map(e -> new CodecCount(
+                        e.getKey(), e.getValue(), total == 0 ? 0.0 : e.getValue() * 100.0 / total))
+                .sorted(Comparator.comparingLong(CodecCount::count)
+                        .reversed()
+                        .thenComparing(CodecCount::codec, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
+    private static String codecKey(@Nullable String codec) {
+        return codec == null || codec.isBlank() ? NO_CODEC : codec.trim().toLowerCase(Locale.ROOT);
+    }
+
     private static Grid<RequesterCount> leaderboardGrid(String countHeader) {
         Grid<RequesterCount> grid = RequestViewSupport.compactGrid();
         grid.addColumn(RequesterCount::username)
@@ -182,6 +236,18 @@ public class StatsView extends VerticalLayout {
                 .setAutoWidth(true);
         grid.addColumn(r -> RequestViewSupport.formatBytes(r.bytes()))
                 .setHeader("Bytes")
+                .setAutoWidth(true);
+        return grid;
+    }
+
+    private static Grid<CodecCount> codecGrid() {
+        Grid<CodecCount> grid = RequestViewSupport.compactGrid();
+        grid.addColumn(CodecCount::codec).setHeader("Codec").setAutoWidth(true).setFlexGrow(1);
+        grid.addColumn(CodecCount::count).setHeader("Movies").setAutoWidth(true);
+        // One decimal place, unlike the leaderboards' whole percentages: a library spreads across enough codecs
+        // that rounding the long tail to 0% would hide it.
+        grid.addColumn(c -> String.format("%.1f%%", c.percentOfLibrary()))
+                .setHeader("% of Library")
                 .setAutoWidth(true);
         return grid;
     }

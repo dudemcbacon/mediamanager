@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import org.jobrunr.scheduling.JobRequestScheduler;
@@ -296,6 +297,12 @@ public class MovieController {
     @PreAuthorize("isAuthenticated()")
     public Optional<FfprobeScan> getLatestFfprobeScan(Long id) {
         return ffprobeScanService.getLatestMovieScan(id);
+    }
+
+    /** Primary video codec per movie request id, from each movie's latest scan; used by the grid's Codec column. */
+    @PreAuthorize("isAuthenticated()")
+    public Map<Long, String> getLatestVideoCodecs() {
+        return ffprobeScanService.latestMovieVideoCodecs();
     }
 
     /**

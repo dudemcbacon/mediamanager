@@ -5,8 +5,10 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import net.bramp.ffmpeg.FFprobe;
@@ -144,6 +146,23 @@ public class FfprobeScanService {
     /** TV-episode ids that already have at least one ffprobe scan (used to skip re-scanning during bulk refresh). */
     public Set<Long> scannedEpisodeRequestIds() {
         return new HashSet<>(ffprobeScanRepository.findDistinctRequestIdsByRequestType(EPISODE_REQUEST_TYPE));
+    }
+
+    /**
+     * Primary video codec (ffprobe {@code codec_name}, e.g. {@code hevc}, {@code av1}, {@code h264}) per movie request,
+     * from each movie's most recent scan. One query for the whole library, so a grid can render a codec column without a
+     * per-row lookup. Movies that were never scanned — or whose scan found no video stream — are absent from the map.
+     */
+    public Map<Long, String> latestMovieVideoCodecs() {
+        Map<Long, String> byRequestId = new HashMap<>();
+        // The query orders newest scan first, so the first row seen for a request id is its current codec.
+        for (var row : ffprobeScanRepository.findVideoCodecsByRequestType(MOVIE_REQUEST_TYPE)) {
+            @Nullable String codecName = row.getCodecName();
+            if (codecName != null && !codecName.isBlank()) {
+                byRequestId.putIfAbsent(row.getRequestId(), codecName);
+            }
+        }
+        return byRequestId;
     }
 
     /** Runs the equivalent of {@code ffprobe -v quiet -print_format json -show_format -show_streams <path>}. */
