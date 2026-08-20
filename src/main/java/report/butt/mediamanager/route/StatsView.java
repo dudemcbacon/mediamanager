@@ -60,8 +60,14 @@ public class StatsView extends VerticalLayout {
         }
     }
 
+    /** Bucket for movies Tdarr hasn't reported a transcode verdict for. */
+    static final String NO_TRANSCODE_DATA = "No data";
+
     /** One video codec, how many movies use it, and its share of the library. */
     public record CodecCount(String codec, long count, double percentOfLibrary) {}
+
+    /** One Tdarr transcode verdict, how many movies are in it, and its share of the library. */
+    public record TranscodeCount(String status, long count, double percentOfLibrary) {}
 
     // Internal data carrier; its collection components are never mutated after construction.
     @SuppressWarnings("ImmutableMemberCollection")
@@ -69,7 +75,11 @@ public class StatsView extends VerticalLayout {
 
     // Internal data carrier; its collection components are never mutated after construction.
     @SuppressWarnings("ImmutableMemberCollection")
-    private record StatsSnapshot(Leaderboards boards, List<CodecCount> movieCodecs, List<CodecCount> episodeCodecs) {}
+    private record StatsSnapshot(
+            Leaderboards boards,
+            List<CodecCount> movieCodecs,
+            List<CodecCount> episodeCodecs,
+            List<TranscodeCount> movieTranscodes) {}
 
     private final MovieRequestRepository movieRequestRepository;
     private final TvRequestRepository tvRequestRepository;
@@ -84,6 +94,7 @@ public class StatsView extends VerticalLayout {
     private final Section<RequesterCount> tvBoard;
     private final Section<CodecCount> movieCodecTable;
     private final Section<CodecCount> episodeCodecTable;
+    private final Section<TranscodeCount> movieTranscodeTable;
 
     public StatsView(
             MovieRequestRepository movieRequestRepository,
@@ -101,6 +112,7 @@ public class StatsView extends VerticalLayout {
         tvBoard = new Section<>("Top TV requesters", leaderboardGrid("TV requests"));
         movieCodecTable = new Section<>("Movie codecs", codecGrid("Movies"));
         episodeCodecTable = new Section<>("TV episode codecs", codecGrid("Episodes"));
+        movieTranscodeTable = new Section<>("Movie transcode status", transcodeGrid("Movies"));
 
         setWidthFull();
         add(new H2("Stats"));
@@ -113,6 +125,10 @@ public class StatsView extends VerticalLayout {
         var codecs = new HorizontalLayout(movieCodecTable.layout(), episodeCodecTable.layout());
         codecs.setWidthFull();
         add(codecs);
+        add(new H3("Transcode"));
+        var transcodes = new HorizontalLayout(movieTranscodeTable.layout());
+        transcodes.setWidthFull();
+        add(transcodes);
     }
 
     @Override
@@ -136,6 +152,7 @@ public class StatsView extends VerticalLayout {
                             tvBoard.set(stats.boards().tv());
                             movieCodecTable.set(stats.movieCodecs());
                             episodeCodecTable.set(stats.episodeCodecs());
+                            movieTranscodeTable.set(stats.movieTranscodes());
                         }
                     } finally {
                         statsLoading.set(false);
@@ -162,7 +179,9 @@ public class StatsView extends VerticalLayout {
                 boards,
                 codecCounts(movieIds, ffprobeScanService.latestMovieVideoCodecs()),
                 codecCounts(
-                        tvEpisodeRequestRepository.findAllEpisodeIds(), ffprobeScanService.latestEpisodeVideoCodecs()));
+                        tvEpisodeRequestRepository.findAllEpisodeIds(), ffprobeScanService.latestEpisodeVideoCodecs()),
+                // Reuses the movie list already read above, so the transcode table adds no query of its own.
+                transcodeCounts(movies));
     }
 
     private Map<String, Long> tvBytesByUser() {
@@ -232,6 +251,32 @@ public class StatsView extends VerticalLayout {
         return codec == null || codec.isBlank() ? NO_CODEC : codec.trim().toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Counts movies per Tdarr transcode verdict, most-common first. Movies with no verdict — Tdarr hasn't reported on
+     * the file, or the movie isn't available yet — bucket into {@value #NO_TRANSCODE_DATA} so the counts add up to the
+     * library size and the shares are meaningful.
+     *
+     * <p>Verdicts keep Tdarr's own casing (unlike {@link #codecKey}, which lowercases): they are display phrases such
+     * as {@code Transcode success}, and Tdarr reports each one consistently, so there is no casing split to collapse.
+     */
+    static List<TranscodeCount> transcodeCounts(List<? extends MovieRequest> movies) {
+        Map<String, Long> counts = new HashMap<>();
+        for (MovieRequest movie : movies) {
+            counts.merge(transcodeKey(movie.getTdarrTranscodeDecisionMaker()), 1L, Long::sum);
+        }
+        int total = movies.size();
+        return counts.entrySet().stream()
+                .map(e -> new TranscodeCount(e.getKey(), e.getValue(), total == 0 ? 0.0 : e.getValue() * 100.0 / total))
+                .sorted(Comparator.comparingLong(TranscodeCount::count)
+                        .reversed()
+                        .thenComparing(TranscodeCount::status, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
+    private static String transcodeKey(@Nullable String status) {
+        return status == null || status.isBlank() ? NO_TRANSCODE_DATA : status.trim();
+    }
+
     private static Grid<RequesterCount> leaderboardGrid(String countHeader) {
         Grid<RequesterCount> grid = RequestViewSupport.compactGrid();
         grid.addColumn(RequesterCount::username)
@@ -255,6 +300,19 @@ public class StatsView extends VerticalLayout {
         // One decimal place, unlike the leaderboards' whole percentages: a library spreads across enough codecs
         // that rounding the long tail to 0% would hide it.
         grid.addColumn(c -> String.format("%.1f%%", c.percentOfLibrary()))
+                .setHeader("% of Library")
+                .setAutoWidth(true);
+        return grid;
+    }
+
+    private static Grid<TranscodeCount> transcodeGrid(String countHeader) {
+        Grid<TranscodeCount> grid = RequestViewSupport.compactGrid();
+        grid.addColumn(TranscodeCount::status)
+                .setHeader("Transcode Status")
+                .setAutoWidth(true)
+                .setFlexGrow(1);
+        grid.addColumn(TranscodeCount::count).setHeader(countHeader).setAutoWidth(true);
+        grid.addColumn(t -> String.format("%.1f%%", t.percentOfLibrary()))
                 .setHeader("% of Library")
                 .setAutoWidth(true);
         return grid;

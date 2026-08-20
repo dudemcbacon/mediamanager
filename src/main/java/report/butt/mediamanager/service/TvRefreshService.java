@@ -28,6 +28,7 @@ import report.butt.mediamanager.client.MetadataResult;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.SonarrClient;
+import report.butt.mediamanager.client.TdarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.job.FfprobeScanJobRequest;
 import report.butt.mediamanager.model.TvChildRequest;
@@ -46,6 +47,7 @@ import report.butt.mediamanager.model.plex.PlexMetadataSupport;
 import report.butt.mediamanager.model.sonarr.Episode;
 import report.butt.mediamanager.model.sonarr.EpisodeFile;
 import report.butt.mediamanager.model.sonarr.Series;
+import report.butt.mediamanager.model.tdarr.TdarrFile;
 import report.butt.mediamanager.repository.TvChildRequestRepository;
 import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
@@ -72,6 +74,7 @@ public class TvRefreshService {
     private final SonarrClient sonarrClient;
     private final PlexClient plexClient;
     private final PlexCacheService plexCacheService;
+    private final TdarrClient tdarrClient;
 
     /** Prepended to Sonarr episode file paths before the local-filesystem existence/size check. Empty = check as-is. */
     private final String localFileSystemPrefix;
@@ -90,6 +93,7 @@ public class TvRefreshService {
             SonarrClient sonarrClient,
             PlexClient plexClient,
             PlexCacheService plexCacheService,
+            TdarrClient tdarrClient,
             @Value("${mediamanager.local-file-system-prefix:}") String localFileSystemPrefix,
             JobRequestScheduler jobRequestScheduler,
             FfprobeScanService ffprobeScanService) {
@@ -101,6 +105,7 @@ public class TvRefreshService {
         this.sonarrClient = sonarrClient;
         this.plexClient = plexClient;
         this.plexCacheService = plexCacheService;
+        this.tdarrClient = tdarrClient;
         this.localFileSystemPrefix = localFileSystemPrefix;
         this.jobRequestScheduler = jobRequestScheduler;
         this.ffprobeScanService = ffprobeScanService;
@@ -710,6 +715,28 @@ public class TvRefreshService {
                 LocalFileInspector.inspect(localFileSystemPrefix, episode.getSonarrPath());
         episode.setLocalFilePathAvailable(localFile.available());
         episode.setLocalFileSize(localFile.sizeBytes());
+        applyTdarrStatus(episode);
+    }
+
+    /**
+     * Records Tdarr's health-check and transcode verdicts for an available episode, looked up by the filename of its
+     * Plex path (set just above) — the episode-level counterpart of a movie's {@code plexMediaFilename}. Only available
+     * episodes are queried, since there is nothing for Tdarr to have processed otherwise. A miss or an unreachable
+     * Tdarr leaves the previously recorded values in place rather than blanking them.
+     */
+    private void applyTdarrStatus(TvEpisodeRequest episode) {
+        String plexPath = episode.getPlexPath();
+        if (!Objects.equals(episode.getOmbiAvailable(), true) || plexPath == null || plexPath.isBlank()) {
+            return;
+        }
+        TdarrFile tdarrFile = tdarrClient.findByPath(plexPath);
+        if (tdarrFile == null) {
+            return;
+        }
+        episode.setTdarrHealthCheck(tdarrFile.getHealthCheck());
+        episode.setTdarrTranscodeDecisionMaker(tdarrFile.getTranscodeDecisionMaker());
+        episode.setTdarrOldSizeGb(tdarrFile.getOldSize());
+        episode.setTdarrNewSizeGb(tdarrFile.getNewSize());
     }
 
     private void backfillTotalSeasons(OmbiTvRequest ombiTv) {

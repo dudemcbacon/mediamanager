@@ -144,6 +144,41 @@ final class RequestViewSupport {
         return icon;
     }
 
+    /**
+     * The Transcode cell for a Tdarr {@code TranscodeDecisionMaker} verdict: a colored icon for the statuses we
+     * recognise, and the raw verdict as text for anything else, so a status Tdarr adds later is surfaced rather than
+     * silently swallowed. A null or blank verdict — Tdarr hasn't reported on this file — is a red X, matching how
+     * {@link #codecIcon} marks an unknown codec.
+     */
+    static Component transcodeCell(@Nullable String verdict) {
+        if (verdict == null || verdict.isBlank()) {
+            return transcodeIcon(VaadinIcon.CLOSE, "var(--aura-red, red)", "No transcode data");
+        }
+        String status = verdict.trim();
+        return switch (status) {
+            case "Queued" -> transcodeIcon(VaadinIcon.FILE_REFRESH, "var(--aura-blue, blue)", status);
+            case "Transcode success", "Not required" ->
+                transcodeIcon(VaadinIcon.CHECK, "var(--aura-green, green)", status);
+            case "Transcode error" ->
+                transcodeIcon(VaadinIcon.EXCLAMATION_CIRCLE, "var(--aura-yellow, orange)", status);
+            default -> new Span(status);
+        };
+    }
+
+    /**
+     * An icon carrying its status as both hover text and accessible name. {@code role="img"} is required because
+     * {@code <vaadin-icon>} marks its inner SVG {@code aria-hidden}, so a bare {@code aria-label} wouldn't be announced
+     * — the same reason {@link #codecIcon} sets it.
+     */
+    private static Component transcodeIcon(VaadinIcon vaadinIcon, String color, String status) {
+        Icon icon = vaadinIcon.create();
+        icon.getStyle().set("color", color);
+        icon.getElement().setAttribute("role", "img");
+        icon.getElement().setAttribute("aria-label", status);
+        icon.getElement().setAttribute("title", status);
+        return icon;
+    }
+
     /** Latest validation result for a request id + validator name, or null when none is recorded. */
     static @Nullable Boolean latestResultValue(
             Map<Long, Map<String, Validation>> latestValidations, Long requestId, String validationName) {

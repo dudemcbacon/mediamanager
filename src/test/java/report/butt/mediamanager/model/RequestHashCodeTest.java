@@ -106,7 +106,11 @@ class RequestHashCodeTest {
         h = assertChanged(h, episode, () -> episode.setPlexMediaSize(123456L));
         h = assertChanged(h, episode, () -> episode.setLocalFilePathAvailable(true));
         h = assertChanged(h, episode, () -> episode.setLocalFileSize(123456L));
-        assertChanged(h, episode, () -> episode.setSonarrLastSearchTime(Instant.parse("2026-06-01T00:00:00Z")));
+        h = assertChanged(h, episode, () -> episode.setSonarrLastSearchTime(Instant.parse("2026-06-01T00:00:00Z")));
+        h = assertChanged(h, episode, () -> episode.setTdarrHealthCheck("Success"));
+        h = assertChanged(h, episode, () -> episode.setTdarrTranscodeDecisionMaker("Transcode success"));
+        h = assertChanged(h, episode, () -> episode.setTdarrOldSizeGb(0.283));
+        assertChanged(h, episode, () -> episode.setTdarrNewSizeGb(0.135));
     }
 
     @Test
@@ -130,7 +134,11 @@ class RequestHashCodeTest {
         h = assertChanged(h, movie, () -> movie.setRadarrLastSearchTime(Instant.parse("2026-06-01T00:00:00Z")));
         h = assertChanged(h, movie, () -> movie.setRadarrMovieFilePath("/movies/title/title.mkv"));
         h = assertChanged(h, movie, () -> movie.setLocalFilePathAvailable(true));
-        assertChanged(h, movie, () -> movie.setLocalFileSize(123456L));
+        h = assertChanged(h, movie, () -> movie.setLocalFileSize(123456L));
+        h = assertChanged(h, movie, () -> movie.setTdarrHealthCheck("Success"));
+        h = assertChanged(h, movie, () -> movie.setTdarrTranscodeDecisionMaker("Transcode success"));
+        h = assertChanged(h, movie, () -> movie.setTdarrOldSizeGb(0.283));
+        assertChanged(h, movie, () -> movie.setTdarrNewSizeGb(0.135));
     }
 
     private static int assertChanged(int previousHash, Object entity, Runnable mutation) {

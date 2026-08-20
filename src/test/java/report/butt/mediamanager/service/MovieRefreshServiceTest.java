@@ -30,6 +30,7 @@ import report.butt.mediamanager.client.MetadataResult;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.RadarrClient;
+import report.butt.mediamanager.client.TdarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.ombi.OmbiMovieRequest;
@@ -47,6 +48,7 @@ class MovieRefreshServiceTest {
     private final RadarrClient radarrClient = mock(RadarrClient.class);
     private final PlexClient plexClient = mock(PlexClient.class);
     private final PlexCacheService plexCacheService = mock(PlexCacheService.class);
+    private final TdarrClient tdarrClient = mock(TdarrClient.class);
     private final JobRequestScheduler jobRequestScheduler = mock(JobRequestScheduler.class);
     private final FfprobeScanService ffprobeScanService = mock(FfprobeScanService.class);
 
@@ -56,6 +58,7 @@ class MovieRefreshServiceTest {
             radarrClient,
             plexClient,
             plexCacheService,
+            tdarrClient,
             "",
             jobRequestScheduler,
             ffprobeScanService);
@@ -216,7 +219,8 @@ class MovieRefreshServiceTest {
     }
 
     private List<MovieRequest> captureSavedAll() {
-        @SuppressWarnings("unchecked") // Mockito's forClass can't carry the List<MovieRequest> generic; the cast is safe
+        @SuppressWarnings(
+                "unchecked") // Mockito's forClass can't carry the List<MovieRequest> generic; the cast is safe
         ArgumentCaptor<List<MovieRequest>> captor = ArgumentCaptor.forClass(List.class);
         verify(repository).saveAll(captor.capture());
         return captor.getValue();
@@ -292,6 +296,7 @@ class MovieRefreshServiceTest {
                 radarrClient,
                 plexClient,
                 plexCacheService,
+                tdarrClient,
                 tempDir.toString(),
                 jobRequestScheduler,
                 ffprobeScanService);
@@ -322,6 +327,7 @@ class MovieRefreshServiceTest {
                 radarrClient,
                 plexClient,
                 plexCacheService,
+                tdarrClient,
                 tempDir.toString(),
                 jobRequestScheduler,
                 ffprobeScanService);

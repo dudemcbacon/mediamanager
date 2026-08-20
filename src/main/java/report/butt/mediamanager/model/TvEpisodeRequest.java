@@ -66,6 +66,20 @@ public class TvEpisodeRequest {
 
     private @Nullable Instant sonarrLastSearchTime;
 
+    /** Tdarr's health-check verdict for the episode's media file, e.g. {@code Success} or {@code Queued}. */
+    private @Nullable String tdarrHealthCheck;
+
+    /**
+     * Tdarr's transcode verdict for the episode's media file, e.g. {@code Transcode success} or {@code Not required}.
+     */
+    private @Nullable String tdarrTranscodeDecisionMaker;
+
+    /** Pre-transcode size in GiB as reported by Tdarr (its own unit — not bytes, unlike {@link #localFileSize}). */
+    private @Nullable Double tdarrOldSizeGb;
+
+    /** Post-transcode size in GiB as reported by Tdarr; same unit as {@link #tdarrOldSizeGb}. */
+    private @Nullable Double tdarrNewSizeGb;
+
     @CreationTimestamp
     private @Nullable Instant createdAt;
 
@@ -201,6 +215,38 @@ public class TvEpisodeRequest {
         this.sonarrLastSearchTime = sonarrLastSearchTime;
     }
 
+    public @Nullable String getTdarrHealthCheck() {
+        return this.tdarrHealthCheck;
+    }
+
+    public void setTdarrHealthCheck(@Nullable String tdarrHealthCheck) {
+        this.tdarrHealthCheck = tdarrHealthCheck;
+    }
+
+    public @Nullable String getTdarrTranscodeDecisionMaker() {
+        return this.tdarrTranscodeDecisionMaker;
+    }
+
+    public void setTdarrTranscodeDecisionMaker(@Nullable String tdarrTranscodeDecisionMaker) {
+        this.tdarrTranscodeDecisionMaker = tdarrTranscodeDecisionMaker;
+    }
+
+    public @Nullable Double getTdarrOldSizeGb() {
+        return this.tdarrOldSizeGb;
+    }
+
+    public void setTdarrOldSizeGb(@Nullable Double tdarrOldSizeGb) {
+        this.tdarrOldSizeGb = tdarrOldSizeGb;
+    }
+
+    public @Nullable Double getTdarrNewSizeGb() {
+        return this.tdarrNewSizeGb;
+    }
+
+    public void setTdarrNewSizeGb(@Nullable Double tdarrNewSizeGb) {
+        this.tdarrNewSizeGb = tdarrNewSizeGb;
+    }
+
     public @Nullable Instant getCreatedAt() {
         return this.createdAt;
     }
@@ -225,7 +271,11 @@ public class TvEpisodeRequest {
                 plexMediaSize,
                 localFilePathAvailable,
                 localFileSize,
-                sonarrLastSearchTime);
+                sonarrLastSearchTime,
+                tdarrHealthCheck,
+                tdarrTranscodeDecisionMaker,
+                tdarrOldSizeGb,
+                tdarrNewSizeGb);
     }
 
     @Override

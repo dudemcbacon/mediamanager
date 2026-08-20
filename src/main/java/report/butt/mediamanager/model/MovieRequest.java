@@ -47,6 +47,18 @@ public class MovieRequest extends Request {
     /** Size in bytes of the local file, when {@link #localFilePathAvailable} is true; otherwise null. */
     private @Nullable Long localFileSize;
 
+    /** Tdarr's health-check verdict for the media file, e.g. {@code Success} or {@code Queued}. */
+    private @Nullable String tdarrHealthCheck;
+
+    /** Tdarr's transcode verdict for the media file, e.g. {@code Transcode success} or {@code Not required}. */
+    private @Nullable String tdarrTranscodeDecisionMaker;
+
+    /** Pre-transcode size in GiB as reported by Tdarr (its own unit — not bytes, unlike {@link #localFileSize}). */
+    private @Nullable Double tdarrOldSizeGb;
+
+    /** Post-transcode size in GiB as reported by Tdarr; same unit as {@link #tdarrOldSizeGb}. */
+    private @Nullable Double tdarrNewSizeGb;
+
     MovieRequest() {}
 
     public MovieRequest(
@@ -174,6 +186,38 @@ public class MovieRequest extends Request {
         this.localFileSize = localFileSize;
     }
 
+    public @Nullable String getTdarrHealthCheck() {
+        return this.tdarrHealthCheck;
+    }
+
+    public void setTdarrHealthCheck(@Nullable String tdarrHealthCheck) {
+        this.tdarrHealthCheck = tdarrHealthCheck;
+    }
+
+    public @Nullable String getTdarrTranscodeDecisionMaker() {
+        return this.tdarrTranscodeDecisionMaker;
+    }
+
+    public void setTdarrTranscodeDecisionMaker(@Nullable String tdarrTranscodeDecisionMaker) {
+        this.tdarrTranscodeDecisionMaker = tdarrTranscodeDecisionMaker;
+    }
+
+    public @Nullable Double getTdarrOldSizeGb() {
+        return this.tdarrOldSizeGb;
+    }
+
+    public void setTdarrOldSizeGb(@Nullable Double tdarrOldSizeGb) {
+        this.tdarrOldSizeGb = tdarrOldSizeGb;
+    }
+
+    public @Nullable Double getTdarrNewSizeGb() {
+        return this.tdarrNewSizeGb;
+    }
+
+    public void setTdarrNewSizeGb(@Nullable Double tdarrNewSizeGb) {
+        this.tdarrNewSizeGb = tdarrNewSizeGb;
+    }
+
     @Override
     public boolean isAvailable() {
         return Objects.equals(this.radarrHasFile, true)
@@ -216,7 +260,11 @@ public class MovieRequest extends Request {
                 getRadarrOriginalLanguage(),
                 getRadarrQualityProfile(),
                 getLocalFilePathAvailable(),
-                getLocalFileSize());
+                getLocalFileSize(),
+                getTdarrHealthCheck(),
+                getTdarrTranscodeDecisionMaker(),
+                getTdarrOldSizeGb(),
+                getTdarrNewSizeGb());
     }
 
     @Override

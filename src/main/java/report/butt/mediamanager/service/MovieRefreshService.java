@@ -21,6 +21,7 @@ import report.butt.mediamanager.client.MetadataResult;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.RadarrClient;
+import report.butt.mediamanager.client.TdarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.job.FfprobeScanJobRequest;
 import report.butt.mediamanager.model.MovieRequest;
@@ -28,6 +29,7 @@ import report.butt.mediamanager.model.ombi.OmbiMovieRequest;
 import report.butt.mediamanager.model.plex.PlexMetadata;
 import report.butt.mediamanager.model.plex.PlexMetadataSupport;
 import report.butt.mediamanager.model.radarr.Movie;
+import report.butt.mediamanager.model.tdarr.TdarrFile;
 import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.util.DateTimeUtils;
 import report.butt.mediamanager.util.LocalFileInspector;
@@ -43,6 +45,7 @@ public class MovieRefreshService {
     private final RadarrClient radarrClient;
     private final PlexClient plexClient;
     private final PlexCacheService plexCacheService;
+    private final TdarrClient tdarrClient;
 
     /** Prepended to Radarr file paths before the local-filesystem existence/size check. Empty = check as-is. */
     private final String localFileSystemPrefix;
@@ -50,12 +53,15 @@ public class MovieRefreshService {
     private final JobRequestScheduler jobRequestScheduler;
     private final FfprobeScanService ffprobeScanService;
 
+    // Spring constructor injection; the parameter count reflects injected collaborators, not a design smell.
+    @SuppressWarnings("TooManyParameters")
     public MovieRefreshService(
             MovieRequestRepository repository,
             OmbiClient ombiClient,
             RadarrClient radarrClient,
             PlexClient plexClient,
             PlexCacheService plexCacheService,
+            TdarrClient tdarrClient,
             @Value("${mediamanager.local-file-system-prefix:}") String localFileSystemPrefix,
             JobRequestScheduler jobRequestScheduler,
             FfprobeScanService ffprobeScanService) {
@@ -64,6 +70,7 @@ public class MovieRefreshService {
         this.radarrClient = radarrClient;
         this.plexClient = plexClient;
         this.plexCacheService = plexCacheService;
+        this.tdarrClient = tdarrClient;
         this.localFileSystemPrefix = localFileSystemPrefix;
         this.jobRequestScheduler = jobRequestScheduler;
         this.ffprobeScanService = ffprobeScanService;
@@ -255,7 +262,29 @@ public class MovieRefreshService {
                             : radarrMovie.getMovieFile().getPath());
             applyLocalFileStatus(movieRequest);
             applyPlexUpdates(movieRequest, radarrMovie, plexByTmdb);
+            applyTdarrStatus(movieRequest);
         }
+    }
+
+    /**
+     * Records Tdarr's health-check and transcode verdicts for an available movie, looked up by the filename of its Plex
+     * media file (set just above by {@link #applyPlexUpdates}). Only available movies are queried — there is nothing
+     * for Tdarr to have processed otherwise. A miss or an unreachable Tdarr leaves the previously recorded values in
+     * place rather than blanking them.
+     */
+    private void applyTdarrStatus(MovieRequest movieRequest) {
+        String plexMediaFilename = movieRequest.getPlexMediaFilename();
+        if (!movieRequest.isAvailable() || plexMediaFilename == null || plexMediaFilename.isBlank()) {
+            return;
+        }
+        TdarrFile tdarrFile = tdarrClient.findByPath(plexMediaFilename);
+        if (tdarrFile == null) {
+            return;
+        }
+        movieRequest.setTdarrHealthCheck(tdarrFile.getHealthCheck());
+        movieRequest.setTdarrTranscodeDecisionMaker(tdarrFile.getTranscodeDecisionMaker());
+        movieRequest.setTdarrOldSizeGb(tdarrFile.getOldSize());
+        movieRequest.setTdarrNewSizeGb(tdarrFile.getNewSize());
     }
 
     /**

@@ -157,5 +157,17 @@ class MovieRequestTest {
 
         m.setPlexMediaDuration(7200L);
         assertEquals(7200L, m.getPlexMediaDuration());
+
+        m.setTdarrHealthCheck("Success");
+        assertEquals("Success", m.getTdarrHealthCheck());
+
+        m.setTdarrTranscodeDecisionMaker("Transcode success");
+        assertEquals("Transcode success", m.getTdarrTranscodeDecisionMaker());
+
+        m.setTdarrOldSizeGb(0.28345867712050676);
+        assertEquals(0.28345867712050676, m.getTdarrOldSizeGb());
+
+        m.setTdarrNewSizeGb(0.1351956408470869);
+        assertEquals(0.1351956408470869, m.getTdarrNewSizeGb());
     }
 }

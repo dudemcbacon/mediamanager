@@ -70,6 +70,18 @@ class TvEpisodeRequestTest {
         ep.setSonarrLastSearchTime(t);
         assertEquals(t, ep.getSonarrLastSearchTime());
 
+        ep.setTdarrHealthCheck("Success");
+        assertEquals("Success", ep.getTdarrHealthCheck());
+
+        ep.setTdarrTranscodeDecisionMaker("Transcode success");
+        assertEquals("Transcode success", ep.getTdarrTranscodeDecisionMaker());
+
+        ep.setTdarrOldSizeGb(0.28345867712050676);
+        assertEquals(0.28345867712050676, ep.getTdarrOldSizeGb());
+
+        ep.setTdarrNewSizeGb(0.1351956408470869);
+        assertEquals(0.1351956408470869, ep.getTdarrNewSizeGb());
+
         TvSeasonRequest s2 = season();
         ep.setTvSeasonRequest(s2);
         assertEquals(s2, ep.getTvSeasonRequest());

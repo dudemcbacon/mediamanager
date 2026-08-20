@@ -212,6 +212,16 @@ public class MovieRequestView extends VerticalLayout {
                                 + " check: HEVC or AV1. Yellow exclamation mark: any other codec. Red X: no codec is"
                                 + " known (never scanned, or the scan found no video stream)."))
                 .setAutoWidth(true);
+        grid.addColumn(new ComponentRenderer<>(
+                        mr -> RequestViewSupport.transcodeCell(mr.getTdarrTranscodeDecisionMaker())))
+                .setHeader(RequestViewSupport.headerWithTooltip(
+                        "Transcode",
+                        "Tdarr Transcode Status",
+                        "Tdarr's transcode verdict for the media file, recorded on each refresh. Blue refresh icon:"
+                                + " queued. Green check: transcode succeeded, or wasn't required. Yellow exclamation"
+                                + " mark: transcode error. Red X: no status is known (Tdarr hasn't reported on this"
+                                + " file). Any other status is shown as text."))
+                .setAutoWidth(true);
 
         grid.setItemDetailsRenderer(new ComponentRenderer<>(MovieRequestView::createDetails));
         grid.setDetailsVisibleOnClick(true);
