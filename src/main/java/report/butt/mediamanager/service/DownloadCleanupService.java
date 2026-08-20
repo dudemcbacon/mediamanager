@@ -89,7 +89,8 @@ public class DownloadCleanupService {
                     log.info("Deleting Radarr queue item {} ({})", record.getId(), record.getDownloadId());
                     radarrClient.deleteQueueItem(Objects.requireNonNull(record.getId()));
                     torrentsDeleted++;
-                    deletedHashes.add(Objects.requireNonNull(record.getDownloadId()).toLowerCase(Locale.ROOT));
+                    deletedHashes.add(
+                            Objects.requireNonNull(record.getDownloadId()).toLowerCase(Locale.ROOT));
                     if (record.getMovieId() != null) {
                         movieIds.add(record.getMovieId());
                     }
@@ -106,7 +107,8 @@ public class DownloadCleanupService {
                     log.info("Deleting Sonarr queue item {} ({})", record.getId(), record.getDownloadId());
                     sonarrClient.deleteQueueItem(Objects.requireNonNull(record.getId()));
                     torrentsDeleted++;
-                    deletedHashes.add(Objects.requireNonNull(record.getDownloadId()).toLowerCase(Locale.ROOT));
+                    deletedHashes.add(
+                            Objects.requireNonNull(record.getDownloadId()).toLowerCase(Locale.ROOT));
                     if (record.getSeriesId() != null) {
                         seriesIds.add(record.getSeriesId());
                     }

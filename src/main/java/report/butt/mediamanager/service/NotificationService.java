@@ -286,7 +286,10 @@ public class NotificationService {
                 .toList();
         removedDownloadRepository.deleteAllInBatch();
         removedDownloadRepository.saveAll(removed);
-        log.info("Auto-removed {} stuck download(s) at or above stuckness {}", removed.size(), stucknessRemovalThreshold);
+        log.info(
+                "Auto-removed {} stuck download(s) at or above stuckness {}",
+                removed.size(),
+                stucknessRemovalThreshold);
 
         return new NotificationSnapshot(
                 detected.downloads().stream()
@@ -310,7 +313,11 @@ public class NotificationService {
 
     /** A download eligible for auto-removal: the fields needed to delete it and record what was removed. */
     private record Removable(
-            String hash, @Nullable String name, double progress, double stuckness, @Nullable String linkedRequest) {}
+            String hash,
+            @Nullable String name,
+            double progress,
+            double stuckness,
+            @Nullable String linkedRequest) {}
 
     // --- detection ---
 
@@ -342,7 +349,8 @@ public class NotificationService {
                             request == null ? null : request.display(),
                             request == null ? null : request.link(),
                             e.getKey(),
-                            stucknessOf(t, now, seedlessSinceByHash.get(e.getKey().toLowerCase(Locale.ROOT))));
+                            stucknessOf(
+                                    t, now, seedlessSinceByHash.get(e.getKey().toLowerCase(Locale.ROOT))));
                 })
                 .sorted(Comparator.comparingDouble(Download::stuckness)
                         .reversed()
@@ -635,7 +643,9 @@ public class NotificationService {
                 s.downloads().stream().map(NotificationService::downloadLine).toList());
         lines.put(
                 Category.REMOVED_DOWNLOAD,
-                s.removedDownloads().stream().map(NotificationService::removedLine).toList());
+                s.removedDownloads().stream()
+                        .map(NotificationService::removedLine)
+                        .toList());
         lines.put(
                 Category.OVERDUE_MOVIE,
                 s.overdueMovies().stream()

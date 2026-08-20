@@ -188,9 +188,7 @@ public class NotificationsView extends VerticalLayout {
             return "Notifications are disabled.";
         }
         ZonedDateTime next = CronExpression.parse(notificationsCron).next(ZonedDateTime.now(ZoneId.systemDefault()));
-        return next == null
-                ? "No notifications scheduled."
-                : "Next notification: " + DATE_TIME.format(next);
+        return next == null ? "No notifications scheduled." : "Next notification: " + DATE_TIME.format(next);
     }
 
     /**
@@ -248,8 +246,8 @@ public class NotificationsView extends VerticalLayout {
     }
 
     /**
-     * Sizes the downloads grid to its row count: small lists size to content (no scrollbar, like the other sections);
-     * a large list switches to a fixed-height, lazily-loaded scroller so it stays under Vaadin's single-fetch page cap
+     * Sizes the downloads grid to its row count: small lists size to content (no scrollbar, like the other sections); a
+     * large list switches to a fixed-height, lazily-loaded scroller so it stays under Vaadin's single-fetch page cap
      * and doesn't render thousands of DOM rows. See {@link #DOWNLOADS_ROW_CAP}.
      */
     private void sizeDownloadsGrid(int count) {
@@ -395,7 +393,8 @@ public class NotificationsView extends VerticalLayout {
                 .setAutoWidth(true)
                 .setFlexGrow(1)
                 .setSortable(true)
-                .setComparator(Comparator.comparing(Download::name, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+                .setComparator(
+                        Comparator.comparing(Download::name, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
         grid.addColumn(d -> percent(d.progress()))
                 .setHeader("Progress")
                 .setAutoWidth(true)
@@ -415,8 +414,8 @@ public class NotificationsView extends VerticalLayout {
                 .setHeader("Request")
                 .setAutoWidth(true)
                 .setSortable(true)
-                .setComparator(
-                        Comparator.comparing(Download::linkedRequest, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+                .setComparator(Comparator.comparing(
+                        Download::linkedRequest, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
         grid.addColumn(RequestViewSupport.linkRenderer(d -> ombiHref(d.link())))
                 .setHeader("Ombi")
                 .setAutoWidth(true);

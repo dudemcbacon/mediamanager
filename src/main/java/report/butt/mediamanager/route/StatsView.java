@@ -69,8 +69,7 @@ public class StatsView extends VerticalLayout {
 
     // Internal data carrier; its collection components are never mutated after construction.
     @SuppressWarnings("ImmutableMemberCollection")
-    private record StatsSnapshot(
-            Leaderboards boards, List<CodecCount> movieCodecs, List<CodecCount> episodeCodecs) {}
+    private record StatsSnapshot(Leaderboards boards, List<CodecCount> movieCodecs, List<CodecCount> episodeCodecs) {}
 
     private final MovieRequestRepository movieRequestRepository;
     private final TvRequestRepository tvRequestRepository;
@@ -163,8 +162,7 @@ public class StatsView extends VerticalLayout {
                 boards,
                 codecCounts(movieIds, ffprobeScanService.latestMovieVideoCodecs()),
                 codecCounts(
-                        tvEpisodeRequestRepository.findAllEpisodeIds(),
-                        ffprobeScanService.latestEpisodeVideoCodecs()));
+                        tvEpisodeRequestRepository.findAllEpisodeIds(), ffprobeScanService.latestEpisodeVideoCodecs()));
     }
 
     private Map<String, Long> tvBytesByUser() {
