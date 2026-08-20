@@ -55,4 +55,16 @@ public interface TvEpisodeRequestRepository extends JpaRepository<TvEpisodeReque
     /** Ids of every episode in the library, for stats that count episodes without loading the entities. */
     @Query("SELECT e.id FROM TvEpisodeRequest e")
     List<Long> findAllEpisodeIds();
+
+    /**
+     * Episode counts grouped by Tdarr transcode verdict, for the stats table. Each row is {@code [String verdict, Long
+     * count]}; a null verdict means Tdarr hasn't reported on that episode's file. Aggregated in the database rather
+     * than by loading every episode entity, for the same reason {@link #findAllEpisodeIds()} exists.
+     */
+    @Query("""
+            SELECT e.tdarrTranscodeDecisionMaker, COUNT(e)
+            FROM TvEpisodeRequest e
+            GROUP BY e.tdarrTranscodeDecisionMaker
+            """)
+    List<Object[]> countEpisodesByTdarrTranscodeDecisionMaker();
 }

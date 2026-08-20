@@ -32,9 +32,9 @@ import report.butt.mediamanager.route.RequestViewSupport.Section;
 import report.butt.mediamanager.service.FfprobeScanService;
 
 /**
- * Stats dashboard: requester leaderboards and the video-codec breakdown of the movie and TV episode libraries (and room
- * for any future stats). Everything loads in one pass asynchronously on attach so the page renders immediately; results
- * are pushed back via server push (see {@code @Push}).
+ * Stats dashboard: requester leaderboards, plus the video-codec and Tdarr transcode-status breakdowns of the movie and
+ * TV episode libraries (and room for any future stats). Everything loads in one pass asynchronously on attach so the
+ * page renders immediately; results are pushed back via server push (see {@code @Push}).
  */
 @Route("stats")
 @RolesAllowed("ADMIN")
@@ -79,7 +79,8 @@ public class StatsView extends VerticalLayout {
             Leaderboards boards,
             List<CodecCount> movieCodecs,
             List<CodecCount> episodeCodecs,
-            List<TranscodeCount> movieTranscodes) {}
+            List<TranscodeCount> movieTranscodes,
+            List<TranscodeCount> episodeTranscodes) {}
 
     private final MovieRequestRepository movieRequestRepository;
     private final TvRequestRepository tvRequestRepository;
@@ -95,6 +96,7 @@ public class StatsView extends VerticalLayout {
     private final Section<CodecCount> movieCodecTable;
     private final Section<CodecCount> episodeCodecTable;
     private final Section<TranscodeCount> movieTranscodeTable;
+    private final Section<TranscodeCount> episodeTranscodeTable;
 
     public StatsView(
             MovieRequestRepository movieRequestRepository,
@@ -113,6 +115,7 @@ public class StatsView extends VerticalLayout {
         movieCodecTable = new Section<>("Movie codecs", codecGrid("Movies"));
         episodeCodecTable = new Section<>("TV episode codecs", codecGrid("Episodes"));
         movieTranscodeTable = new Section<>("Movie transcode status", transcodeGrid("Movies"));
+        episodeTranscodeTable = new Section<>("TV episode transcode status", transcodeGrid("Episodes"));
 
         setWidthFull();
         add(new H2("Stats"));
@@ -126,7 +129,7 @@ public class StatsView extends VerticalLayout {
         codecs.setWidthFull();
         add(codecs);
         add(new H3("Transcode"));
-        var transcodes = new HorizontalLayout(movieTranscodeTable.layout());
+        var transcodes = new HorizontalLayout(movieTranscodeTable.layout(), episodeTranscodeTable.layout());
         transcodes.setWidthFull();
         add(transcodes);
     }
@@ -153,6 +156,7 @@ public class StatsView extends VerticalLayout {
                             movieCodecTable.set(stats.movieCodecs());
                             episodeCodecTable.set(stats.episodeCodecs());
                             movieTranscodeTable.set(stats.movieTranscodes());
+                            episodeTranscodeTable.set(stats.episodeTranscodes());
                         }
                     } finally {
                         statsLoading.set(false);
@@ -180,8 +184,9 @@ public class StatsView extends VerticalLayout {
                 codecCounts(movieIds, ffprobeScanService.latestMovieVideoCodecs()),
                 codecCounts(
                         tvEpisodeRequestRepository.findAllEpisodeIds(), ffprobeScanService.latestEpisodeVideoCodecs()),
-                // Reuses the movie list already read above, so the transcode table adds no query of its own.
-                transcodeCounts(movies));
+                // Reuses the movie list already read above, so the movie transcode table adds no query of its own.
+                transcodeCounts(movies),
+                episodeTranscodeCounts(tvEpisodeRequestRepository.countEpisodesByTdarrTranscodeDecisionMaker()));
     }
 
     private Map<String, Long> tvBytesByUser() {
@@ -260,12 +265,30 @@ public class StatsView extends VerticalLayout {
      * as {@code Transcode success}, and Tdarr reports each one consistently, so there is no casing split to collapse.
      */
     static List<TranscodeCount> transcodeCounts(List<? extends MovieRequest> movies) {
-        Map<String, Long> counts = new HashMap<>();
+        Map<String, Long> tally = new HashMap<>();
         for (MovieRequest movie : movies) {
-            counts.merge(transcodeKey(movie.getTdarrTranscodeDecisionMaker()), 1L, Long::sum);
+            tally.merge(transcodeKey(movie.getTdarrTranscodeDecisionMaker()), 1L, Long::sum);
         }
-        int total = movies.size();
-        return counts.entrySet().stream()
+        return toTranscodeCounts(tally, movies.size());
+    }
+
+    /**
+     * The same aggregation for TV episodes, from verdict counts already grouped by the database (see
+     * {@code TvEpisodeRequestRepository.countEpisodesByTdarrTranscodeDecisionMaker}) so the whole episode library
+     * needn't be loaded. Each row is {@code [String verdict, Long count]}, with a null verdict meaning no Tdarr data.
+     */
+    static List<TranscodeCount> episodeTranscodeCounts(List<Object[]> groupedRows) {
+        Map<String, Long> tally = new HashMap<>();
+        for (Object[] row : groupedRows) {
+            tally.merge(transcodeKey((String) row[0]), ((Number) row[1]).longValue(), Long::sum);
+        }
+        long total = tally.values().stream().mapToLong(Long::longValue).sum();
+        return toTranscodeCounts(tally, total);
+    }
+
+    /** Turns a verdict-to-count tally into display rows: share of the library, most-common first. */
+    private static List<TranscodeCount> toTranscodeCounts(Map<String, Long> tally, long total) {
+        return tally.entrySet().stream()
                 .map(e -> new TranscodeCount(e.getKey(), e.getValue(), total == 0 ? 0.0 : e.getValue() * 100.0 / total))
                 .sorted(Comparator.comparingLong(TranscodeCount::count)
                         .reversed()

@@ -128,6 +128,17 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
                                 + " so show and season rows show a dash."))
                 .setAutoWidth(true);
 
+        addComponentColumn(TvHierarchyTreeGrid::transcodeComponent)
+                .setHeader(RequestViewSupport.headerWithTooltip(
+                        "Transcode",
+                        "Tdarr Transcode Status",
+                        "Tdarr's transcode verdict for an episode's media file, recorded on each refresh. Blue refresh"
+                                + " icon: queued. Green check: transcode succeeded, or wasn't required. Yellow"
+                                + " exclamation mark: transcode error. Red X: no status is known (Tdarr hasn't reported"
+                                + " on this file). Any other status is shown as text. A verdict is per-file, so show and"
+                                + " season rows show a dash."))
+                .setAutoWidth(true);
+
         // Click an episode (a leaf row) to expand a field dump, mirroring the movie grid's row details. Parent rows
         // (child/season) expand their children via the hierarchy toggle instead, so they carry no details.
         setItemDetailsRenderer(new ComponentRenderer<>(TvHierarchyTreeGrid::rowDetails));
@@ -371,6 +382,19 @@ class TvHierarchyTreeGrid extends TreeGrid<TvHierarchyRow> {
         return switch (row) {
             case EpisodeRow(TvEpisodeRequest episode) ->
                 RequestViewSupport.codecIcon(episodeVideoCodecs.get(episode.getId()));
+            case ChildRow ignored -> new Span("—");
+            case SeasonRow ignored -> new Span("—");
+        };
+    }
+
+    /**
+     * Transcode cell: the shared Transcode icon for an episode, or a dash for show and season rows. Like the codec, a
+     * Tdarr verdict belongs to a single file, so there is nothing meaningful to roll up over a season's episodes.
+     */
+    private static Component transcodeComponent(TvHierarchyRow row) {
+        return switch (row) {
+            case EpisodeRow(TvEpisodeRequest episode) ->
+                RequestViewSupport.transcodeCell(episode.getTdarrTranscodeDecisionMaker());
             case ChildRow ignored -> new Span("—");
             case SeasonRow ignored -> new Span("—");
         };
