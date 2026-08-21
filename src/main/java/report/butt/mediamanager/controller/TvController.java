@@ -27,6 +27,7 @@ import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.SonarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.job.FfprobeScanJobRequest;
+import report.butt.mediamanager.job.TdarrRefreshJobRequest;
 import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.TvChildRequest;
@@ -46,6 +47,7 @@ import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
 import report.butt.mediamanager.service.FfprobeScanService;
 import report.butt.mediamanager.service.RequestAdminService;
+import report.butt.mediamanager.service.TdarrRefreshService;
 import report.butt.mediamanager.service.TvRefreshService;
 import report.butt.mediamanager.service.ValidatorService;
 import tools.jackson.core.JacksonException;
@@ -72,6 +74,7 @@ public class TvController {
     private final ValidatorService validatorService;
     private final RequestAdminService requestAdminService;
     private final FfprobeScanService ffprobeScanService;
+    private final TdarrRefreshService tdarrRefreshService;
     private final JobRequestScheduler jobRequestScheduler;
 
     // Spring constructor injection; the parameter count reflects injected collaborators, not a design smell.
@@ -89,6 +92,7 @@ public class TvController {
             ValidatorService validatorService,
             RequestAdminService requestAdminService,
             FfprobeScanService ffprobeScanService,
+            TdarrRefreshService tdarrRefreshService,
             JobRequestScheduler jobRequestScheduler) {
         this.tvRequestRepository = tvRequestRepository;
         this.tvChildRequestRepository = tvChildRequestRepository;
@@ -101,6 +105,7 @@ public class TvController {
         this.validatorService = validatorService;
         this.requestAdminService = requestAdminService;
         this.ffprobeScanService = ffprobeScanService;
+        this.tdarrRefreshService = tdarrRefreshService;
         this.jobRequestScheduler = jobRequestScheduler;
     }
 
@@ -396,6 +401,24 @@ public class TvController {
     public void scanWithFfprobe(Long episodeId) {
         log.info("Queuing FFprobe scan for tv episode request {}", episodeId);
         jobRequestScheduler.enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.EPISODE, episodeId));
+    }
+
+    /**
+     * Queues one JobRunr job per available episode to read its Tdarr status. Deliberately separate from
+     * {@link #refreshAll()}: Tdarr has no bulk endpoint, so a sweep costs one HTTP call per file and is far too slow to
+     * run on every refresh. Returns immediately with the number of jobs queued; the work happens on background workers,
+     * concurrency capped by {@code jobrunr.background-job-server.worker-count}.
+     *
+     * @return how many episodes were queued
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    public int refreshTdarrAll() {
+        List<Long> ids = tdarrRefreshService.refreshableEpisodeIds();
+        for (Long id : ids) {
+            jobRequestScheduler.enqueue(new TdarrRefreshJobRequest(TdarrRefreshJobRequest.MediaType.EPISODE, id));
+        }
+        log.info("Queued Tdarr refresh for {} episode(s)", ids.size());
+        return ids.size();
     }
 
     /**

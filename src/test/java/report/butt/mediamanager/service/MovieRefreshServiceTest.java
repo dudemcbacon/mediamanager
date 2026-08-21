@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,7 +31,6 @@ import report.butt.mediamanager.client.MetadataResult;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.RadarrClient;
-import report.butt.mediamanager.client.TdarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.ombi.OmbiMovieRequest;
@@ -48,7 +48,6 @@ class MovieRefreshServiceTest {
     private final RadarrClient radarrClient = mock(RadarrClient.class);
     private final PlexClient plexClient = mock(PlexClient.class);
     private final PlexCacheService plexCacheService = mock(PlexCacheService.class);
-    private final TdarrClient tdarrClient = mock(TdarrClient.class);
     private final JobRequestScheduler jobRequestScheduler = mock(JobRequestScheduler.class);
     private final FfprobeScanService ffprobeScanService = mock(FfprobeScanService.class);
 
@@ -58,7 +57,6 @@ class MovieRefreshServiceTest {
             radarrClient,
             plexClient,
             plexCacheService,
-            tdarrClient,
             "",
             jobRequestScheduler,
             ffprobeScanService);
@@ -104,6 +102,38 @@ class MovieRefreshServiceTest {
         // The service only calls saveAll when toSave is non-empty
         verify(repository, never()).saveAll(anyList());
         verify(plexCacheService).cleanExcept(any(), any());
+    }
+
+    /**
+     * A normal refresh must not touch Tdarr — it has no bulk endpoint, so reading it per file made a refresh take
+     * hours. Tdarr data now changes only via the "Refresh Tdarr" button ({@code TdarrRefreshService}) or the
+     * transcode-complete webhook, so an ordinary refresh must neither write nor clear these fields.
+     */
+    @Test
+    void refreshAllLeavesTdarrFieldsUntouched() {
+        OmbiMovieRequest ombi = ombiMovie(1, "Existing Movie", 100);
+        var existing = new MovieRequest("Existing Movie", 100, false, 1, "Common.ProcessingRequest");
+        existing.setId(5L);
+        existing.setTdarrHealthCheck("Success");
+        existing.setTdarrTranscodeDecisionMaker("Transcode success");
+        existing.setTdarrOldSizeGb(0.2834);
+        existing.setTdarrNewSizeGb(0.1351);
+        Instant stampedBefore = Instant.parse("2026-08-01T00:00:00Z");
+        existing.setTdarrLastUpdated(stampedBefore);
+
+        when(ombiClient.getMovies()).thenReturn(List.of(ombi));
+        when(radarrClient.getMovies()).thenReturn(List.of());
+        when(radarrClient.getQualityProfilesById()).thenReturn(Map.of());
+        when(plexClient.getAllMoviesIndexedByTmdb()).thenReturn(Map.of());
+        when(repository.findByOmbiRequestIdIn(any())).thenReturn(List.of(existing));
+
+        service.refreshAll();
+
+        assertEquals("Success", existing.getTdarrHealthCheck());
+        assertEquals("Transcode success", existing.getTdarrTranscodeDecisionMaker());
+        assertEquals(0.2834, existing.getTdarrOldSizeGb());
+        assertEquals(0.1351, existing.getTdarrNewSizeGb());
+        assertEquals(stampedBefore, existing.getTdarrLastUpdated(), "refresh must not re-stamp Tdarr freshness");
     }
 
     @Test
@@ -296,7 +326,6 @@ class MovieRefreshServiceTest {
                 radarrClient,
                 plexClient,
                 plexCacheService,
-                tdarrClient,
                 tempDir.toString(),
                 jobRequestScheduler,
                 ffprobeScanService);
@@ -327,7 +356,6 @@ class MovieRefreshServiceTest {
                 radarrClient,
                 plexClient,
                 plexCacheService,
-                tdarrClient,
                 tempDir.toString(),
                 jobRequestScheduler,
                 ffprobeScanService);

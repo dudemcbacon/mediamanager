@@ -346,10 +346,20 @@ public class TvRequestView extends VerticalLayout {
                 "Search All Seasons", e -> runBulkAction("Searching all seasons…", tvController::searchAllSeasons));
         var searchAllEpisodes = new Button(
                 "Search All Episodes", e -> runBulkAction("Searching all episodes…", tvController::searchAllEpisodes));
+        // Separate from "Refresh All" on purpose: Tdarr has no bulk endpoint, so this is one HTTP call per episode and
+        // runs as queued background jobs rather than inline with the rest of a refresh.
+        var refreshTdarr = new Button("Refresh Tdarr", e -> queueTdarrRefresh());
+        refreshTdarr.setVisible(admin);
         var testNotifications = new Button("Test Notifications", e -> runNotificationCheck());
         testNotifications.setVisible(admin);
         bulkButtons.addAll(List.of(
-                refreshAll, validateAll, searchAllSeries, searchAllSeasons, searchAllEpisodes, testNotifications));
+                refreshAll,
+                validateAll,
+                searchAllSeries,
+                searchAllSeasons,
+                searchAllEpisodes,
+                refreshTdarr,
+                testNotifications));
         showValidCheckbox.addValueChangeListener(e -> applyFilters());
         showStaleCheckbox.addValueChangeListener(e -> applyFilters());
         showWithNotesCheckbox.addValueChangeListener(e -> applyFilters());
@@ -369,6 +379,7 @@ public class TvRequestView extends VerticalLayout {
                 searchAllSeries,
                 searchAllSeasons,
                 searchAllEpisodes,
+                refreshTdarr,
                 testNotifications,
                 totalLabel);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
@@ -419,6 +430,30 @@ public class TvRequestView extends VerticalLayout {
                             queued[0] == 0
                                     ? "No episodes with a local file to scan for \"" + mr.getTitle() + "\"."
                                     : "Queued " + queued[0] + " FFprobe scan(s) for \"" + mr.getTitle() + "\".");
+                },
+                uiTaskExecutor));
+    }
+
+    /**
+     * Queues a Tdarr status read for every available episode (one JobRunr job each), off the UI thread since a large
+     * library means many enqueues, then reports how many were queued. The reads themselves happen on background
+     * workers, so the button returns as soon as the queue is filled rather than waiting out a call per episode.
+     */
+    private void queueTdarrRefresh() {
+        int[] queued = {-1};
+        getUI().ifPresent(ui -> RequestViewSupport.runAsync(
+                ui,
+                log,
+                "Queuing Tdarr refresh…",
+                () -> queued[0] = tvController.refreshTdarrAll(),
+                () -> {
+                    if (queued[0] < 0) {
+                        return; // the queueing failed; runAsync already surfaced the error
+                    }
+                    Notification.show(
+                            queued[0] == 0
+                                    ? "No available episodes to refresh from Tdarr."
+                                    : "Queued Tdarr refresh for " + queued[0] + " episode(s).");
                 },
                 uiTaskExecutor));
     }

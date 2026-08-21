@@ -315,9 +315,13 @@ public class MovieRequestView extends VerticalLayout {
         var validateAll =
                 new Button("Validate All", e -> runBulkAction("Validating all…", movieController::validateAll));
         var searchAll = new Button("Search All", e -> runBulkAction("Searching all…", movieController::searchAll));
+        // Separate from "Refresh All" on purpose: Tdarr has no bulk endpoint, so this is one HTTP call per movie and
+        // runs as queued background jobs rather than inline with the rest of a refresh.
+        var refreshTdarr = new Button("Refresh Tdarr", e -> queueTdarrRefresh());
+        refreshTdarr.setVisible(admin);
         var testNotifications = new Button("Test Notifications", e -> runNotificationCheck());
         testNotifications.setVisible(admin);
-        bulkButtons.addAll(List.of(refreshAll, validateAll, searchAll, testNotifications));
+        bulkButtons.addAll(List.of(refreshAll, validateAll, searchAll, refreshTdarr, testNotifications));
         showValidCheckbox.addValueChangeListener(e -> applyFilters());
         showStaleCheckbox.addValueChangeListener(e -> applyFilters());
         showWithNotesCheckbox.addValueChangeListener(e -> applyFilters());
@@ -331,8 +335,8 @@ public class MovieRequestView extends VerticalLayout {
         var statsRow = new HorizontalLayout(radarrQueueCard, radarrHealthCard);
         statsRow.setAlignItems(FlexComponent.Alignment.CENTER);
         statsRow.getStyle().set("flex-wrap", "wrap");
-        var toolbar =
-                new HorizontalLayout(searchField, refreshAll, validateAll, searchAll, testNotifications, totalLabel);
+        var toolbar = new HorizontalLayout(
+                searchField, refreshAll, validateAll, searchAll, refreshTdarr, testNotifications, totalLabel);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
         // Many controls in one row: let them wrap instead of overflowing on narrow screens.
         toolbar.getStyle().set("flex-wrap", "wrap");
@@ -371,6 +375,30 @@ public class MovieRequestView extends VerticalLayout {
      * the duration so a long operation can't be double-fired or overlapped with another bulk action, re-enabling them
      * on completion.
      */
+    /**
+     * Queues a Tdarr status read for every available movie (one JobRunr job each), off the UI thread since a large
+     * library means many enqueues, then reports how many were queued. The reads themselves happen on background
+     * workers, so the button returns as soon as the queue is filled rather than waiting out a call per movie.
+     */
+    private void queueTdarrRefresh() {
+        int[] queued = {-1};
+        getUI().ifPresent(ui -> RequestViewSupport.runAsync(
+                ui,
+                log,
+                "Queuing Tdarr refresh…",
+                () -> queued[0] = movieController.refreshTdarrAll(),
+                () -> {
+                    if (queued[0] < 0) {
+                        return; // the queueing failed; runAsync already surfaced the error
+                    }
+                    Notification.show(
+                            queued[0] == 0
+                                    ? "No available movies to refresh from Tdarr."
+                                    : "Queued Tdarr refresh for " + queued[0] + " movie(s).");
+                },
+                uiTaskExecutor));
+    }
+
     private void runBulkAction(String workingMessage, Runnable action) {
         getUI().ifPresent(ui -> {
             setBulkButtonsEnabled(false);

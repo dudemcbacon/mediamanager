@@ -24,6 +24,7 @@ import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.job.FfprobeScanJobRequest;
+import report.butt.mediamanager.job.TdarrRefreshJobRequest;
 import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.Note;
@@ -36,6 +37,7 @@ import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.service.FfprobeScanService;
 import report.butt.mediamanager.service.MovieRefreshService;
 import report.butt.mediamanager.service.RequestAdminService;
+import report.butt.mediamanager.service.TdarrRefreshService;
 import report.butt.mediamanager.service.ValidatorService;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -58,6 +60,7 @@ public class MovieController {
     private final ValidatorService validatorService;
     private final RequestAdminService requestAdminService;
     private final FfprobeScanService ffprobeScanService;
+    private final TdarrRefreshService tdarrRefreshService;
     private final JobRequestScheduler jobRequestScheduler;
 
     // Spring constructor injection; the parameter count reflects injected collaborators, not a design smell.
@@ -72,6 +75,7 @@ public class MovieController {
             ValidatorService validatorService,
             RequestAdminService requestAdminService,
             FfprobeScanService ffprobeScanService,
+            TdarrRefreshService tdarrRefreshService,
             JobRequestScheduler jobRequestScheduler) {
         this.movieRequestRepository = movieRequestRepository;
         this.ombiClient = ombiClient;
@@ -81,6 +85,7 @@ public class MovieController {
         this.validatorService = validatorService;
         this.requestAdminService = requestAdminService;
         this.ffprobeScanService = ffprobeScanService;
+        this.tdarrRefreshService = tdarrRefreshService;
         this.jobRequestScheduler = jobRequestScheduler;
     }
 
@@ -291,6 +296,24 @@ public class MovieController {
     public void scanWithFfprobe(Long id) {
         log.info("Queuing FFprobe scan for movie request {}", id);
         jobRequestScheduler.enqueue(new FfprobeScanJobRequest(FfprobeScanJobRequest.MediaType.MOVIE, id));
+    }
+
+    /**
+     * Queues one JobRunr job per available movie to read its Tdarr status. Deliberately separate from
+     * {@link #refreshAll()}: Tdarr has no bulk endpoint, so a sweep costs one HTTP call per file and is far too slow to
+     * run on every refresh. Returns immediately with the number of jobs queued; the work happens on background workers,
+     * concurrency capped by {@code jobrunr.background-job-server.worker-count}.
+     *
+     * @return how many movies were queued
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    public int refreshTdarrAll() {
+        List<Long> ids = tdarrRefreshService.refreshableMovieIds();
+        for (Long id : ids) {
+            jobRequestScheduler.enqueue(new TdarrRefreshJobRequest(TdarrRefreshJobRequest.MediaType.MOVIE, id));
+        }
+        log.info("Queued Tdarr refresh for {} movie(s)", ids.size());
+        return ids.size();
     }
 
     /** The most recent stored ffprobe scan for a movie request (read-only), used by "View FFprobe Results". */

@@ -76,4 +76,16 @@ public interface TvEpisodeRequestRepository extends JpaRepository<TvEpisodeReque
      */
     @Query("SELECT e FROM TvEpisodeRequest e WHERE e.plexPath LIKE :pattern ESCAPE '!'")
     List<TvEpisodeRequest> findByPlexPathLike(@Param("pattern") String pattern);
+
+    /**
+     * Ids of the episodes a Tdarr sweep should ask about: available, and with a Plex path to search by. Ids rather than
+     * entities, so queuing a library-wide sweep doesn't load every episode.
+     */
+    @Query("""
+            SELECT e.id FROM TvEpisodeRequest e
+            WHERE e.ombiAvailable = true
+              AND e.plexPath IS NOT NULL
+              AND e.plexPath <> ''
+            """)
+    List<Long> findTdarrRefreshableEpisodeIds();
 }

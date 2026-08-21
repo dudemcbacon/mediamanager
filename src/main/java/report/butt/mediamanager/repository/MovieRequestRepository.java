@@ -32,4 +32,18 @@ public interface MovieRequestRepository extends JpaRepository<MovieRequest, Long
      */
     @Query("SELECT m FROM MovieRequest m WHERE m.plexMediaFilename LIKE :pattern ESCAPE '!'")
     List<MovieRequest> findByPlexMediaFilenameLike(@Param("pattern") String pattern);
+
+    /**
+     * Ids of the movies a Tdarr sweep should ask about: available (the same condition as
+     * {@code MovieRequest.isAvailable()}) and with a Plex path to search by. Ids rather than entities, so queuing a
+     * library-wide sweep doesn't load every movie.
+     */
+    @Query("""
+            SELECT m.id FROM MovieRequest m
+            WHERE m.radarrHasFile = true
+              AND m.ombiRequestStatus = 'Common.Available'
+              AND m.plexMediaFilename IS NOT NULL
+              AND m.plexMediaFilename <> ''
+            """)
+    List<Long> findTdarrRefreshableMovieIds();
 }

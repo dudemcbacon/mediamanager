@@ -26,7 +26,6 @@ import report.butt.mediamanager.client.MetadataResult;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.SonarrClient;
-import report.butt.mediamanager.client.TdarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.model.TvRequest;
 import report.butt.mediamanager.model.TvSeasonRequest;
@@ -53,7 +52,6 @@ class TvRefreshServiceTest {
     private final SonarrClient sonarrClient = mock(SonarrClient.class);
     private final PlexClient plexClient = mock(PlexClient.class);
     private final PlexCacheService plexCacheService = mock(PlexCacheService.class);
-    private final TdarrClient tdarrClient = mock(TdarrClient.class);
     private final JobRequestScheduler jobRequestScheduler = mock(JobRequestScheduler.class);
     private final FfprobeScanService ffprobeScanService = mock(FfprobeScanService.class);
 
@@ -66,7 +64,6 @@ class TvRefreshServiceTest {
             sonarrClient,
             plexClient,
             plexCacheService,
-            tdarrClient,
             "",
             jobRequestScheduler,
             ffprobeScanService);
