@@ -67,4 +67,13 @@ public interface TvEpisodeRequestRepository extends JpaRepository<TvEpisodeReque
             GROUP BY e.tdarrTranscodeDecisionMaker
             """)
     List<Object[]> countEpisodesByTdarrTranscodeDecisionMaker();
+
+    /**
+     * Episodes whose Plex path matches a LIKE pattern, used by the transcode-complete webhook to resolve either a full
+     * path (a pattern with no wildcards) or a bare filename (a {@code %/name} suffix pattern). {@code !} is the escape
+     * character, so the caller must escape any literal {@code !}, {@code %} or {@code _} in the value — see
+     * {@code TdarrUpdateService.likePattern}.
+     */
+    @Query("SELECT e FROM TvEpisodeRequest e WHERE e.plexPath LIKE :pattern ESCAPE '!'")
+    List<TvEpisodeRequest> findByPlexPathLike(@Param("pattern") String pattern);
 }

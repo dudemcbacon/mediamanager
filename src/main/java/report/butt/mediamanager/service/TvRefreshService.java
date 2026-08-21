@@ -723,6 +723,10 @@ public class TvRefreshService {
      * Plex path (set just above) — the episode-level counterpart of a movie's {@code plexMediaFilename}. Only available
      * episodes are queried, since there is nothing for Tdarr to have processed otherwise. A miss or an unreachable
      * Tdarr leaves the previously recorded values in place rather than blanking them.
+     *
+     * <p>{@code tdarrLastUpdated} is stamped on every successful read, even when the values are unchanged, so it
+     * answers "when did we last hear from Tdarr about this file?" — see {@code MovieRefreshService.applyTdarrStatus}
+     * for the write-amplification that implies.
      */
     private void applyTdarrStatus(TvEpisodeRequest episode) {
         String plexPath = episode.getPlexPath();
@@ -737,6 +741,7 @@ public class TvRefreshService {
         episode.setTdarrTranscodeDecisionMaker(tdarrFile.getTranscodeDecisionMaker());
         episode.setTdarrOldSizeGb(tdarrFile.getOldSize());
         episode.setTdarrNewSizeGb(tdarrFile.getNewSize());
+        episode.setTdarrLastUpdated(Instant.now());
     }
 
     private void backfillTotalSeasons(OmbiTvRequest ombiTv) {

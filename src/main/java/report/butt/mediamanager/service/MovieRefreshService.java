@@ -2,6 +2,7 @@ package report.butt.mediamanager.service;
 
 import com.google.errorprone.annotations.Var;
 import com.newrelic.api.agent.Trace;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -271,6 +272,11 @@ public class MovieRefreshService {
      * media file (set just above by {@link #applyPlexUpdates}). Only available movies are queried — there is nothing
      * for Tdarr to have processed otherwise. A miss or an unreachable Tdarr leaves the previously recorded values in
      * place rather than blanking them.
+     *
+     * <p>{@code tdarrLastUpdated} is stamped on every successful read, even when the values are identical to what was
+     * already stored — it answers "when did we last hear from Tdarr about this file?". Because it is part of
+     * {@link MovieRequest#hashCode()}, that also means an available movie is saved on every refresh rather than only
+     * when its Tdarr verdict changes.
      */
     private void applyTdarrStatus(MovieRequest movieRequest) {
         String plexMediaFilename = movieRequest.getPlexMediaFilename();
@@ -285,6 +291,7 @@ public class MovieRefreshService {
         movieRequest.setTdarrTranscodeDecisionMaker(tdarrFile.getTranscodeDecisionMaker());
         movieRequest.setTdarrOldSizeGb(tdarrFile.getOldSize());
         movieRequest.setTdarrNewSizeGb(tdarrFile.getNewSize());
+        movieRequest.setTdarrLastUpdated(Instant.now());
     }
 
     /**

@@ -42,6 +42,7 @@ public class RequiredConfigValidator {
             "tdarr.url",
             "tdarr.username",
             "tdarr.password",
+            "mediamanager.tdarr-webhook.token",
             "mediamanager.bootstrap.username",
             "mediamanager.bootstrap.password",
             "spring.mail.host",

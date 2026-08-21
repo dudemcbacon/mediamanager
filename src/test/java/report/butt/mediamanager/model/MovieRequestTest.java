@@ -169,5 +169,9 @@ class MovieRequestTest {
 
         m.setTdarrNewSizeGb(0.1351956408470869);
         assertEquals(0.1351956408470869, m.getTdarrNewSizeGb());
+
+        Instant tdarrStamp = Instant.parse("2026-08-21T12:00:00Z");
+        m.setTdarrLastUpdated(tdarrStamp);
+        assertEquals(tdarrStamp, m.getTdarrLastUpdated());
     }
 }

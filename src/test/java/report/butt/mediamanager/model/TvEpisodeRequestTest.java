@@ -82,6 +82,10 @@ class TvEpisodeRequestTest {
         ep.setTdarrNewSizeGb(0.1351956408470869);
         assertEquals(0.1351956408470869, ep.getTdarrNewSizeGb());
 
+        Instant tdarrStamp = Instant.parse("2026-08-21T12:00:00Z");
+        ep.setTdarrLastUpdated(tdarrStamp);
+        assertEquals(tdarrStamp, ep.getTdarrLastUpdated());
+
         TvSeasonRequest s2 = season();
         ep.setTvSeasonRequest(s2);
         assertEquals(s2, ep.getTvSeasonRequest());

@@ -80,6 +80,14 @@ public class TvEpisodeRequest {
     /** Post-transcode size in GiB as reported by Tdarr; same unit as {@link #tdarrOldSizeGb}. */
     private @Nullable Double tdarrNewSizeGb;
 
+    /**
+     * When Tdarr data was last successfully applied to this episode — either a refresh reading it from Tdarr or the
+     * transcode-complete webhook pushing it in. A freshness stamp, so it moves even when the four values are unchanged;
+     * unlike {@link #updatedAt} it tracks only Tdarr, and unlike the values themselves it stays null until Tdarr has
+     * actually reported on the file.
+     */
+    private @Nullable Instant tdarrLastUpdated;
+
     @CreationTimestamp
     private @Nullable Instant createdAt;
 
@@ -247,6 +255,14 @@ public class TvEpisodeRequest {
         this.tdarrNewSizeGb = tdarrNewSizeGb;
     }
 
+    public @Nullable Instant getTdarrLastUpdated() {
+        return this.tdarrLastUpdated;
+    }
+
+    public void setTdarrLastUpdated(@Nullable Instant tdarrLastUpdated) {
+        this.tdarrLastUpdated = tdarrLastUpdated;
+    }
+
     public @Nullable Instant getCreatedAt() {
         return this.createdAt;
     }
@@ -275,7 +291,8 @@ public class TvEpisodeRequest {
                 tdarrHealthCheck,
                 tdarrTranscodeDecisionMaker,
                 tdarrOldSizeGb,
-                tdarrNewSizeGb);
+                tdarrNewSizeGb,
+                tdarrLastUpdated);
     }
 
     @Override

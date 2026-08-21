@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import report.butt.mediamanager.model.MovieRequest;
 
 @NullMarked
@@ -22,4 +23,13 @@ public interface MovieRequestRepository extends JpaRepository<MovieRequest, Long
     /** Ids of every movie request that has a local file path (so it can be ffprobe-scanned). */
     @Query("SELECT m.id FROM MovieRequest m WHERE m.radarrMovieFilePath IS NOT NULL AND m.radarrMovieFilePath <> ''")
     List<Long> findScannableMovieRequestIds();
+
+    /**
+     * Movies whose Plex media path matches a LIKE pattern, used by the transcode-complete webhook to resolve either a
+     * full path (a pattern with no wildcards) or a bare filename (a {@code %/name} suffix pattern). {@code !} is the
+     * escape character, so the caller must escape any literal {@code !}, {@code %} or {@code _} in the value — see
+     * {@code TdarrUpdateService.likePattern}.
+     */
+    @Query("SELECT m FROM MovieRequest m WHERE m.plexMediaFilename LIKE :pattern ESCAPE '!'")
+    List<MovieRequest> findByPlexMediaFilenameLike(@Param("pattern") String pattern);
 }

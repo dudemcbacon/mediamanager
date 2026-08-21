@@ -59,6 +59,14 @@ public class MovieRequest extends Request {
     /** Post-transcode size in GiB as reported by Tdarr; same unit as {@link #tdarrOldSizeGb}. */
     private @Nullable Double tdarrNewSizeGb;
 
+    /**
+     * When Tdarr data was last successfully applied to this movie — either a refresh reading it from Tdarr or the
+     * transcode-complete webhook pushing it in. A freshness stamp, so it moves even when the four values are unchanged;
+     * unlike {@code updatedAt} it tracks only Tdarr, and unlike the values themselves it stays null until Tdarr has
+     * actually reported on the file.
+     */
+    private @Nullable Instant tdarrLastUpdated;
+
     MovieRequest() {}
 
     public MovieRequest(
@@ -218,6 +226,14 @@ public class MovieRequest extends Request {
         this.tdarrNewSizeGb = tdarrNewSizeGb;
     }
 
+    public @Nullable Instant getTdarrLastUpdated() {
+        return this.tdarrLastUpdated;
+    }
+
+    public void setTdarrLastUpdated(@Nullable Instant tdarrLastUpdated) {
+        this.tdarrLastUpdated = tdarrLastUpdated;
+    }
+
     @Override
     public boolean isAvailable() {
         return Objects.equals(this.radarrHasFile, true)
@@ -264,7 +280,8 @@ public class MovieRequest extends Request {
                 getTdarrHealthCheck(),
                 getTdarrTranscodeDecisionMaker(),
                 getTdarrOldSizeGb(),
-                getTdarrNewSizeGb());
+                getTdarrNewSizeGb(),
+                getTdarrLastUpdated());
     }
 
     @Override

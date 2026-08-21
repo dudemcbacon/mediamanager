@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import report.butt.mediamanager.controller.TdarrWebhookController;
 import report.butt.mediamanager.route.LoginView;
 
 @Configuration
@@ -27,7 +28,16 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**")
                 .hasRole("ADMIN")
                 .requestMatchers("/plex-cache/**")
-                .authenticated());
+                .authenticated()
+                // Tdarr is a machine caller with no login, so this endpoint authenticates itself with the
+                // X-Tdarr-Token header inside TdarrWebhookController rather than with a session. It is permitted
+                // here only so the request reaches that check — the controller rejects a missing or wrong token,
+                // and also rejects everything if no token is configured.
+                .requestMatchers(TdarrWebhookController.PATH)
+                .permitAll());
+        // Without this the webhook POST is refused as a CSRF failure: an external caller has no CSRF token, and the
+        // endpoint is guarded by a shared secret instead of a session, so there is no cookie for CSRF to protect.
+        http.csrf(csrf -> csrf.ignoringRequestMatchers(TdarrWebhookController.PATH));
         http.with(VaadinSecurityConfigurer.vaadin(), configurer -> configurer.loginView(LoginView.class));
         return http.build();
     }

@@ -110,7 +110,8 @@ class RequestHashCodeTest {
         h = assertChanged(h, episode, () -> episode.setTdarrHealthCheck("Success"));
         h = assertChanged(h, episode, () -> episode.setTdarrTranscodeDecisionMaker("Transcode success"));
         h = assertChanged(h, episode, () -> episode.setTdarrOldSizeGb(0.283));
-        assertChanged(h, episode, () -> episode.setTdarrNewSizeGb(0.135));
+        h = assertChanged(h, episode, () -> episode.setTdarrNewSizeGb(0.135));
+        assertChanged(h, episode, () -> episode.setTdarrLastUpdated(Instant.parse("2026-08-21T00:00:00Z")));
     }
 
     @Test
@@ -138,7 +139,8 @@ class RequestHashCodeTest {
         h = assertChanged(h, movie, () -> movie.setTdarrHealthCheck("Success"));
         h = assertChanged(h, movie, () -> movie.setTdarrTranscodeDecisionMaker("Transcode success"));
         h = assertChanged(h, movie, () -> movie.setTdarrOldSizeGb(0.283));
-        assertChanged(h, movie, () -> movie.setTdarrNewSizeGb(0.135));
+        h = assertChanged(h, movie, () -> movie.setTdarrNewSizeGb(0.135));
+        assertChanged(h, movie, () -> movie.setTdarrLastUpdated(Instant.parse("2026-08-21T00:00:00Z")));
     }
 
     private static int assertChanged(int previousHash, Object entity, Runnable mutation) {
