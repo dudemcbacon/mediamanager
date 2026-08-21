@@ -2,7 +2,9 @@ package report.butt.mediamanager.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -109,6 +111,38 @@ class TdarrWebhookSecurityTest {
         assertEquals(0.28345867712050676, reloaded.getTdarrOldSizeGb());
         assertEquals(0.1351956408470869, reloaded.getTdarrNewSizeGb());
         assertNotNull(reloaded.getTdarrLastUpdated(), "the webhook should stamp tdarrLastUpdated");
+    }
+
+    /** Proves the CORS header is actually emitted by the filter chain, not merely configured. */
+    @Test
+    void echoesTheCorsHeaderForAButtReportOrigin() throws Exception {
+        mockMvc.perform(post(TdarrWebhookController.PATH)
+                        .header(TdarrWebhookController.TOKEN_HEADER, TOKEN)
+                        .header("Origin", "https://tools.butt.report")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(BODY.formatted("no-such-file-in-this-library.mkv")))
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://tools.butt.report"));
+    }
+
+    @Test
+    void sendsNoCorsHeaderForAnUnrelatedOrigin() throws Exception {
+        mockMvc.perform(post(TdarrWebhookController.PATH)
+                        .header(TdarrWebhookController.TOKEN_HEADER, TOKEN)
+                        .header("Origin", "https://evil.com")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(BODY.formatted("no-such-file-in-this-library.mkv")))
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+    }
+
+    /** The preflight must be answered without authentication, or the browser never sends the real request. */
+    @Test
+    void answersThePreflightWithoutAToken() throws Exception {
+        mockMvc.perform(options(TdarrWebhookController.PATH)
+                        .header("Origin", "https://tools.butt.report")
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "X-Tdarr-Token,Content-Type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://tools.butt.report"));
     }
 
     /** A full path must resolve too, and must not be widened into a basename match. */
