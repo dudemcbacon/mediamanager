@@ -294,9 +294,13 @@ public class TvRefreshService {
         return episodesByShow.getOrDefault(ratingKey, Map.of());
     }
 
-    /** The Sonarr-sourced fields recorded per episode: the media file path and last search time. */
+    /**
+     * The Sonarr-sourced fields recorded per episode: Sonarr's own episode id, the media file path, and the last search
+     * time. The id is what Sonarr's EpisodeSearch command keys off, so persisting it lets a later search skip
+     * re-fetching the series' episode list.
+     */
     private record SonarrEpisodeData(
-            @Nullable String path, @Nullable Instant lastSearchTime) {}
+            @Nullable Integer sonarrEpisodeId, @Nullable String path, @Nullable Instant lastSearchTime) {}
 
     /**
      * Fetches per-episode Sonarr data for many series concurrently (bounded by {@link #SONARR_FETCH_CONCURRENCY}),
@@ -343,12 +347,15 @@ public class TvRefreshService {
                 EpisodeFile file = episode.getEpisodeFile();
                 String path = file == null ? null : file.getPath();
                 Instant lastSearchTime = DateTimeUtils.parseInstant(episode.getLastSearchTime(), "Sonarr");
-                if (path == null && lastSearchTime == null) {
+                // Keep the entry whenever Sonarr's episode id is known, even with no file and no search history: those
+                // never-searched episodes are exactly the ones the automatic re-search needs to find, and dropping them
+                // here would leave them invisible to it.
+                if (episode.getId() == null && path == null && lastSearchTime == null) {
                     continue;
                 }
                 result.put(
                         new EpisodeKey(episode.getSeasonNumber(), episode.getEpisodeNumber()),
-                        new SonarrEpisodeData(path, lastSearchTime));
+                        new SonarrEpisodeData(episode.getId(), path, lastSearchTime));
             }
             return result;
         } catch (RuntimeException e) {
@@ -697,6 +704,9 @@ public class TvRefreshService {
             }
             SonarrEpisodeData sonarrData = sonarrEpisodes.get(key);
             if (sonarrData != null) {
+                if (sonarrData.sonarrEpisodeId() != null) {
+                    episode.setSonarrEpisodeId(sonarrData.sonarrEpisodeId());
+                }
                 if (sonarrData.path() != null) {
                     episode.setSonarrPath(sonarrData.path());
                 }
@@ -711,7 +721,8 @@ public class TvRefreshService {
         episode.setLocalFilePathAvailable(localFile.available());
         episode.setLocalFileSize(localFile.sizeBytes());
         // Tdarr is deliberately not read here — it has no bulk endpoint, so a sweep costs one HTTP call per file.
-        // It runs only from the "Refresh Tdarr" button (see TdarrRefreshService) or the transcode-complete webhook.
+        // It runs from the "Refresh Tdarr" button, the weekly tdarr.sweep-cron job (both via TdarrRefreshService),
+        // or the transcode-complete webhook.
     }
 
     private void backfillTotalSeasons(OmbiTvRequest ombiTv) {

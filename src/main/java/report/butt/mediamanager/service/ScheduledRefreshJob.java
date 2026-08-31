@@ -20,6 +20,8 @@ public class ScheduledRefreshJob {
     private final ValidatorService validatorService;
     private final SeedlessTorrentTracker seedlessTorrentTracker;
     private final NotificationService notificationService;
+    private final TdarrRefreshService tdarrRefreshService;
+    private final AutoSearchService autoSearchService;
     private final boolean notificationsEnabled;
 
     // Guards against overlapping runs: the refresh sweep can outlast the hourly trigger when an integration is slow,
@@ -33,12 +35,16 @@ public class ScheduledRefreshJob {
             ValidatorService validatorService,
             SeedlessTorrentTracker seedlessTorrentTracker,
             NotificationService notificationService,
+            TdarrRefreshService tdarrRefreshService,
+            AutoSearchService autoSearchService,
             @Value("${notifications.enabled}") boolean notificationsEnabled) {
         this.movieRefreshService = movieRefreshService;
         this.tvRefreshService = tvRefreshService;
         this.validatorService = validatorService;
         this.seedlessTorrentTracker = seedlessTorrentTracker;
         this.notificationService = notificationService;
+        this.tdarrRefreshService = tdarrRefreshService;
+        this.autoSearchService = autoSearchService;
         this.notificationsEnabled = notificationsEnabled;
     }
 
@@ -54,6 +60,9 @@ public class ScheduledRefreshJob {
             // Each step is isolated so a failure in one (e.g. a downed integration) doesn't abort the others.
             runStep("movie refresh", movieRefreshService::refreshAll);
             runStep("tv refresh", tvRefreshService::refreshAll);
+            // After the refreshes so it decides off current availability and last-search times, and its own step so a
+            // failed search can't abort validation — and so its HTTP calls stay outside tv refresh's transaction.
+            runStep("auto search", autoSearchService::run);
             runStep("movie validation", validatorService::validateAllMovies);
             runStep("tv validation", validatorService::validateAllTv);
             runStep("seedless torrent tracking", seedlessTorrentTracker::sweep);
@@ -69,6 +78,20 @@ public class ScheduledRefreshJob {
         } catch (RuntimeException e) {
             log.warn("Hourly refresh-and-validate step '{}' failed; continuing with the rest", name, e);
         }
+    }
+
+    /**
+     * Weekly full Tdarr sweep. Tdarr has no bulk endpoint, so this only enqueues one job per file and lets JobRunr's
+     * worker count pace the calls; it deliberately does not take {@link #refreshLock}, since it mutates no rows itself
+     * and holding the lock would stall the hourly refresh for the length of the sweep.
+     */
+    @Scheduled(cron = "${tdarr.sweep-cron}")
+    @Trace(dispatcher = true)
+    public void runTdarrSweep() {
+        log.info("Weekly Tdarr sweep starting");
+        int movies = tdarrRefreshService.sweepMovies();
+        int episodes = tdarrRefreshService.sweepEpisodes();
+        log.info("Weekly Tdarr sweep queued {} movie(s) and {} episode(s)", movies, episodes);
     }
 
     @Scheduled(cron = "${notifications.cron}")

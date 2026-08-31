@@ -15,6 +15,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import report.butt.mediamanager.controller.AdminApiController;
 import report.butt.mediamanager.controller.TdarrWebhookController;
 import report.butt.mediamanager.route.LoginView;
 
@@ -51,10 +52,16 @@ public class SecurityConfig {
                 // here only so the request reaches that check — the controller rejects a missing or wrong token,
                 // and also rejects everything if no token is configured.
                 .requestMatchers(TdarrWebhookController.PATH)
+                .permitAll()
+                // Same arrangement as the Tdarr webhook: a curl/agent caller with no login, authenticating itself with
+                // the X-Admin-Token header checked inside AdminApiController. Permitted here only so the request
+                // reaches that check.
+                .requestMatchers(AdminApiController.SEEDLESS_SWEEP_PATH)
                 .permitAll());
-        // Without this the webhook POST is refused as a CSRF failure: an external caller has no CSRF token, and the
-        // endpoint is guarded by a shared secret instead of a session, so there is no cookie for CSRF to protect.
-        http.csrf(csrf -> csrf.ignoringRequestMatchers(TdarrWebhookController.PATH));
+        // Without this these POSTs are refused as a CSRF failure: an external caller has no CSRF token, and both
+        // endpoints are guarded by a shared secret instead of a session, so there is no cookie for CSRF to protect.
+        http.csrf(csrf -> csrf.ignoringRequestMatchers(
+                TdarrWebhookController.PATH, AdminApiController.SEEDLESS_SWEEP_PATH));
         // Registered on the security chain (not just Spring MVC) so its CorsFilter runs ahead of authorization and
         // answers the preflight OPTIONS itself — an unauthenticated preflight would otherwise be rejected.
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()));

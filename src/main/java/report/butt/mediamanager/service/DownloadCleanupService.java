@@ -16,12 +16,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.client.SonarrClient;
+import report.butt.mediamanager.model.TvEpisodeRequest;
 import report.butt.mediamanager.model.TvRequest;
 import report.butt.mediamanager.model.radarr.RadarrQueue;
 import report.butt.mediamanager.model.radarr.RadarrQueueRecord;
 import report.butt.mediamanager.model.sonarr.SonarrQueue;
 import report.butt.mediamanager.model.sonarr.SonarrQueueRecord;
 import report.butt.mediamanager.repository.MovieRequestRepository;
+import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 
 /**
@@ -39,22 +41,30 @@ public class DownloadCleanupService {
     private final SonarrClient sonarrClient;
     private final MovieRequestRepository movieRequestRepository;
     private final TvRequestRepository tvRequestRepository;
+    private final TvEpisodeRequestRepository tvEpisodeRequestRepository;
     private final MovieRefreshService movieRefreshService;
     private final TvRefreshService tvRefreshService;
+    private final SearchTrackingService searchTrackingService;
 
+    // Spring constructor injection; the parameter count reflects injected collaborators, not a design smell.
+    @SuppressWarnings("TooManyParameters")
     public DownloadCleanupService(
             RadarrClient radarrClient,
             SonarrClient sonarrClient,
             MovieRequestRepository movieRequestRepository,
             TvRequestRepository tvRequestRepository,
+            TvEpisodeRequestRepository tvEpisodeRequestRepository,
             MovieRefreshService movieRefreshService,
-            TvRefreshService tvRefreshService) {
+            TvRefreshService tvRefreshService,
+            SearchTrackingService searchTrackingService) {
         this.radarrClient = radarrClient;
         this.sonarrClient = sonarrClient;
         this.movieRequestRepository = movieRequestRepository;
         this.tvRequestRepository = tvRequestRepository;
+        this.tvEpisodeRequestRepository = tvEpisodeRequestRepository;
         this.movieRefreshService = movieRefreshService;
         this.tvRefreshService = tvRefreshService;
+        this.searchTrackingService = searchTrackingService;
     }
 
     /** Outcome of a bulk cleanup, for reporting back to the UI. */
@@ -121,9 +131,16 @@ public class DownloadCleanupService {
 
         if (!movieIds.isEmpty()) {
             radarrClient.searchMovies(List.copyOf(movieIds));
+            searchTrackingService.recordMovieSearches(movieIds);
         }
         if (!episodeIds.isEmpty()) {
             sonarrClient.searchEpisodes(episodeIds);
+            // Sonarr's ids, mapped back to our rows because the search history lives on TvEpisodeRequest.
+            searchTrackingService.recordEpisodeSearches(
+                    tvEpisodeRequestRepository.findBySonarrEpisodeIdIn(episodeIds).stream()
+                            .map(TvEpisodeRequest::getId)
+                            .filter(Objects::nonNull)
+                            .toList());
         }
 
         @Var int moviesReprocessed = 0;

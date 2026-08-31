@@ -27,7 +27,6 @@ import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.SonarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.job.FfprobeScanJobRequest;
-import report.butt.mediamanager.job.TdarrRefreshJobRequest;
 import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.Note;
 import report.butt.mediamanager.model.TvChildRequest;
@@ -47,6 +46,7 @@ import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
 import report.butt.mediamanager.service.FfprobeScanService;
 import report.butt.mediamanager.service.RequestAdminService;
+import report.butt.mediamanager.service.SearchTrackingService;
 import report.butt.mediamanager.service.TdarrRefreshService;
 import report.butt.mediamanager.service.TvRefreshService;
 import report.butt.mediamanager.service.ValidatorService;
@@ -75,6 +75,7 @@ public class TvController {
     private final RequestAdminService requestAdminService;
     private final FfprobeScanService ffprobeScanService;
     private final TdarrRefreshService tdarrRefreshService;
+    private final SearchTrackingService searchTrackingService;
     private final JobRequestScheduler jobRequestScheduler;
 
     // Spring constructor injection; the parameter count reflects injected collaborators, not a design smell.
@@ -93,6 +94,7 @@ public class TvController {
             RequestAdminService requestAdminService,
             FfprobeScanService ffprobeScanService,
             TdarrRefreshService tdarrRefreshService,
+            SearchTrackingService searchTrackingService,
             JobRequestScheduler jobRequestScheduler) {
         this.tvRequestRepository = tvRequestRepository;
         this.tvChildRequestRepository = tvChildRequestRepository;
@@ -106,6 +108,7 @@ public class TvController {
         this.requestAdminService = requestAdminService;
         this.ffprobeScanService = ffprobeScanService;
         this.tdarrRefreshService = tdarrRefreshService;
+        this.searchTrackingService = searchTrackingService;
         this.jobRequestScheduler = jobRequestScheduler;
     }
 
@@ -138,6 +141,7 @@ public class TvController {
             Instant now = Instant.now();
             tvRequests.forEach(tvRequest -> tvRequest.setSonarrLastSearched(now));
             tvRequestRepository.saveAll(tvRequests);
+            searchTrackingService.recordSeriesSearches(seriesIds);
         }
 
         return "redirect:/tv";
@@ -168,6 +172,7 @@ public class TvController {
                     tvRequest.setSonarrLastSearched(now);
                     tvRequestRepository.save(tvRequest);
                 });
+        searchTrackingService.recordSeriesSearches(List.of(seriesId));
 
         return "redirect:/tv";
     }
@@ -234,6 +239,7 @@ public class TvController {
 
         tvRequest.setSonarrLastSearched(Instant.now());
         tvRequestRepository.save(tvRequest);
+        searchTrackingService.recordSeriesSearches(List.of(sonarrSeriesId));
         return "redirect:/tv";
     }
 
@@ -259,6 +265,7 @@ public class TvController {
         Instant now = Instant.now();
         tvRequests.forEach(tr -> tr.setSonarrLastSearched(now));
         tvRequestRepository.saveAll(tvRequests);
+        searchTrackingService.recordSeriesSearches(seriesIds);
         return "redirect:/tv";
     }
 
@@ -366,6 +373,7 @@ public class TvController {
                 .toList();
         matching.forEach(tr -> tr.setSonarrLastSearched(now));
         tvRequestRepository.saveAll(matching);
+        searchTrackingService.recordSeriesSearches(ids);
     }
 
     /**
@@ -413,12 +421,7 @@ public class TvController {
      */
     @PreAuthorize("hasRole('ADMIN')")
     public int refreshTdarrAll() {
-        List<Long> ids = tdarrRefreshService.refreshableEpisodeIds();
-        for (Long id : ids) {
-            jobRequestScheduler.enqueue(new TdarrRefreshJobRequest(TdarrRefreshJobRequest.MediaType.EPISODE, id));
-        }
-        log.info("Queued Tdarr refresh for {} episode(s)", ids.size());
-        return ids.size();
+        return tdarrRefreshService.sweepEpisodes();
     }
 
     /**
@@ -509,6 +512,7 @@ public class TvController {
             SonarrCommand command = sonarrClient.searchSeason(sonarrSeriesId, seasonNumber);
             logSonarrCommand(command);
         }
+        searchTrackingService.recordSeasonSearches(sonarrSeriesId, seasonNumbers);
     }
 
     /**
@@ -548,6 +552,26 @@ public class TvController {
                 sonarrSeriesId);
         SonarrCommand command = sonarrClient.searchEpisodes(episodeIds);
         logSonarrCommand(command);
+        recordEpisodeSearchTracking(sonarrSeriesId, keys);
+    }
+
+    /**
+     * Attributes an episode search to our own rows for the searched season/episode numbers. Sonarr's ids can't be used
+     * directly because the search history lives on {@code TvEpisodeRequest}, so the rows are matched back by key.
+     */
+    private void recordEpisodeSearchTracking(Integer sonarrSeriesId, Set<EpisodeKey> keys) {
+        List<Long> episodeRequestIds = tvEpisodeRequestRepository
+                .findUnavailableBySonarrSeriesIdIn(List.of(sonarrSeriesId))
+                .stream()
+                .filter(e -> e.getTvSeasonRequest() != null
+                        && e.getTvSeasonRequest().getOmbiSeasonNumber() != null
+                        && e.getOmbiEpisodeNumber() != null
+                        && keys.contains(new EpisodeKey(
+                                e.getTvSeasonRequest().getOmbiSeasonNumber(), e.getOmbiEpisodeNumber())))
+                .map(TvEpisodeRequest::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        searchTrackingService.recordEpisodeSearches(episodeRequestIds);
     }
 
     private List<TvSeasonRequest> seasonsOf(TvRequest tvRequest) {

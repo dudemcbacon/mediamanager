@@ -21,6 +21,7 @@ import report.butt.mediamanager.model.sonarr.Episode;
 import report.butt.mediamanager.model.sonarr.SonarrQueue;
 import report.butt.mediamanager.model.sonarr.SonarrQueueRecord;
 import report.butt.mediamanager.repository.MovieRequestRepository;
+import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
 import report.butt.mediamanager.repository.TvRequestRepository;
 
 @NullMarked
@@ -30,16 +31,20 @@ class DownloadCleanupServiceTest {
     private final SonarrClient sonarrClient = mock(SonarrClient.class);
     private final MovieRequestRepository movieRequestRepository = mock(MovieRequestRepository.class);
     private final TvRequestRepository tvRequestRepository = mock(TvRequestRepository.class);
+    private final TvEpisodeRequestRepository tvEpisodeRequestRepository = mock(TvEpisodeRequestRepository.class);
     private final MovieRefreshService movieRefreshService = mock(MovieRefreshService.class);
     private final TvRefreshService tvRefreshService = mock(TvRefreshService.class);
+    private final SearchTrackingService searchTrackingService = mock(SearchTrackingService.class);
 
     private final DownloadCleanupService service = new DownloadCleanupService(
             radarrClient,
             sonarrClient,
             movieRequestRepository,
             tvRequestRepository,
+            tvEpisodeRequestRepository,
             movieRefreshService,
-            tvRefreshService);
+            tvRefreshService,
+            searchTrackingService);
 
     @Test
     void deletesMatchingQueueItemsThenSearchesAndRefreshes() {

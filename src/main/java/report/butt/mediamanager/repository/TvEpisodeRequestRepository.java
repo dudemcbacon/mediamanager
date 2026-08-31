@@ -1,9 +1,11 @@
 package report.butt.mediamanager.repository;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.NullMarked;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,6 +18,9 @@ public interface TvEpisodeRequestRepository extends JpaRepository<TvEpisodeReque
             Long tvSeasonRequestId, Integer ombiEpisodeNumber);
 
     List<TvEpisodeRequest> findByTvSeasonRequestIdIn(Collection<Long> tvSeasonRequestIds);
+
+    /** Our episode rows for Sonarr's own episode ids, for attributing a search issued with Sonarr ids back to them. */
+    List<TvEpisodeRequest> findBySonarrEpisodeIdIn(Collection<Integer> sonarrEpisodeIds);
 
     /**
      * Sum of {@code localFileSize} per show-level Ombi user (the {@link report.butt.mediamanager.model.TvRequest}'s
@@ -88,4 +93,63 @@ public interface TvEpisodeRequestRepository extends JpaRepository<TvEpisodeReque
               AND e.plexPath <> ''
             """)
     List<Long> findTdarrRefreshableEpisodeIds();
+
+    /**
+     * Episodes the automatic re-search should ask Sonarr about: not available, known to Sonarr (so EpisodeSearch has an
+     * id to key off), whose parent series has not already been triaged stale, and last searched before
+     * {@code threshold} by both Sonarr's reckoning and ours. Null timestamps count as never searched and sort first.
+     */
+    @Query("""
+            SELECT e FROM TvEpisodeRequest e
+              JOIN e.tvSeasonRequest s
+              JOIN s.tvChildRequest c
+              JOIN c.parent tr
+            WHERE (e.ombiAvailable IS NULL OR e.ombiAvailable = false)
+              AND e.sonarrEpisodeId IS NOT NULL
+              AND (tr.stale IS NULL OR tr.stale = false)
+              AND (e.sonarrLastSearchTime IS NULL OR e.sonarrLastSearchTime < :threshold)
+              AND (e.searchLastAt IS NULL OR e.searchLastAt < :threshold)
+            ORDER BY e.searchLastAt ASC NULLS FIRST, e.id ASC
+            """)
+    List<TvEpisodeRequest> findSearchable(@Param("threshold") Instant threshold, Limit limit);
+
+    /**
+     * The unavailable episodes of the given Sonarr series, for attributing a series-level SeriesSearch to the episodes
+     * it actually searches. Available episodes are excluded: a series search does re-scan them, but they need no
+     * further searching and counting them would inflate their search history.
+     */
+    @Query("""
+            SELECT e FROM TvEpisodeRequest e
+              JOIN e.tvSeasonRequest s
+              JOIN s.tvChildRequest c
+              JOIN c.parent tr
+            WHERE tr.sonarrSeriesId IN :sonarrSeriesIds
+              AND (e.ombiAvailable IS NULL OR e.ombiAvailable = false)
+            """)
+    List<TvEpisodeRequest> findUnavailableBySonarrSeriesIdIn(
+            @Param("sonarrSeriesIds") Collection<Integer> sonarrSeriesIds);
+
+    /** The unavailable episodes of the given seasons of one Sonarr series, for attributing a SeasonSearch. */
+    @Query("""
+            SELECT e FROM TvEpisodeRequest e
+              JOIN e.tvSeasonRequest s
+              JOIN s.tvChildRequest c
+              JOIN c.parent tr
+            WHERE tr.sonarrSeriesId = :sonarrSeriesId
+              AND s.ombiSeasonNumber IN :seasonNumbers
+              AND (e.ombiAvailable IS NULL OR e.ombiAvailable = false)
+            """)
+    List<TvEpisodeRequest> findUnavailableBySonarrSeriesIdAndSeasonNumbers(
+            @Param("sonarrSeriesId") Integer sonarrSeriesId,
+            @Param("seasonNumbers") Collection<Integer> seasonNumbers);
+
+    /** The parent {@code TvRequest} id for each of the given episodes, as {@code [Long episodeId, Long tvRequestId]}. */
+    @Query("""
+            SELECT e.id, tr.id FROM TvEpisodeRequest e
+              JOIN e.tvSeasonRequest s
+              JOIN s.tvChildRequest c
+              JOIN c.parent tr
+            WHERE e.id IN :episodeIds
+            """)
+    List<Object[]> findParentTvRequestIds(@Param("episodeIds") Collection<Long> episodeIds);
 }

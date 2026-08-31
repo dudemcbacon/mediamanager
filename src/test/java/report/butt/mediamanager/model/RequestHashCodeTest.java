@@ -111,7 +111,11 @@ class RequestHashCodeTest {
         h = assertChanged(h, episode, () -> episode.setTdarrTranscodeDecisionMaker("Transcode success"));
         h = assertChanged(h, episode, () -> episode.setTdarrOldSizeGb(0.283));
         h = assertChanged(h, episode, () -> episode.setTdarrNewSizeGb(0.135));
-        assertChanged(h, episode, () -> episode.setTdarrLastUpdated(Instant.parse("2026-08-21T00:00:00Z")));
+        h = assertChanged(h, episode, () -> episode.setTdarrLastUpdated(Instant.parse("2026-08-21T00:00:00Z")));
+        h = assertChanged(h, episode, () -> episode.setSonarrEpisodeId(9100));
+        h = assertChanged(h, episode, () -> episode.setSearchCount(3));
+        h = assertChanged(h, episode, () -> episode.setSearchFirstAt(Instant.parse("2026-01-01T00:00:00Z")));
+        assertChanged(h, episode, () -> episode.setSearchLastAt(Instant.parse("2026-08-01T00:00:00Z")));
     }
 
     @Test
@@ -140,7 +144,10 @@ class RequestHashCodeTest {
         h = assertChanged(h, movie, () -> movie.setTdarrTranscodeDecisionMaker("Transcode success"));
         h = assertChanged(h, movie, () -> movie.setTdarrOldSizeGb(0.283));
         h = assertChanged(h, movie, () -> movie.setTdarrNewSizeGb(0.135));
-        assertChanged(h, movie, () -> movie.setTdarrLastUpdated(Instant.parse("2026-08-21T00:00:00Z")));
+        h = assertChanged(h, movie, () -> movie.setTdarrLastUpdated(Instant.parse("2026-08-21T00:00:00Z")));
+        h = assertChanged(h, movie, () -> movie.setSearchCount(3));
+        h = assertChanged(h, movie, () -> movie.setSearchFirstAt(Instant.parse("2026-01-01T00:00:00Z")));
+        assertChanged(h, movie, () -> movie.setSearchLastAt(Instant.parse("2026-08-01T00:00:00Z")));
     }
 
     private static int assertChanged(int previousHash, Object entity, Runnable mutation) {

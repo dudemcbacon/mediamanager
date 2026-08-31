@@ -42,7 +42,9 @@ public class RequiredConfigValidator {
             "tdarr.url",
             "tdarr.username",
             "tdarr.password",
+            "tdarr.sweep-cron",
             "mediamanager.tdarr-webhook.token",
+            "mediamanager.admin-api.token",
             "mediamanager.bootstrap.username",
             "mediamanager.bootstrap.password",
             "spring.mail.host",
@@ -56,7 +58,10 @@ public class RequiredConfigValidator {
             "notifications.overdue-request-days",
             "notifications.unsearched-days",
             "notifications.new-request-window-hours",
-            "notifications.cron");
+            "notifications.cron",
+            "search.retry-after-days",
+            "search.max-per-run",
+            "search.stale-after-days");
 
     private final Environment environment;
 

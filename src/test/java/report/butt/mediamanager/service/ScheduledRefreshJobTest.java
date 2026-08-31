@@ -20,6 +20,8 @@ class ScheduledRefreshJobTest {
     private final ValidatorService validatorService = mock(ValidatorService.class);
     private final SeedlessTorrentTracker seedlessTorrentTracker = mock(SeedlessTorrentTracker.class);
     private final NotificationService notificationService = mock(NotificationService.class);
+    private final TdarrRefreshService tdarrRefreshService = mock(TdarrRefreshService.class);
+    private final AutoSearchService autoSearchService = mock(AutoSearchService.class);
 
     @Test
     void refreshAndValidateDelegatesInOrder() {
@@ -29,12 +31,36 @@ class ScheduledRefreshJobTest {
                 validatorService,
                 seedlessTorrentTracker,
                 notificationService,
+                tdarrRefreshService,
+                autoSearchService,
                 true);
 
         job.refreshAndValidate();
 
         verify(movieRefreshService).refreshAll();
         verify(tvRefreshService).refreshAll();
+        verify(validatorService).validateAllMovies();
+        verify(validatorService).validateAllTv();
+        verify(seedlessTorrentTracker).sweep();
+        verify(autoSearchService).run();
+    }
+
+    @Test
+    void continuesRemainingStepsWhenAutoSearchFails() {
+        var job = new ScheduledRefreshJob(
+                movieRefreshService,
+                tvRefreshService,
+                validatorService,
+                seedlessTorrentTracker,
+                notificationService,
+                tdarrRefreshService,
+                autoSearchService,
+                true);
+        doThrow(new RuntimeException("radarr down")).when(autoSearchService).run();
+
+        job.refreshAndValidate();
+
+        // The auto-search step is isolated: a failed search must not cost us validation or the drought sweep.
         verify(validatorService).validateAllMovies();
         verify(validatorService).validateAllTv();
         verify(seedlessTorrentTracker).sweep();
@@ -48,6 +74,8 @@ class ScheduledRefreshJobTest {
                 validatorService,
                 seedlessTorrentTracker,
                 notificationService,
+                tdarrRefreshService,
+                autoSearchService,
                 true);
         doThrow(new RuntimeException("ombi down")).when(movieRefreshService).refreshAll();
 
@@ -76,6 +104,8 @@ class ScheduledRefreshJobTest {
                 validatorService,
                 seedlessTorrentTracker,
                 notificationService,
+                tdarrRefreshService,
+                autoSearchService,
                 true);
         var firstRun = new Thread(job::refreshAndValidate);
         firstRun.start();
@@ -97,6 +127,8 @@ class ScheduledRefreshJobTest {
                 validatorService,
                 seedlessTorrentTracker,
                 notificationService,
+                tdarrRefreshService,
+                autoSearchService,
                 true);
 
         job.runNotifications();
@@ -112,10 +144,30 @@ class ScheduledRefreshJobTest {
                 validatorService,
                 seedlessTorrentTracker,
                 notificationService,
+                tdarrRefreshService,
+                autoSearchService,
                 false);
 
         job.runNotifications();
 
         verify(notificationService, never()).runCheck();
+    }
+
+    @Test
+    void runTdarrSweepQueuesMoviesAndEpisodes() {
+        var job = new ScheduledRefreshJob(
+                movieRefreshService,
+                tvRefreshService,
+                validatorService,
+                seedlessTorrentTracker,
+                notificationService,
+                tdarrRefreshService,
+                autoSearchService,
+                true);
+
+        job.runTdarrSweep();
+
+        verify(tdarrRefreshService).sweepMovies();
+        verify(tdarrRefreshService).sweepEpisodes();
     }
 }

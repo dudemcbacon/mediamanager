@@ -41,6 +41,7 @@ import report.butt.mediamanager.repository.TvRequestRepository;
 import report.butt.mediamanager.repository.TvSeasonRequestRepository;
 import report.butt.mediamanager.service.FfprobeScanService;
 import report.butt.mediamanager.service.RequestAdminService;
+import report.butt.mediamanager.service.SearchTrackingService;
 import report.butt.mediamanager.service.TdarrRefreshService;
 import report.butt.mediamanager.service.TvRefreshService;
 import report.butt.mediamanager.service.ValidatorService;
@@ -62,6 +63,7 @@ class TvControllerTest {
     private final RequestAdminService requestAdminService = mock(RequestAdminService.class);
     private final FfprobeScanService ffprobeScanService = mock(FfprobeScanService.class);
     private final TdarrRefreshService tdarrRefreshService = mock(TdarrRefreshService.class);
+    private final SearchTrackingService searchTrackingService = mock(SearchTrackingService.class);
     private final JobRequestScheduler jobRequestScheduler = mock(JobRequestScheduler.class);
 
     private final TvController controller = new TvController(
@@ -77,6 +79,7 @@ class TvControllerTest {
             requestAdminService,
             ffprobeScanService,
             tdarrRefreshService,
+            searchTrackingService,
             jobRequestScheduler);
 
     @Test

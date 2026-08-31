@@ -34,6 +34,7 @@ import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.service.FfprobeScanService;
 import report.butt.mediamanager.service.MovieRefreshService;
 import report.butt.mediamanager.service.RequestAdminService;
+import report.butt.mediamanager.service.SearchTrackingService;
 import report.butt.mediamanager.service.TdarrRefreshService;
 import report.butt.mediamanager.service.ValidatorService;
 import tools.jackson.core.JacksonException;
@@ -51,6 +52,7 @@ class MovieControllerTest {
     private final RequestAdminService requestAdminService = mock(RequestAdminService.class);
     private final FfprobeScanService ffprobeScanService = mock(FfprobeScanService.class);
     private final TdarrRefreshService tdarrRefreshService = mock(TdarrRefreshService.class);
+    private final SearchTrackingService searchTrackingService = mock(SearchTrackingService.class);
     private final JobRequestScheduler jobRequestScheduler = mock(JobRequestScheduler.class);
 
     private final MovieController controller = new MovieController(
@@ -63,6 +65,7 @@ class MovieControllerTest {
             requestAdminService,
             ffprobeScanService,
             tdarrRefreshService,
+            searchTrackingService,
             jobRequestScheduler);
 
     // ---- getRadarrQueue ----
@@ -129,8 +132,8 @@ class MovieControllerTest {
 
         assertEquals("redirect:/movies", controller.searchMissing());
         verify(radarrClient).searchMovies(List.of(42));
-        verify(movieRequestRepository).saveAll(List.of(m));
-        assertNotNull(m.getRadarrLastSearchTime());
+        // Stamping and the search-history bump now live in SearchTrackingService, covered by its own test.
+        verify(searchTrackingService).recordMovieSearches(List.of(42));
     }
 
     // ---- movies ----
@@ -157,8 +160,7 @@ class MovieControllerTest {
         when(radarrClient.searchMovies(List.of(7))).thenReturn(new RadarrCommand());
 
         assertEquals("redirect:/movies", controller.search(7));
-        verify(movieRequestRepository).save(m);
-        assertNotNull(m.getRadarrLastSearchTime());
+        verify(searchTrackingService).recordMovieSearches(List.of(7));
     }
 
     // ---- refresh ----
@@ -216,8 +218,7 @@ class MovieControllerTest {
 
         assertEquals("redirect:/movies", controller.searchOne(2L));
         verify(radarrClient).searchMovies(List.of(55));
-        verify(movieRequestRepository).save(m);
-        assertNotNull(m.getRadarrLastSearchTime());
+        verify(searchTrackingService).recordMovieSearches(List.of(55));
     }
 
     @Test
@@ -247,8 +248,7 @@ class MovieControllerTest {
 
         assertEquals("redirect:/movies", controller.searchAll());
         verify(radarrClient).searchMovies(List.of(77));
-        verify(movieRequestRepository).saveAll(List.of(m));
-        assertNotNull(m.getRadarrLastSearchTime());
+        verify(searchTrackingService).recordMovieSearches(List.of(77));
     }
 
     // ---- searchMovies ----
@@ -270,7 +270,7 @@ class MovieControllerTest {
         controller.searchMovies(Arrays.asList(10, null, 10));
 
         verify(radarrClient).searchMovies(List.of(10));
-        verify(movieRequestRepository).saveAll(List.of(m));
+        verify(searchTrackingService).recordMovieSearches(List.of(10));
     }
 
     // ---- setQualityProfileToAny ----
@@ -435,7 +435,7 @@ class MovieControllerTest {
         verify(radarrClient).deleteQueueItem(777);
         verify(radarrClient).searchMovies(List.of(42));
         verifyNoMoreInteractions(radarrClient);
-        verify(movieRequestRepository).save(movie);
+        verify(searchTrackingService).recordMovieSearches(List.of(42));
     }
 
     @Test

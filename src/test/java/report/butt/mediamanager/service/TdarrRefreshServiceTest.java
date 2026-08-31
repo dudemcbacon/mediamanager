@@ -8,14 +8,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
+import org.jobrunr.scheduling.JobRequestScheduler;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import report.butt.mediamanager.client.TdarrClient;
+import report.butt.mediamanager.job.TdarrRefreshJobRequest;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.TvChildRequest;
 import report.butt.mediamanager.model.TvEpisodeRequest;
@@ -31,8 +34,9 @@ class TdarrRefreshServiceTest {
     private final MovieRequestRepository movieRepository = mock(MovieRequestRepository.class);
     private final TvEpisodeRequestRepository episodeRepository = mock(TvEpisodeRequestRepository.class);
     private final TdarrClient tdarrClient = mock(TdarrClient.class);
+    private final JobRequestScheduler jobRequestScheduler = mock(JobRequestScheduler.class);
     private final TdarrRefreshService service =
-            new TdarrRefreshService(movieRepository, episodeRepository, tdarrClient);
+            new TdarrRefreshService(movieRepository, episodeRepository, tdarrClient, jobRequestScheduler);
 
     private static TdarrFile tdarrFile() {
         var file = new TdarrFile();
@@ -188,5 +192,37 @@ class TdarrRefreshServiceTest {
 
         verifyNoInteractions(tdarrClient);
         verify(episodeRepository, never()).save(any());
+    }
+
+    @Test
+    void sweepMoviesQueuesOneJobPerRefreshableMovie() {
+        when(movieRepository.findTdarrRefreshableMovieIds()).thenReturn(List.of(1L, 2L));
+
+        assertEquals(2, service.sweepMovies());
+
+        verify(jobRequestScheduler).enqueue(new TdarrRefreshJobRequest(TdarrRefreshJobRequest.MediaType.MOVIE, 1L));
+        verify(jobRequestScheduler).enqueue(new TdarrRefreshJobRequest(TdarrRefreshJobRequest.MediaType.MOVIE, 2L));
+        verifyNoMoreInteractions(jobRequestScheduler);
+    }
+
+    @Test
+    void sweepEpisodesQueuesOneJobPerRefreshableEpisode() {
+        when(episodeRepository.findTdarrRefreshableEpisodeIds()).thenReturn(List.of(7L));
+
+        assertEquals(1, service.sweepEpisodes());
+
+        verify(jobRequestScheduler).enqueue(new TdarrRefreshJobRequest(TdarrRefreshJobRequest.MediaType.EPISODE, 7L));
+        verifyNoMoreInteractions(jobRequestScheduler);
+    }
+
+    @Test
+    void sweepQueuesNothingWhenThereIsNothingRefreshable() {
+        when(movieRepository.findTdarrRefreshableMovieIds()).thenReturn(List.of());
+        when(episodeRepository.findTdarrRefreshableEpisodeIds()).thenReturn(List.of());
+
+        assertEquals(0, service.sweepMovies());
+        assertEquals(0, service.sweepEpisodes());
+
+        verifyNoInteractions(jobRequestScheduler);
     }
 }

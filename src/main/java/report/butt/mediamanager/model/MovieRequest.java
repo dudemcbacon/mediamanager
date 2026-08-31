@@ -67,6 +67,22 @@ public class MovieRequest extends Request {
      */
     private @Nullable Instant tdarrLastUpdated;
 
+    /**
+     * How many searches this app has requested for the movie. Null means we have never searched for it, as distinct
+     * from a zero count. Counts only our own requests, unlike {@link #radarrLastSearchTime}, which Radarr overwrites
+     * on every refresh with whenever it last searched by any trigger.
+     */
+    private @Nullable Integer searchCount;
+
+    /** When this app first requested a search for the movie; set once and never moved. */
+    private @Nullable Instant searchFirstAt;
+
+    /**
+     * When this app last requested a search for the movie. The span from {@link #searchFirstAt} to here is how long we
+     * have been searching fruitlessly; once it exceeds {@code search.stale-after-days} the request is marked stale.
+     */
+    private @Nullable Instant searchLastAt;
+
     MovieRequest() {}
 
     public MovieRequest(
@@ -234,6 +250,30 @@ public class MovieRequest extends Request {
         this.tdarrLastUpdated = tdarrLastUpdated;
     }
 
+    public @Nullable Integer getSearchCount() {
+        return this.searchCount;
+    }
+
+    public void setSearchCount(@Nullable Integer searchCount) {
+        this.searchCount = searchCount;
+    }
+
+    public @Nullable Instant getSearchFirstAt() {
+        return this.searchFirstAt;
+    }
+
+    public void setSearchFirstAt(@Nullable Instant searchFirstAt) {
+        this.searchFirstAt = searchFirstAt;
+    }
+
+    public @Nullable Instant getSearchLastAt() {
+        return this.searchLastAt;
+    }
+
+    public void setSearchLastAt(@Nullable Instant searchLastAt) {
+        this.searchLastAt = searchLastAt;
+    }
+
     @Override
     public boolean isAvailable() {
         return Objects.equals(this.radarrHasFile, true)
@@ -281,7 +321,10 @@ public class MovieRequest extends Request {
                 getTdarrTranscodeDecisionMaker(),
                 getTdarrOldSizeGb(),
                 getTdarrNewSizeGb(),
-                getTdarrLastUpdated());
+                getTdarrLastUpdated(),
+                getSearchCount(),
+                getSearchFirstAt(),
+                getSearchLastAt());
     }
 
     @Override

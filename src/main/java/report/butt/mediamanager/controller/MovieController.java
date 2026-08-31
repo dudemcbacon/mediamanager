@@ -1,6 +1,5 @@
 package report.butt.mediamanager.controller;
 
-import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -24,7 +23,6 @@ import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.RadarrClient;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.job.FfprobeScanJobRequest;
-import report.butt.mediamanager.job.TdarrRefreshJobRequest;
 import report.butt.mediamanager.model.FfprobeScan;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.Note;
@@ -37,6 +35,7 @@ import report.butt.mediamanager.repository.MovieRequestRepository;
 import report.butt.mediamanager.service.FfprobeScanService;
 import report.butt.mediamanager.service.MovieRefreshService;
 import report.butt.mediamanager.service.RequestAdminService;
+import report.butt.mediamanager.service.SearchTrackingService;
 import report.butt.mediamanager.service.TdarrRefreshService;
 import report.butt.mediamanager.service.ValidatorService;
 import tools.jackson.core.JacksonException;
@@ -61,6 +60,7 @@ public class MovieController {
     private final RequestAdminService requestAdminService;
     private final FfprobeScanService ffprobeScanService;
     private final TdarrRefreshService tdarrRefreshService;
+    private final SearchTrackingService searchTrackingService;
     private final JobRequestScheduler jobRequestScheduler;
 
     // Spring constructor injection; the parameter count reflects injected collaborators, not a design smell.
@@ -76,6 +76,7 @@ public class MovieController {
             RequestAdminService requestAdminService,
             FfprobeScanService ffprobeScanService,
             TdarrRefreshService tdarrRefreshService,
+            SearchTrackingService searchTrackingService,
             JobRequestScheduler jobRequestScheduler) {
         this.movieRequestRepository = movieRequestRepository;
         this.ombiClient = ombiClient;
@@ -86,6 +87,7 @@ public class MovieController {
         this.requestAdminService = requestAdminService;
         this.ffprobeScanService = ffprobeScanService;
         this.tdarrRefreshService = tdarrRefreshService;
+        this.searchTrackingService = searchTrackingService;
         this.jobRequestScheduler = jobRequestScheduler;
     }
 
@@ -133,10 +135,7 @@ public class MovieController {
         if (!movieIds.isEmpty()) {
             RadarrCommand command = radarrClient.searchMovies(movieIds);
             logRadarrCommand(command);
-
-            Instant now = Instant.now();
-            movieRequests.forEach(movieRequest -> movieRequest.setRadarrLastSearchTime(now));
-            movieRequestRepository.saveAll(movieRequests);
+            searchTrackingService.recordMovieSearches(movieIds);
         }
 
         return "redirect:/movies";
@@ -159,14 +158,7 @@ public class MovieController {
         log.info("Triggering Radarr MoviesSearch for movie {}", movieId);
         RadarrCommand command = radarrClient.searchMovies(List.of(movieId));
         logRadarrCommand(command);
-
-        Instant now = Instant.now();
-        movieRequestRepository.findAll().stream()
-                .filter(movieRequest -> movieId.equals(movieRequest.getRadarrRequestId()))
-                .forEach(movieRequest -> {
-                    movieRequest.setRadarrLastSearchTime(now);
-                    movieRequestRepository.save(movieRequest);
-                });
+        searchTrackingService.recordMovieSearches(List.of(movieId));
 
         return "redirect:/movies";
     }
@@ -208,9 +200,7 @@ public class MovieController {
 
         RadarrCommand command = radarrClient.searchMovies(List.of(radarrRequestId));
         logRadarrCommand(command);
-
-        movieRequest.setRadarrLastSearchTime(Instant.now());
-        movieRequestRepository.save(movieRequest);
+        searchTrackingService.recordMovieSearches(List.of(radarrRequestId));
         return "redirect:/movies";
     }
 
@@ -231,10 +221,7 @@ public class MovieController {
         log.info("Triggering Radarr MoviesSearch for {} movies: {}", movieIds.size(), movieIds);
         RadarrCommand command = radarrClient.searchMovies(movieIds);
         logRadarrCommand(command);
-
-        Instant now = Instant.now();
-        movieRequests.forEach(mr -> mr.setRadarrLastSearchTime(now));
-        movieRequestRepository.saveAll(movieRequests);
+        searchTrackingService.recordMovieSearches(movieIds);
         return "redirect:/movies";
     }
 
@@ -252,12 +239,7 @@ public class MovieController {
         log.info("Triggering Radarr MoviesSearch for {} movies: {}", ids.size(), ids);
         RadarrCommand command = radarrClient.searchMovies(ids);
         logRadarrCommand(command);
-        Instant now = Instant.now();
-        List<MovieRequest> matching = movieRequestRepository.findAll().stream()
-                .filter(mr -> mr.getRadarrRequestId() != null && ids.contains(mr.getRadarrRequestId()))
-                .toList();
-        matching.forEach(mr -> mr.setRadarrLastSearchTime(now));
-        movieRequestRepository.saveAll(matching);
+        searchTrackingService.recordMovieSearches(ids);
     }
 
     /**
@@ -282,8 +264,7 @@ public class MovieController {
 
         RadarrCommand command = radarrClient.searchMovies(List.of(radarrRequestId));
         logRadarrCommand(command);
-        movieRequest.setRadarrLastSearchTime(Instant.now());
-        movieRequestRepository.save(movieRequest);
+        searchTrackingService.recordMovieSearches(List.of(radarrRequestId));
     }
 
     /**
@@ -308,12 +289,7 @@ public class MovieController {
      */
     @PreAuthorize("hasRole('ADMIN')")
     public int refreshTdarrAll() {
-        List<Long> ids = tdarrRefreshService.refreshableMovieIds();
-        for (Long id : ids) {
-            jobRequestScheduler.enqueue(new TdarrRefreshJobRequest(TdarrRefreshJobRequest.MediaType.MOVIE, id));
-        }
-        log.info("Queued Tdarr refresh for {} movie(s)", ids.size());
-        return ids.size();
+        return tdarrRefreshService.sweepMovies();
     }
 
     /** The most recent stored ffprobe scan for a movie request (read-only), used by "View FFprobe Results". */

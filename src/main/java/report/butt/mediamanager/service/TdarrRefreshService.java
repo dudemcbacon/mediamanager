@@ -3,12 +3,14 @@ package report.butt.mediamanager.service;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import org.jobrunr.scheduling.JobRequestScheduler;
 import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import report.butt.mediamanager.client.TdarrClient;
+import report.butt.mediamanager.job.TdarrRefreshJobRequest;
 import report.butt.mediamanager.model.MovieRequest;
 import report.butt.mediamanager.model.TvEpisodeRequest;
 import report.butt.mediamanager.model.tdarr.TdarrFile;
@@ -20,9 +22,10 @@ import report.butt.mediamanager.repository.TvEpisodeRequestRepository;
  * its Plex path.
  *
  * <p>Deliberately <em>not</em> part of the Ombi/Radarr/Sonarr/Plex refresh: Tdarr has no bulk endpoint, so a
- * library-wide sweep costs one HTTP call per file and takes hours on a large episode library. It runs only when asked,
- * one queued {@code TdarrRefreshJobRequest} per file, so JobRunr's worker-count bounds how hard Tdarr is hit and a slow
- * sweep never occupies a UI thread. The push equivalent is the {@code /api/tdarr/transcode-complete} webhook.
+ * library-wide sweep costs one HTTP call per file and takes hours on a large episode library. Every sweep therefore
+ * queues one {@code TdarrRefreshJobRequest} per file, so JobRunr's worker-count bounds how hard Tdarr is hit and a slow
+ * sweep never occupies a UI thread. Sweeps come from the "Refresh Tdarr" buttons and from the weekly
+ * {@code tdarr.sweep-cron} job; the push equivalent is the {@code /api/tdarr/transcode-complete} webhook.
  */
 @Service
 @NullMarked
@@ -33,14 +36,17 @@ public class TdarrRefreshService {
     private final MovieRequestRepository movieRequestRepository;
     private final TvEpisodeRequestRepository tvEpisodeRequestRepository;
     private final TdarrClient tdarrClient;
+    private final JobRequestScheduler jobRequestScheduler;
 
     public TdarrRefreshService(
             MovieRequestRepository movieRequestRepository,
             TvEpisodeRequestRepository tvEpisodeRequestRepository,
-            TdarrClient tdarrClient) {
+            TdarrClient tdarrClient,
+            JobRequestScheduler jobRequestScheduler) {
         this.movieRequestRepository = movieRequestRepository;
         this.tvEpisodeRequestRepository = tvEpisodeRequestRepository;
         this.tdarrClient = tdarrClient;
+        this.jobRequestScheduler = jobRequestScheduler;
     }
 
     /** Ids of the available movies worth asking Tdarr about, i.e. the ones a sweep enqueues a job for. */
@@ -51,6 +57,26 @@ public class TdarrRefreshService {
     /** Ids of the available episodes worth asking Tdarr about. */
     public List<Long> refreshableEpisodeIds() {
         return tvEpisodeRequestRepository.findTdarrRefreshableEpisodeIds();
+    }
+
+    /** Queues one Tdarr refresh job per available movie; returns how many were queued. */
+    public int sweepMovies() {
+        var ids = refreshableMovieIds();
+        for (Long id : ids) {
+            jobRequestScheduler.enqueue(new TdarrRefreshJobRequest(TdarrRefreshJobRequest.MediaType.MOVIE, id));
+        }
+        log.info("Queued Tdarr refresh for {} movie(s)", ids.size());
+        return ids.size();
+    }
+
+    /** Queues one Tdarr refresh job per available episode; returns how many were queued. */
+    public int sweepEpisodes() {
+        var ids = refreshableEpisodeIds();
+        for (Long id : ids) {
+            jobRequestScheduler.enqueue(new TdarrRefreshJobRequest(TdarrRefreshJobRequest.MediaType.EPISODE, id));
+        }
+        log.info("Queued Tdarr refresh for {} episode(s)", ids.size());
+        return ids.size();
     }
 
     /**

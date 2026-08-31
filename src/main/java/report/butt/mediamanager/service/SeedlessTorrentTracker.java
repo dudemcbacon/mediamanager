@@ -1,5 +1,6 @@
 package report.butt.mediamanager.service;
 
+import com.newrelic.api.agent.Trace;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -22,7 +23,8 @@ import report.butt.mediamanager.repository.SeedlessTorrentRepository;
  * Maintains the {@link SeedlessTorrent} table so download stuckness can tell how long a torrent has gone without seeds.
  * Each sweep: unfinished torrents with no seeds get a row stamped "seedless since now" (kept across sweeps so the
  * drought accrues), while torrents that regained seeds, finished, or disappeared have their row removed. Run from
- * {@link ScheduledRefreshJob}'s hourly sweep — day-resolution is plenty for a drought measured in months.
+ * {@link ScheduledRefreshJob}'s hourly sweep — day-resolution is plenty for a drought measured in months — and
+ * on demand from {@code AdminApiController}'s sweep endpoint.
  */
 @Service
 @NullMarked
@@ -38,13 +40,20 @@ public class SeedlessTorrentTracker {
         this.repository = repository;
     }
 
-    public void sweep() {
+    /**
+     * Outcome of one sweep. {@code skipped} means Deluge returned nothing so the sweep declined to run, which is
+     * distinct from a sweep that ran and found no seedless torrents.
+     */
+    public record SweepResult(boolean skipped, int seedless, int newlySeedless, int cleared) {}
+
+    @Trace
+    public SweepResult sweep() {
         Map<String, DelugeTorrent> torrents = delugeClient.getTorrentsStatus();
         // getTorrentsStatus() returns an empty map on failure (not an exception), and an empty result would otherwise
         // look like "every torrent vanished" and clear every drought counter. Skip the sweep rather than risk that.
         if (torrents.isEmpty()) {
             log.debug("Seedless sweep skipped: no torrents returned");
-            return;
+            return new SweepResult(true, 0, 0, 0);
         }
         Instant now = Instant.now();
         Map<String, SeedlessTorrent> existing =
@@ -77,6 +86,7 @@ public class SeedlessTorrentTracker {
                 stillSeedless.size(),
                 newlySeedless.size(),
                 recovered.size());
+        return new SweepResult(false, stillSeedless.size(), newlySeedless.size(), recovered.size());
     }
 
     private static boolean isSeedless(DelugeTorrent torrent) {

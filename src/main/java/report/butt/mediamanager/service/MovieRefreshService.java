@@ -256,7 +256,8 @@ public class MovieRefreshService {
             applyLocalFileStatus(movieRequest);
             applyPlexUpdates(movieRequest, radarrMovie, plexByTmdb);
             // Tdarr is deliberately not read here — it has no bulk endpoint, so a sweep costs one HTTP call per file.
-            // It runs only from the "Refresh Tdarr" button (see TdarrRefreshService) or the transcode-complete webhook.
+            // It runs from the "Refresh Tdarr" button, the weekly tdarr.sweep-cron job (both via TdarrRefreshService),
+            // or the transcode-complete webhook.
         }
     }
 
