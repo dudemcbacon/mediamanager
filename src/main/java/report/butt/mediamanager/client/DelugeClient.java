@@ -19,6 +19,7 @@ import org.springframework.web.client.RestClient;
 
 import com.google.errorprone.annotations.Var;
 import com.newrelic.api.agent.HeaderType;
+import com.newrelic.api.agent.Headers;
 import com.newrelic.api.agent.NewRelic;
 import com.newrelic.api.agent.Trace;
 
