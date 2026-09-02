@@ -3,6 +3,7 @@ package report.butt.mediamanager.client;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import com.google.errorprone.annotations.Var;
+import com.newrelic.api.agent.HeaderType;
+import com.newrelic.api.agent.NewRelic;
 import com.newrelic.api.agent.Trace;
 
 import report.butt.mediamanager.model.deluge.DelugeResponse;
@@ -76,6 +79,7 @@ public class DelugeClient {
         return response.getResult();
     }
 
+    @Trace
     private @Nullable DelugeResponse<Map<String, DelugeTorrent>> requestTorrentsStatus() {
         return restClient
                 .post()
@@ -83,6 +87,7 @@ public class DelugeClient {
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .headers(this::applySessionCookie)
+                .headers(DelugeClient::insertDistributedTraceHeaders)
                 .body(Map.of(
                         "method",
                         "core.get_torrents_status",
@@ -119,6 +124,59 @@ public class DelugeClient {
     private void applySessionCookie(HttpHeaders headers) {
         if (sessionCookie != null) {
             headers.add(HttpHeaders.COOKIE, sessionCookie);
+        }
+    }
+
+    /**
+     * Writes the current transaction's distributed-trace headers onto the outgoing
+     * request. Invoked from a RestClient
+     * headers callback, which runs synchronously on the calling thread while the
+     * {@code @Trace} transaction is still
+     * active — the agent needs that context to produce the headers.
+     */
+    private static void insertDistributedTraceHeaders(HttpHeaders headers) {
+        NewRelic.getAgent().getTransaction().insertDistributedTraceHeaders(new HttpHeadersAdapter(headers));
+    }
+
+    /**
+     * Exposes Spring's {@link HttpHeaders} through the agent's {@link Headers}
+     * view.
+     */
+    private record HttpHeadersAdapter(HttpHeaders headers) implements Headers {
+
+        @Override
+        public HeaderType getHeaderType() {
+            return HeaderType.HTTP;
+        }
+
+        @Override
+        public @Nullable String getHeader(String name) {
+            return headers.getFirst(name);
+        }
+
+        @Override
+        public List<String> getHeaders(String name) {
+            return headers.getOrEmpty(name);
+        }
+
+        @Override
+        public void setHeader(String name, String value) {
+            headers.set(name, value);
+        }
+
+        @Override
+        public void addHeader(String name, String value) {
+            headers.add(name, value);
+        }
+
+        @Override
+        public Set<String> getHeaderNames() {
+            return headers.headerNames();
+        }
+
+        @Override
+        public boolean containsHeader(String name) {
+            return headers.containsHeader(name);
         }
     }
 
