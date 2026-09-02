@@ -28,6 +28,7 @@ import report.butt.mediamanager.client.MetadataResult;
 import report.butt.mediamanager.client.OmbiClient;
 import report.butt.mediamanager.client.PlexClient;
 import report.butt.mediamanager.client.SonarrClient;
+import report.butt.mediamanager.config.NewRelicTokenExecutorService;
 import report.butt.mediamanager.exceptions.RequestNotFoundException;
 import report.butt.mediamanager.job.FfprobeScanJobRequest;
 import report.butt.mediamanager.model.TvChildRequest;
@@ -314,7 +315,10 @@ public class TvRefreshService {
         if (matched.isEmpty()) {
             return Map.of();
         }
-        ExecutorService pool = Executors.newFixedThreadPool(Math.min(matched.size(), SONARR_FETCH_CONCURRENCY));
+        // Token-propagating so each parallel Sonarr call stays in the enclosing refresh trace rather than running
+        // off-transaction on a pool thread.
+        ExecutorService pool = new NewRelicTokenExecutorService(
+                Executors.newFixedThreadPool(Math.min(matched.size(), SONARR_FETCH_CONCURRENCY)));
         try {
             Map<Integer, CompletableFuture<Map<EpisodeKey, SonarrEpisodeData>>> futures = new HashMap<>(matched.size());
             for (Series s : matched) {

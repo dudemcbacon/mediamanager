@@ -177,6 +177,12 @@ public class FfprobeScanService {
     }
 
     /** Runs the equivalent of {@code ffprobe -v quiet -print_format json -show_format -show_streams <path>}. */
+    /**
+     * Traced separately because this forks the {@code ffprobe} binary, and the agent has no instrumentation for
+     * subprocess execution: without its own span the exec time is lumped in with the request lookup and the scan save,
+     * and on a large file over a network mount the exec is usually the whole story.
+     */
+    @Trace
     private FFmpegProbeResult probe(String localPath) {
         try {
             var ffprobe = new FFprobe(ffprobePath);

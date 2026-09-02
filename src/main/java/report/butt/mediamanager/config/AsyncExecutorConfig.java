@@ -50,6 +50,8 @@ public class AsyncExecutorConfig {
         };
         var executor = new DelegatingSecurityContextExecutorService(Executors.newFixedThreadPool(16, factory));
         executor.setSecurityContextHolderStrategy(securityContextHolderStrategy);
-        return executor;
+        // Outermost so the New Relic token is captured on the true submitting thread. See
+        // NewRelicTokenExecutorService: without it every async view action runs off-transaction and is untraced.
+        return new NewRelicTokenExecutorService(executor);
     }
 }

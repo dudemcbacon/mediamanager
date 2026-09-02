@@ -435,6 +435,7 @@ public class MovieRequestView extends VerticalLayout {
         if (!gridLoadInFlight.compareAndSet(false, true)) {
             return;
         }
+        RequestViewSupport.nameTransaction(log, "Load grid");
         CompletableFuture.supplyAsync(() -> transactionTemplate.execute(status -> buildSnapshot()), uiTaskExecutor)
                 .whenComplete((snapshot, throwable) -> ui.access(() -> {
                     try {
@@ -516,6 +517,7 @@ public class MovieRequestView extends VerticalLayout {
 
     /** Refreshes a single row's DB state (validations, notes, entity) off the UI thread — see {@link #runRowAction}. */
     private void refreshRow(Long id) {
+        RequestViewSupport.nameTransaction(log, "Refresh row");
         getUI().ifPresent(ui -> CompletableFuture.supplyAsync(
                         () -> transactionTemplate.execute(status -> buildRowSnapshot(id)), uiTaskExecutor)
                 .whenComplete((row, throwable) -> ui.access(() -> {
@@ -610,6 +612,7 @@ public class MovieRequestView extends VerticalLayout {
             RequestViewSupport.showCardLoading(radarrQueueValue);
             RequestViewSupport.showCardLoading(radarrHealthValue);
         }
+        RequestViewSupport.nameTransaction(log, "Load stats");
         CompletableFuture<RadarrQueue> queue =
                 CompletableFuture.supplyAsync(movieController::getRadarrQueue, uiTaskExecutor);
         CompletableFuture<List<RadarrHealthItem>> health =
@@ -657,6 +660,7 @@ public class MovieRequestView extends VerticalLayout {
         if (showLoading) {
             grid.getDataProvider().refreshAll();
         }
+        RequestViewSupport.nameTransaction(log, "Load download status");
         CompletableFuture<Map<String, DelugeTorrent>> torrents =
                 CompletableFuture.supplyAsync(delugeClient::getTorrentsStatus, uiTaskExecutor);
         CompletableFuture<Map<String, SabnzbdSlot>> slots =

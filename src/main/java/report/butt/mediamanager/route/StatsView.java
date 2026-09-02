@@ -145,6 +145,7 @@ public class StatsView extends VerticalLayout {
         if (!statsLoading.compareAndSet(false, true)) {
             return;
         }
+        RequestViewSupport.nameTransaction(log, "Load stats");
         CompletableFuture.supplyAsync(this::computeStats, uiTaskExecutor)
                 .whenComplete((stats, throwable) -> ui.access(() -> {
                     try {

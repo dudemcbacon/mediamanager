@@ -1,6 +1,7 @@
 package report.butt.mediamanager.route;
 
 import com.google.errorprone.annotations.Var;
+import com.newrelic.api.agent.NewRelic;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.badge.Badge;
@@ -419,6 +420,7 @@ final class RequestViewSupport {
             NotificationService notificationService,
             Executor executor,
             Consumer<Boolean> setBulkButtonsEnabled) {
+        nameTransaction(log, "Notification check");
         setBulkButtonsEnabled.accept(false);
         var working = new Notification("Running notification check…");
         working.setDuration(0);
@@ -464,6 +466,27 @@ final class RequestViewSupport {
         return "Found " + total + " item(s), but no email was sent (mail not configured or send failed).";
     }
 
+    // --- tracing ---
+
+    /**
+     * Names the New Relic transaction for one Vaadin interaction. Every UIDL request POSTs to the same URL, so the agent
+     * otherwise files every UI action — grid load, bulk search, notification check — under one transaction name; naming
+     * them here is what makes the async work traced by {@code NewRelicTokenExecutorService} tellable apart.
+     *
+     * <p>Must be called on the UI thread, while the UIDL request's transaction is still current — not from the pool
+     * thread the work is handed to.
+     *
+     * <p>The view name comes off the caller's logger rather than a threaded-through parameter: SLF4J loggers here are
+     * created per declaring class, so {@code log.getName()} already identifies the view. {@code action} must stay
+     * low-cardinality — a name built from a title or id would be a metric grouping issue — which is why the working
+     * messages this is called with are all static literals.
+     */
+    static void nameTransaction(Logger log, String action) {
+        var loggerName = log.getName();
+        var view = loggerName.substring(loggerName.lastIndexOf('.') + 1);
+        NewRelic.setTransactionName("Vaadin", view + "/" + action.replace("…", "").trim());
+    }
+
     // --- async actions ---
 
     /**
@@ -477,6 +500,7 @@ final class RequestViewSupport {
     @SuppressWarnings("FutureReturnValueIgnored")
     static void runAsync(
             UI ui, Logger log, String workingMessage, Runnable action, @Nullable Runnable always, Executor executor) {
+        nameTransaction(log, workingMessage);
         var working = new Notification(workingMessage);
         working.setDuration(0);
         working.setPosition(Notification.Position.BOTTOM_START);

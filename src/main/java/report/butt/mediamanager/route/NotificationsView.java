@@ -213,6 +213,7 @@ public class NotificationsView extends VerticalLayout {
         if (!snapshotLoading.compareAndSet(false, true)) {
             return;
         }
+        RequestViewSupport.nameTransaction(log, "Load snapshot");
         CompletableFuture.supplyAsync(notificationService::snapshot, uiTaskExecutor)
                 .whenComplete((snapshot, throwable) -> ui.access(() -> {
                     try {
@@ -276,6 +277,7 @@ public class NotificationsView extends VerticalLayout {
             return;
         }
         setDownloadButtonsEnabled(false);
+        RequestViewSupport.nameTransaction(log, "Delete torrents");
         CompletableFuture.supplyAsync(() -> downloadCleanupService.deleteTorrentsAndReprocess(hashes), uiTaskExecutor)
                 .whenComplete((result, throwable) -> ui.access(() -> {
                     try {
@@ -311,6 +313,7 @@ public class NotificationsView extends VerticalLayout {
         }
         searchAllUnsearchedMovies.setEnabled(false);
         searchAllUnsearchedTv.setEnabled(false);
+        RequestViewSupport.nameTransaction(log, "Search unsearched");
         CompletableFuture.runAsync(
                         () -> {
                             if (tv) {

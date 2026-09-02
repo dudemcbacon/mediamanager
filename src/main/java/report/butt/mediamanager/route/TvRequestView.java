@@ -503,6 +503,7 @@ public class TvRequestView extends VerticalLayout {
         if (!gridLoadInFlight.compareAndSet(false, true)) {
             return;
         }
+        RequestViewSupport.nameTransaction(log, "Load grid");
         CompletableFuture.supplyAsync(() -> transactionTemplate.execute(status -> buildSnapshot()), uiTaskExecutor)
                 .whenComplete((snapshot, throwable) -> ui.access(() -> {
                     try {
@@ -606,6 +607,7 @@ public class TvRequestView extends VerticalLayout {
 
     /** Refreshes a single show's DB state off the UI thread — see {@link #runRowAction}. */
     private void refreshRow(Long id) {
+        RequestViewSupport.nameTransaction(log, "Refresh row");
         getUI().ifPresent(ui -> CompletableFuture.supplyAsync(
                         () -> transactionTemplate.execute(status -> buildRowSnapshot(id)), uiTaskExecutor)
                 .whenComplete((row, throwable) -> ui.access(() -> {
@@ -722,6 +724,7 @@ public class TvRequestView extends VerticalLayout {
             RequestViewSupport.showCardLoading(sonarrQueueValue);
             RequestViewSupport.showCardLoading(sonarrHealthValue);
         }
+        RequestViewSupport.nameTransaction(log, "Load stats");
         CompletableFuture<SonarrQueue> queue =
                 CompletableFuture.supplyAsync(tvController::getSonarrQueue, uiTaskExecutor);
         CompletableFuture<List<SonarrHealthItem>> health =
@@ -761,6 +764,7 @@ public class TvRequestView extends VerticalLayout {
         if (!downloadLoadInFlight.compareAndSet(false, true)) {
             return;
         }
+        RequestViewSupport.nameTransaction(log, "Load download status");
         CompletableFuture<Map<String, DelugeTorrent>> torrents =
                 CompletableFuture.supplyAsync(delugeClient::getTorrentsStatus, uiTaskExecutor);
         CompletableFuture<Map<String, SabnzbdSlot>> slots =
